@@ -36,7 +36,7 @@ public:
   bool SelfCheck();
 
 public:
-  void ExecuteLed(const protocol::srv::LedExecute_Request request,
+  void ExecuteLed(const protocol::srv::LedExecute_Request& request,
     protocol::srv::LedExecute_Response& response);
 
 private:
