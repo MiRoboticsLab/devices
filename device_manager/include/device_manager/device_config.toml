@@ -1,0 +1,10 @@
+[[devices]]
+name = "cyberdog_led"
+
+need_service = true
+service_name = "led_service"
+
+need_topic = false
+topic_name = "Null"
+
+
