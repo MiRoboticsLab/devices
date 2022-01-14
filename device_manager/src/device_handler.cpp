@@ -38,7 +38,7 @@ bool cyberdog::device::DeviceHandler::SelfCheck()
   return led_ptr->SelfCheck();
 }
 
-void cyberdog::device::DeviceHandler::ExecuteLed(const protocol::srv::LedExecute_Request request,
+void cyberdog::device::DeviceHandler::ExecuteLed(const protocol::srv::LedExecute_Request& request,
     protocol::srv::LedExecute_Response& response)
 {
   led_ptr->Play(request, response);

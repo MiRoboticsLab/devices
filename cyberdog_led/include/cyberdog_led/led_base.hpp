@@ -26,10 +26,11 @@ class LedBase
 protected:
   LedBase() {}
 public:
-  virtual bool Config() = 0;
+  virtual void Config() = 0;
   virtual bool Init() = 0;
   virtual bool SelfCheck() = 0;
-  virtual bool Play() = 0;
+  virtual bool Play(const protocol::srv::LedExecute_Request& request,
+    protocol::srv::LedExecute_Response& response) = 0;
 };  // class LedBase
 }  // namespace device
 }  // namespace cyberdog
