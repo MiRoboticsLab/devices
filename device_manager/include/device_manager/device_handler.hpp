@@ -36,8 +36,8 @@ public:
   bool SelfCheck();
 
 public:
-  void ExecuteLed(const protocol::srv::LedExecute_Request& request,
-    protocol::srv::LedExecute_Response& response);
+  void ExecuteLed(const protocol::srv::LedExecute_Request::SharedPtr request,
+    protocol::srv::LedExecute_Response::SharedPtr response);
 
 private:
   std::vector<std::string> device_vec_;
