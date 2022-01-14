@@ -29,8 +29,8 @@ public:
   virtual void Config() = 0;
   virtual bool Init() = 0;
   virtual bool SelfCheck() = 0;
-  virtual bool Play(const protocol::srv::LedExecute_Request& request,
-    protocol::srv::LedExecute_Response& response) = 0;
+  virtual bool Play(const protocol::srv::LedExecute_Request::SharedPtr request,
+    protocol::srv::LedExecute_Response::SharedPtr response) = 0;
 };  // class LedBase
 }  // namespace device
 }  // namespace cyberdog

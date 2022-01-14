@@ -16,27 +16,42 @@
 #include <thread>
 #include <gtest/gtest.h>
 #include "rclcpp/rclcpp.hpp"
+#include "cyberdog_system/robot_code.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "protocol/msg/touch_status.hpp"
 
 using LedSrv = protocol::srv::LedExecute;
-using TouchMsg = protocol::msg::TouchStatus;
+using LedRequest = protocol::srv::LedExecute_Request;
 
 TEST(LedTest, First)
 {
   printf("hello\n");
   rclcpp::Node::SharedPtr node_ptr = std::make_shared<rclcpp::Node>("First");
-  auto _pub = node_ptr->create_publisher<TouchMsg>("touch_status", 10);
-  TouchMsg msg;
-  msg.touch_state = 1;
-  msg.timestamp = 0;
-  int counter = 0;
-  while(counter < 10) {
-    // printf("publish once: %d", counter++);
-     _pub->publish(msg);
+  auto clinet = node_ptr->create_client<LedSrv>("led_execute");
+  auto request = std::make_shared<LedRequest>();
+  request->caller = std::string("LedTester");
+  request->level = 5;
+  request->target = 1;
+  request->timeout = 1;
+  std::vector<int32_t> id_vec;
+  id_vec.push_back(1);
+  id_vec.push_back(2);
+  id_vec.push_back(3);
+
+  if(!clinet->wait_for_service(std::chrono::seconds(5))) {
+    return;
+  }
+  for(auto id : id_vec) {
+    request->id = id;
+    auto result = clinet->async_send_request(request);
+    if(rclcpp::spin_until_future_complete(node_ptr, result) != rclcpp::FutureReturnCode::SUCCESS) {
+      return;
+    } else {
+      EXPECT_EQ(result.get()->code, (int32_t)cyberdog::system::KeyCode::kOK);
+    }
     std::this_thread::sleep_for(std::chrono::seconds(2));
   }
- 
+
 }
 
 int main(int argc, char ** argv)

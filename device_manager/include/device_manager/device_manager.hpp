@@ -43,8 +43,8 @@ private:
   bool IsStateInvalid();
 
 private:
-  void LedServiceCallback(const protocol::srv::LedExecute_Request request,
-    protocol::srv::LedExecute_Response& response);
+  void LedServiceCallback(const protocol::srv::LedExecute_Request::SharedPtr request,
+    protocol::srv::LedExecute_Response::SharedPtr response);
 
 private:
   std::string name_;

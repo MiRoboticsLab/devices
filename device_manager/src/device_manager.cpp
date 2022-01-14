@@ -98,11 +98,12 @@ bool cyberdog::device::DeviceManager::IsStateInvalid()
   return true;
 }
 
-void cyberdog::device::DeviceManager::LedServiceCallback(const protocol::srv::LedExecute_Request request,
-    protocol::srv::LedExecute_Response& response)
+void cyberdog::device::DeviceManager::LedServiceCallback(const protocol::srv::LedExecute_Request::SharedPtr request,
+    protocol::srv::LedExecute_Response::SharedPtr response)
 {
   if(!IsStateInvalid()){
-    response.code = (int32_t)system::KeyCode::kStateInvalid;
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    return;
   }
   device_handler_->ExecuteLed(request, response);
 }
