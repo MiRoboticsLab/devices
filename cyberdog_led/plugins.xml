@@ -1,0 +1,6 @@
+<library path="cyberdog_led">
+  <class type="cyberdog::device::LedCarpo" base_class_type="cyberdog::device::LedBase">
+    <description>This is a led plugin.</description>
+  </class>
+
+</library>
