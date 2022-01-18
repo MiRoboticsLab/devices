@@ -14,8 +14,9 @@
 #ifndef CYBERDOG_LED__LED_BASE_HPP_
 #define CYBERDOG_LED__LED_BASE_HPP_
 #include <string>
-#include "cyberdog_system/robot_code.hpp"
 #include "protocol/srv/led_execute.hpp"
+#include "rclcpp/rclcpp.hpp"
+
 
 namespace cyberdog
 {
@@ -23,14 +24,16 @@ namespace device
 {
 class LedBase
 {
+
+
 protected:
   LedBase() {}
 public:
-  virtual void Config() = 0;
+  virtual bool Config() = 0;
   virtual bool Init() = 0;
   virtual bool SelfCheck() = 0;
-  virtual bool Play(const protocol::srv::LedExecute_Request::SharedPtr request,
-    protocol::srv::LedExecute_Response::SharedPtr response) = 0;
+  virtual void Play(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request,
+  std::shared_ptr<protocol::srv::LedExecute::Response>      info_response) = 0;
 };  // class LedBase
 }  // namespace device
 }  // namespace cyberdog
