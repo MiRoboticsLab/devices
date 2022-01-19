@@ -19,7 +19,7 @@ void cyberdog::device::DeviceHandler::Config()
   cyberdog::device::GetDeviceNames(device_map_);
 }
 
-bool cyberdog::device::DeviceHandler::Init()
+bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
 {
   // std::for_each(device_map_.begin(), device_map_.end(),
   //   [this](std::map<std::string, std::string>::reference name) {
@@ -27,9 +27,14 @@ bool cyberdog::device::DeviceHandler::Init()
   //     this->
   //   });
 
-  pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led", "LedBase");
-  led_ptr = led_loader.createSharedInstance("LedCarpo");
-  // node_ptr->create_service<>
+  pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led", "cyberdog::device::LedBase");
+  led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
+
+  pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
+  touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
+  
+  touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
+  touch_ptr->RegisterTopic(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
   return true;
 }
 
@@ -44,3 +49,9 @@ void cyberdog::device::DeviceHandler::ExecuteLed(const protocol::srv::LedExecute
   led_ptr->Play(request, response);
 }
 
+void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
+{
+  if(touch_pub_ != nullptr) {
+    touch_pub_->publish(msg);
+  }
+}

@@ -1,0 +1,6 @@
+<library path="cyberdog_touch">
+  <class type="cyberdog::device::TouchCarpo" base_class_type="cyberdog::device::TouchBase">
+    <description>This is a touch plugin.</description>
+  </class>
+
+</library>
