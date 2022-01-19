@@ -33,7 +33,7 @@ void cyberdog::device::DeviceManager::Config()
 
 bool cyberdog::device::DeviceManager::Init()
 {
-  if(!device_handler_->Init()) {
+  if(!device_handler_->Init(node_ptr)) {
     // error msg
     return false;
   }

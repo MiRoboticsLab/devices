@@ -28,16 +28,18 @@ namespace device
 class DeviceHandler
 {
 public:
-  DeviceHandler();
-  ~DeviceHandler();
+  DeviceHandler(){};
+  ~DeviceHandler(){};
 
   void Config();
-  bool Init();
+  bool Init(rclcpp::Node::SharedPtr node_ptr);
   bool SelfCheck();
 
 public:
   void ExecuteLed(const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response);
+  
+  void PublishTouch(protocol::msg::TouchStatus msg);
 
 private:
   std::vector<std::string> device_vec_;
@@ -45,6 +47,8 @@ private:
 
 private:
   std::shared_ptr<LedBase> led_ptr {nullptr};
+  std::shared_ptr<TouchBase> touch_ptr {nullptr};
+  rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
 };  // class DeviceHandler
 }  // namespace device
 }  // namespace cyberdog

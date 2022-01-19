@@ -11,26 +11,28 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef DEVICE_MANAGER__DEVICE_CONFIG_HPP_
-#define DEVICE_MANAGER__DEVICE_CONFIG_HPP_
-#include <map>
+#ifndef CYBERDOG_TOUCH__CYBERDOG_TOUCH_HPP_
+#define CYBERDOG_TOUCH__CYBERDOG_TOUCH_HPP_
 #include <string>
-#include <pluginlib/class_loader.hpp>
-#include "cyberdog_led/led_base.hpp"
-#include "cyberdog_touch/touch_base.hpp"
-#include "protocol/srv/led_execute.hpp"
+#include <functional>
+#include "rclcpp/rclcpp.hpp"
 #include "protocol/msg/touch_status.hpp"
 
 namespace cyberdog
 {
 namespace device
 {
-  inline void GetDeviceNames(std::map<std::string, std::string> & name_map) {
-    name_map.insert(std::make_pair("led_base", "LedCarpo"));
-    name_map.insert(std::make_pair("touch_base", "TouchCarpo"));
-  }
+class TouchBase
+{
+  using TouchStatusMsg = protocol::msg::TouchStatus;
+protected:
+  TouchBase();
+public:
+  virtual bool Config() = 0;
+  virtual bool Init(std::function<void(TouchStatusMsg)> f) = 0;
+  virtual bool SelfCheck() = 0;
+  virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> f) = 0;  
+};  // class TouchBasecd
 }  // namespace device
 }  // namespace cyberdog
-
-
-#endif  // DEVICE_MANAGER__DEVICE_CONFIG_HPP_
+#endif  // CYBERDOG_TOUCH__CYBERDOG_TOUCH_HPP_
