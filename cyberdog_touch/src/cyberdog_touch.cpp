@@ -30,7 +30,7 @@ public:
     return true;
   }
 
-  bool Init(std::function<void(TouchStatusMsg)> f) {
+  bool Init(std::function<void(TouchStatusMsg)> f) override {
     RegisterTopic(f);
     std::thread t([this](){
       TouchStatusMsg msg;
@@ -39,6 +39,7 @@ public:
       while (true)
       {
         this->status_function_(msg);
+        std::cout << "touch once~~~" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(2));
       }
     });
@@ -46,10 +47,10 @@ public:
     return true;
   }
 
-  bool SelfCheck() {
+  bool SelfCheck() override {
     return true;
   }
-  bool RegisterTopic(std::function<void(TouchStatusMsg)> f) {
+  bool RegisterTopic(std::function<void(TouchStatusMsg)> f) override {
     status_function_ = f;
     return true;
   }

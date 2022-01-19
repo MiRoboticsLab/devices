@@ -26,7 +26,7 @@ class TouchBase
 {
   using TouchStatusMsg = protocol::msg::TouchStatus;
 protected:
-  TouchBase();
+  TouchBase() {}
 public:
   virtual bool Config() = 0;
   virtual bool Init(std::function<void(TouchStatusMsg)> f) = 0;

@@ -49,7 +49,7 @@ bool cyberdog::device::DeviceManager::Init()
     }
   }
 
-  node_ptr->create_service<protocol::srv::LedExecute>("led_execute",
+  led_service_ = node_ptr->create_service<protocol::srv::LedExecute>("led_execute",
     std::bind(&DeviceManager::LedServiceCallback, this,
       std::placeholders::_1, std::placeholders::_2));
 
@@ -101,9 +101,11 @@ bool cyberdog::device::DeviceManager::IsStateInvalid()
 void cyberdog::device::DeviceManager::LedServiceCallback(const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response)
 {
+  std::cout << "led service~\n";
   if(!IsStateInvalid()){
     response->code = (int32_t)system::KeyCode::kStateInvalid;
     return;
   }
+  std::cout << "led service will into handler~\n";
   device_handler_->ExecuteLed(request, response);
 }

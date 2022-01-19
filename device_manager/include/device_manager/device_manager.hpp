@@ -51,6 +51,7 @@ private:
   std::string name_;
   std::shared_ptr<DeviceHandler> device_handler_ {nullptr};
   rclcpp::Node::SharedPtr node_ptr {nullptr};
+  rclcpp::Service<protocol::srv::LedExecute>::SharedPtr led_service_ {nullptr};
 };  // class DeviceManager
 }  // namespace device
 }  // namespace cyberdog
