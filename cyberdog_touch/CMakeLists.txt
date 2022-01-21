@@ -15,6 +15,8 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
+set(CAMKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c+=11 -pthread")
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)

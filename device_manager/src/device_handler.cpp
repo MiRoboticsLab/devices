@@ -29,12 +29,13 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
 
   pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led", "cyberdog::device::LedBase");
   led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
+  led_ptr->Init();
 
   pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
   touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
   
   touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
-  touch_ptr->RegisterTopic(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
+  touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
   return true;
 }
 
@@ -46,7 +47,9 @@ bool cyberdog::device::DeviceHandler::SelfCheck()
 void cyberdog::device::DeviceHandler::ExecuteLed(const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response)
 {
+  std::cout << "led service has into handler~\n";
   led_ptr->Play(request, response);
+  std::cout << "led service will exit handler~\n";
 }
 
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
