@@ -23,14 +23,10 @@ find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_common_protocol REQUIRED)
 
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
-#include_directories(
- # include/
-#)
 add_library(${PROJECT_NAME} src/led_plugin.cpp)
 message("~~~~~~~~~~~~${CMAKE_CURRENT_SOURCE_DIR}")
+message("+++++++++++++++${CMAKE_INSTALL_DIR}")
+
 target_include_directories(${PROJECT_NAME} PUBLIC
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -74,7 +70,7 @@ endif()
 
 ament_export_include_directories(
   include
-  )
+)
 
 ament_export_libraries(
   ${PROJECT_NAME}
