@@ -14,11 +14,13 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <iostream>
 #include <gtest/gtest.h>
 #include "rclcpp/rclcpp.hpp"
 #include "cyberdog_system/robot_code.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "protocol/msg/touch_status.hpp"
+
 
 using LedSrv = protocol::srv::LedExecute;
 using LedRequest = protocol::srv::LedExecute_Request;
@@ -29,20 +31,21 @@ TEST(LedTest, First)
   rclcpp::Node::SharedPtr node_ptr = std::make_shared<rclcpp::Node>("First");
   auto clinet = node_ptr->create_client<LedSrv>("led_execute");
   auto request = std::make_shared<LedRequest>();
-  request->caller = std::string("LedTester");
-  request->level = 5;
+  request->client = std::string("LedTester");
+  request->priority = 5;
   request->target = 1;
-  request->timeout = 1;
+  request->timeout = 1000;
   std::vector<int32_t> id_vec;
   id_vec.push_back(1);
   id_vec.push_back(2);
   id_vec.push_back(3);
 
   if(!clinet->wait_for_service(std::chrono::seconds(5))) {
+    std::cout<<"fail to run the service"<<std::endl;
     return;
   }
   for(auto id : id_vec) {
-    request->id = id;
+    request->effect = id;
     auto result = clinet->async_send_request(request);
     if(rclcpp::spin_until_future_complete(node_ptr, result) != rclcpp::FutureReturnCode::SUCCESS) {
       return;
