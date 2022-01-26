@@ -21,7 +21,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "common_protocol/common_protocol.hpp"
+#include "cyberdog_system/robot_code.hpp"
 #include "cyberdog_led/led_base.hpp"
+
 
 #define MINI_LED 1
 #define TAIL_LED 2
@@ -146,7 +148,7 @@ public:
       default:
         break;
     }
-    new_request.code = 100;
+    new_request.code = (int32_t)cyberdog::system::KeyCode::kOK;
     info_response->code = new_request.code;
   }
 };  // LedCarpo

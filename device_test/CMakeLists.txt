@@ -23,9 +23,10 @@ ament_target_dependencies(led_test
   cyberdog_system
   )
 
-install(TARGETS led_test
-  DESTINATION lib)
 
+install(TARGETS
+  led_test
+  DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -37,5 +38,9 @@ if(BUILD_TESTING)
   #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+
+
+
 
 ament_package()

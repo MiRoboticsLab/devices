@@ -22,11 +22,9 @@ find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_common_protocol REQUIRED)
+find_package(cyberdog_system REQUIRED)
 
 add_library(${PROJECT_NAME} src/led_plugin.cpp)
-message("~~~~~~~~~~~~${CMAKE_CURRENT_SOURCE_DIR}")
-message("+++++++++++++++${CMAKE_INSTALL_DIR}")
-
 target_include_directories(${PROJECT_NAME} PUBLIC
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -36,6 +34,7 @@ ament_target_dependencies(
   pluginlib
   protocol
   cyberdog_common_protocol
+  cyberdog_system
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE "LED_PLUGIN_BUILDING_LIBRARY")
 pluginlib_export_plugin_description_file( ${PROJECT_NAME} plugins.xml)
