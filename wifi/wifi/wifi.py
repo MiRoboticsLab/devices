@@ -17,10 +17,12 @@ from protocol.srv import Wifi
 from protocol.srv import IP
 
 import rclpy
+from rclpy.node import Node
 import operator
 import subprocess
 
-g_node = None
+from std_msgs.msg import String
+
 
 STATUS_WIFI_GET_INFO = 1
 STATUS_WIFI_CONNECT = 2
@@ -86,37 +88,59 @@ def getIP(if_name: str):
     return "0.0.0.0"
 
 
-def wifi_connect(request, response):
-    global g_node
-
-    response.result = return_connect_status(
-        nmcliConnectWifi(request.ssid, request.pwd))
-    return response
+def getWifiRssi(cmd):
+    # print("cmd " + repr(cmd))
+    res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return res.stdout.read()    
 
 
-def get_ip(request, response):
-    global g_node
+class WifiNode(Node):
 
-    response.ip = getIP('wlan0')
-    return response
+    def __init__(self):
+        super().__init__('wifi')
+        self.srv_wifi = self.create_service(Wifi, 'wifi', self.wifi_connect)
+        self.srv_ip = self.create_service(IP, 'ip', self.get_ip)        
+        self.pub_rssi = self.create_publisher(String, 'wifi_rssi', 0)
+        timer_period = 0.3  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        # self.i = 0
+        self.cmd = 'iw wlan0 link |grep signal | awk -F " " '
+        self.cmd += "'{ print $2 }'"    
+
+    def wifi_connect(self, request, response):
+        response.result = return_connect_status(
+            nmcliConnectWifi(request.ssid, request.pwd))
+        return response
+
+    def get_ip(self, request, response):
+        response.ip = getIP('wlan0')
+        return response
+    
+    def timer_callback(self):
+        msg = String()
+        # self.get_logger().info(repr(getWifiRssi(self.cmd)[1:-1]))
+        # self.i = int.from_bytes(getWifiRssi(self.cmd)[1:-1], byteorder='big', signed=False)
+        rssi = bytes.decode(getWifiRssi(self.cmd)[1:-1])
+        msg.data = 'wifi rssi: %s' % rssi
+        self.pub_rssi.publish(msg)
+        # self.get_logger().info('Publishing: "%s"' % msg.data)
+
+    def __del__(self):
+        self.destroy_service(self.srv_wifi)
+        self.destroy_service(self.srv_ip)
 
 
 def main(args=None):
     global g_node
     rclpy.init(args=args)
 
-    g_node = rclpy.create_node('wifi')
-
-    srv_wifi = g_node.create_service(Wifi, 'wifi', wifi_connect)
-    srv_ip = g_node.create_service(IP, 'ip', get_ip)
-    while rclpy.ok():
-        rclpy.spin_once(g_node)
+    wifi_node = WifiNode()
+    rclpy.spin(wifi_node)
 
     # Destroy the service attached to the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    g_node.destroy_service(srv_wifi)
-    g_node.destroy_service(srv_ip)
+    wifi_node.destroy_node()
     rclpy.shutdown()
 
 
