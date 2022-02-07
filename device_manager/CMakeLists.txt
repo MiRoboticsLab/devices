@@ -40,8 +40,11 @@ ament_target_dependencies(${PROJECT_NAME}
   pluginlib
   )
 
-install(TARGETS ${PROJECT_NAME}
-  DESTINATION lib)
+install(TARGETS 
+  ${PROJECT_NAME}
+  DESTINATION lib/${PROJECT_NAME})
+
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
