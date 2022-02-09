@@ -21,7 +21,7 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
-find_package(cyberdog_common_protocol REQUIRED)
+find_package(cyberdog_embed_protocol REQUIRED)
 find_package(cyberdog_system REQUIRED)
 
 add_library(${PROJECT_NAME} src/led_plugin.cpp)
@@ -33,7 +33,7 @@ ament_target_dependencies(
   ${PROJECT_NAME}
   pluginlib
   protocol
-  cyberdog_common_protocol
+  cyberdog_embed_protocol
   cyberdog_system
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE "LED_PLUGIN_BUILDING_LIBRARY")
