@@ -1,4 +1,4 @@
-# -- common params -- #
+# -- embed params -- #
 # protocol = "can"             (string)
 # name = "can_device_name"     (string)
 # [optional] for_send = false  (true / false)
