@@ -169,17 +169,11 @@ void LedCarpo::tail_led_thread()
   std::unique_lock<std::mutex> run_tail_led_lock(tail_led_run_mutex);
   auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
   auto local_config_dir = local_share_dir + std::string("/toml_config/device/tail_led.toml");
-  RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir==%s",local_config_dir.c_str());
-
+  RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir= %s",local_config_dir.c_str());
   cyberdog::embed::Protocol<TailLed> tail_led_can(
     local_config_dir, true);
-      RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir");
-
   tail_led_can.LINK_VAR(tail_led_can.GetData()->effect_id);
-    RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir");
-
   auto tail_led_data = tail_led_can.GetData();
-  RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir");
 
   while (!ready) {
     tail_led_waitcv.wait(
