@@ -23,6 +23,10 @@ find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_embed_protocol REQUIRED)
 find_package(cyberdog_system REQUIRED)
+find_package(params REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+
+
 
 add_library(${PROJECT_NAME} src/led_plugin.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -35,6 +39,8 @@ ament_target_dependencies(
   protocol
   cyberdog_embed_protocol
   cyberdog_system
+  params
+  ament_index_cpp
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE "LED_PLUGIN_BUILDING_LIBRARY")
 pluginlib_export_plugin_description_file( ${PROJECT_NAME} plugins.xml)
