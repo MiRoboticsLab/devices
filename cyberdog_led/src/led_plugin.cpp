@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "embed_protocol/embed_protocol.hpp"
 #include "cyberdog_system/robot_code.hpp"
@@ -166,10 +167,14 @@ void LedCarpo::tail_led_thread()
   RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "begin tail_led_thread.");
   RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "tail_led_thread dump.");
   std::unique_lock<std::mutex> run_tail_led_lock(tail_led_run_mutex);
+  auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
+  auto local_config_dir = local_share_dir + std::string("/toml_config/device/tail_led.toml");
+  RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir= %s",local_config_dir.c_str());
   cyberdog::embed::Protocol<TailLed> tail_led_can(
-    "/home/mi/cyberdog_ws/devices/cyberdog_led/tail_led.toml", true);
+    local_config_dir, true);
   tail_led_can.LINK_VAR(tail_led_can.GetData()->effect_id);
   auto tail_led_data = tail_led_can.GetData();
+
   while (!ready) {
     tail_led_waitcv.wait(
       run_tail_led_lock, [&] {
@@ -217,8 +222,10 @@ void LedCarpo::mini_led_thread()
   RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "begin mini_led_thread.");
   RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "mini_led_thread dump.");
   std::unique_lock<std::mutex> run_mini_led_lock(mini_led_run_mutex);
+  auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
+  auto local_config_dir = local_share_dir + std::string("/toml_config/device/mini_led.toml");
   cyberdog::embed::Protocol<MiniLed> mini_led_can(
-    "/home/mi/cyberdog_ws/devices/cyberdog_led/mini_led.toml", true);
+    local_config_dir, true);
   mini_led_can.LINK_VAR(mini_led_can.GetData()->effect_id);
   auto mini_led_data = mini_led_can.GetData();
   while (!ready) {

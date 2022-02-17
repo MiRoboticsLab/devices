@@ -11,6 +11,8 @@
   <depend>pluginlib</depend>
   <depend>protocol</depend>
   <depend>cyberdog_embed_protocol</depend>
+  <depend>params</depend>
+  <depend>ament_index_cpp</depend>
  
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
