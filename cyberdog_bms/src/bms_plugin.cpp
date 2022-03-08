@@ -56,6 +56,8 @@ void BMSCarpo::RunBmsTask()
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
     bms_thread_.detach();
+
+    // 
 }
 
 

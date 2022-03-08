@@ -1,0 +1,26 @@
+[New] create cyberdog_bms package
+
+	1 create bms task interface
+	2 create touch file and handle function interface
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch dev
+# Your branch is up to date with 'origin/dev'.
+#
+# Changes to be committed:
+#	new file:   cyberdog_bms/CMakeLists.txt
+#	new file:   cyberdog_bms/include/cyberdog_bms/bms_base.hpp
+#	new file:   cyberdog_bms/include/cyberdog_bms/bms_plugin.hpp
+#	new file:   cyberdog_bms/include/cyberdog_bms/bms_processor.hpp
+#	new file:   cyberdog_bms/package.xml
+#	new file:   cyberdog_bms/plugins.xml
+#	new file:   cyberdog_bms/src/bms_plugin.cpp
+#	new file:   cyberdog_bms/src/bms_processor.cpp
+#	modified:   cyberdog_led/CMakeLists.txt
+#	modified:   cyberdog_touch/CMakeLists.txt
+#	new file:   cyberdog_touch/include/cyberdog_touch/touch_plugin.hpp
+#	modified:   cyberdog_touch/src/cyberdog_touch.cpp
+#	new file:   cyberdog_touch/src/touch_plugin.cpp
+#
