@@ -24,7 +24,9 @@ find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 
-add_library(${PROJECT_NAME} src/cyberdog_touch.cpp)
+add_library(${PROJECT_NAME} 
+  src/cyberdog_touch.cpp
+  src/touch_plugin.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
