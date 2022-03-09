@@ -23,8 +23,13 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
+find_package(cyberdog_common REQUIRED)
 
-add_library(${PROJECT_NAME} src/cyberdog_touch.cpp)
+add_library(${PROJECT_NAME} 
+  src/cyberdog_touch.cpp
+  src/touch_plugin.cpp
+  src/touch_input_event_reader.cpp
+  src/touch_sensor_handler.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -34,6 +39,7 @@ ament_target_dependencies(
   ${PROJECT_NAME}
   pluginlib
   protocol
+  cyberdog_common
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE "TOUCH_PLUGIN_BUILDING_LIBRARY")

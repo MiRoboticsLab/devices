@@ -11,29 +11,38 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef DEVICE_MANAGER__DEVICE_CONFIG_HPP_
-#define DEVICE_MANAGER__DEVICE_CONFIG_HPP_
-#include <map>
-#include <string>
-#include <pluginlib/class_loader.hpp>
-#include "cyberdog_led/led_base.hpp"
-#include "cyberdog_bms/bms_base.hpp"
-#include "cyberdog_touch/touch_base.hpp"
-#include "protocol/srv/led_execute.hpp"
-#include "protocol/msg/touch_status.hpp"
-#include "protocol/msg/bms.hpp"
 
-namespace cyberdog
-{
-namespace device
-{
-  inline void GetDeviceNames(std::map<std::string, std::string> & name_map) {
-    name_map.insert(std::make_pair("led_base", "LedCarpo"));
-    name_map.insert(std::make_pair("touch_base", "TouchCarpo"));
-    name_map.insert(std::make_pair("bms_base", "BMSCarpo"));
-  }
+#ifndef CYBERDOG_BMS__BMS_BASE_HPP_
+#define CYBERDOG_BMS__BMS_BASE_HPP_
+
+#include <string>
+#include <memory>
+#include "rclcpp/rclcpp.hpp"
+#include "protocol/srv/led_execute.hpp"
+#include "protocol/msg/bms.hpp"
+#include "protocol/srv/bms_info.hpp"
+
+namespace cyberdog {
+namespace device {
+
+class BMSBase
+{   
+public:
+    using BmsStatusMsg = protocol::msg::Bms;
+
+    virtual bool Config() = 0;
+    virtual bool Init(std::function<void(BmsStatusMsg)> function_callback) = 0;
+    virtual bool SelfCheck() = 0;
+    virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
+    virtual void Report(
+        const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
+        std::shared_ptr<protocol::srv::BmsInfo::Response> response) = 0;
+
+protected:
+    BMSBase() {}
+ 
+};  // class BMSBase
 }  // namespace device
 }  // namespace cyberdog
 
-
-#endif  // DEVICE_MANAGER__DEVICE_CONFIG_HPP_
+#endif  // CYBERDOG_BMS__BMS_BASE_HPP_

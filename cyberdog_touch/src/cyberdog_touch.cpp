@@ -13,8 +13,10 @@
 // limitations under the License.
 #include <thread>
 #include <chrono>
+
 #include "cyberdog_touch/touch_base.hpp"
 
+#if 0
 namespace cyberdog
 {
 namespace device
@@ -63,3 +65,4 @@ public:
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS( cyberdog::device::TouchCarpo, cyberdog::device::TouchBase)
+#endif 

@@ -20,7 +20,9 @@ find_package(manager_base REQUIRED)
 find_package(protocol REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(cyberdog_system REQUIRED)
+find_package(cyberdog_common REQUIRED)
 find_package(cyberdog_led REQUIRED)
+find_package(cyberdog_bms REQUIRED)
 find_package(cyberdog_touch REQUIRED)
 
 include_directories(include)
@@ -35,10 +37,12 @@ ament_target_dependencies(${PROJECT_NAME}
   protocol
   manager_base
   cyberdog_system
+  cyberdog_common
   cyberdog_led
+  cyberdog_bms
   cyberdog_touch
   pluginlib
-  )
+)
 
 install(TARGETS 
   ${PROJECT_NAME}
