@@ -25,22 +25,19 @@ bool TouchCarpo::Config()
     return true;
 }
 
-bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> f)  
+bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback)  
 {
-    RegisterTopic(f);
-    std::thread t([this](){
-        TouchStatusMsg msg;
-        msg.timestamp = 0;
-        msg.touch_state = 1;
-        while (true)
-        {
-        this->status_function_(msg);
-        std::cout << "touch once~~~" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        }
-    });
-    t.detach();
-    return true;
+    touch_handler_ = std::make_shared<TouchSensorHandler>();
+    touch_thread_  = std::thread(std::bind(&TouchCarpo::RunTouchTask, this));
+    initialized_finished_ = RegisterTopic(function_callback);
+
+    if (!initialized_finished_) {
+        WARN("[TouchCarpo]: %s", "Function Init() error.");
+        return initialized_finished_;
+    } 
+
+    INFO("[TouchCarpo]: %s", "TouchCarpo initialize success.");
+    return initialized_finished_;
 }
 
 bool TouchCarpo::SelfCheck()  
@@ -49,10 +46,42 @@ bool TouchCarpo::SelfCheck()
 }
 
 
-bool TouchCarpo::RegisterTopic(std::function<void(TouchStatusMsg)> f)  
+bool TouchCarpo::RegisterTopic(std::function<void(TouchStatusMsg)> function_callback)  
 {
-    status_function_ = f;
+    status_function_ = function_callback;
     return true;
+}
+
+void TouchCarpo::RunTouchTask()
+{
+    if (!initialized_finished_) {
+
+        WARN("[TouchCarpo]: %s", "touch sensor handler create failed!");
+        return;
+    }
+
+    int ret = -1;
+    int ret_count, count = 1;
+    struct input_event* touch_event = (struct input_event *)malloc(sizeof(struct input_event) * count);
+
+    while (true)
+    {
+        ret_count = touch_handler_->pollTouchEvents(touch_event, count);
+        if (ret_count <= 0) 
+            continue;
+
+        if ((touch_event->type == EV_KEY)) {
+            ret = touch_event->code - GESTURE_XM_ADDR;
+            TouchStatusMsg message;
+            message.touch_state = ret;
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            message.timestamp = ts.tv_sec * 1000000000 + ts.tv_nsec;
+            INFO("[TouchCarpo]: touch sensor data received: 0x%x", message.touch_state);
+            status_function_(std::move(message));
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        }  
+    }
 }
 
 }  // namespace device

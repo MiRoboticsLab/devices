@@ -17,9 +17,11 @@
 #include <string>
 #include <pluginlib/class_loader.hpp>
 #include "cyberdog_led/led_base.hpp"
+#include "cyberdog_bms/bms_base.hpp"
 #include "cyberdog_touch/touch_base.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "protocol/msg/touch_status.hpp"
+#include "protocol/msg/bms.hpp"
 
 namespace cyberdog
 {
@@ -28,6 +30,7 @@ namespace device
   inline void GetDeviceNames(std::map<std::string, std::string> & name_map) {
     name_map.insert(std::make_pair("led_base", "LedCarpo"));
     name_map.insert(std::make_pair("touch_base", "TouchCarpo"));
+    name_map.insert(std::make_pair("bms_base", "BMSCarpo"));
   }
 }  // namespace device
 }  // namespace cyberdog

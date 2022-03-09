@@ -19,7 +19,10 @@
 #include <memory>
 #include <string>
 
+#include "cyberdog_touch/touch_sensor_handler.hpp"
 #include "cyberdog_touch/touch_base.hpp"
+#include "cyberdog_common/cyberdog_log.hpp"
+
 #include "rclcpp/rclcpp.hpp"
 
 
@@ -32,12 +35,18 @@ public:
     using TouchStatusMsg = protocol::msg::TouchStatus;
 
     virtual bool Config() override;
-    virtual bool Init(std::function<void(TouchStatusMsg)> f) override;
+    virtual bool Init(std::function<void(TouchStatusMsg)> function_callback) override;
     virtual bool SelfCheck() override;
-    virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> f) override;
+    virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> function_callback) override;
     
 private:
+    void RunTouchTask();
+
     std::function<void(TouchStatusMsg)> status_function_;
+    std::shared_ptr<TouchSensorHandler> touch_handler_;
+    std::thread touch_thread_;
+
+     bool initialized_finished_ {false};
 
 }; // class TouchCarpo 
 

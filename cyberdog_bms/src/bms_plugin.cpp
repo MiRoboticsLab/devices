@@ -23,9 +23,9 @@ bool BMSCarpo::Config()
     return true;
 }
 
-bool BMSCarpo::Init()
+bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback)
 {
-    // RegisterTopic(function_callback);
+    RegisterTopic(function_callback);
     bms_thread_ = std::thread(std::bind(&BMSCarpo::RunBmsTask, this));
 
     initialized_finished_ = true;
@@ -53,11 +53,15 @@ void BMSCarpo::RunBmsTask()
 {
     while (true)
     {
+        // if () {
+
+        // }
+        
+
+        auto message = bms_processor_->bms_message();
+        status_function_(message);
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-    bms_thread_.detach();
-
-    // 
 }
 
 

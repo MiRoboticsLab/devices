@@ -19,6 +19,7 @@
 #include <map>
 #include <functional>
 #include <condition_variable>
+
 #include "device_manager/device_config.hpp"
 
 namespace cyberdog
@@ -40,6 +41,7 @@ public:
     protocol::srv::LedExecute_Response::SharedPtr response);
   
   void PublishTouch(protocol::msg::TouchStatus msg);
+  void PublishBmsMessage(protocol::msg::Bms msg);
 
 private:
   std::vector<std::string> device_vec_;
@@ -48,7 +50,11 @@ private:
 private:
   std::shared_ptr<LedBase> led_ptr {nullptr};
   std::shared_ptr<TouchBase> touch_ptr {nullptr};
+  std::shared_ptr<BMSBase> bms_ptr_ {nullptr};
+
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
+  rclcpp::Publisher<protocol::msg::Bms>::SharedPtr bms_pub_ {nullptr};
+
 };  // class DeviceHandler
 }  // namespace device
 }  // namespace cyberdog

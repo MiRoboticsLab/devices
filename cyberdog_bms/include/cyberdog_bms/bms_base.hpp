@@ -31,9 +31,9 @@ public:
     using BmsStatusMsg = protocol::msg::Bms;
 
     virtual bool Config() = 0;
-    virtual bool Init() = 0;
+    virtual bool Init(std::function<void(BmsStatusMsg)> function_callback) = 0;
     virtual bool SelfCheck() = 0;
-    virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function) = 0;
+    virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
     virtual void Report(
         const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
         std::shared_ptr<protocol::srv::BmsInfo::Response> response) = 0;

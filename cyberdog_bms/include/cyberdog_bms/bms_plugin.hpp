@@ -37,7 +37,7 @@ public:
     using BmsStatusMsg = protocol::msg::Bms;
 
     virtual bool Config() override;
-    virtual bool Init() override;
+    virtual bool Init(std::function<void(BmsStatusMsg)> function_callback) override;
     virtual bool SelfCheck() override;
     virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) override;
     virtual void Report(
