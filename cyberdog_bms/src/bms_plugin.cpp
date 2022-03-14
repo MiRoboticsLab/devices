@@ -53,11 +53,6 @@ void BMSCarpo::RunBmsTask()
 {
     while (true)
     {
-        // if () {
-
-        // }
-        
-
         auto message = bms_processor_->bms_message();
         status_function_(message);
         std::this_thread::sleep_for(std::chrono::seconds(2));

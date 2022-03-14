@@ -25,11 +25,29 @@
 namespace cyberdog {
 namespace device {
 
-typedef enum{
-	LED_OFF,
-	LED_BLINK,
-	LED_NORMAL,
-} LED_STATUS_T;
+struct CanProtocolBmsType 
+{
+    uint16_t  batt_volt;
+    int16_t   batt_curr;
+    uint8_t  batt_soc;
+    int16_t   batt_temp;
+    uint8_t  batt_st;
+    uint8_t  key_val;
+    uint8_t  disable_charge;
+    uint8_t  power_supply;
+    uint8_t  buzze;
+    uint8_t  status;
+    int8_t   batt_health;
+    int16_t   batt_loop_number;
+    int8_t   powerboard_status;
+};
+
+enum class Command
+{
+    kBuzze,
+    kPowerSupply,
+    kDisableCharge
+};
 
 class BmsProcessor
 {
@@ -37,22 +55,21 @@ public:
     BmsProcessor();
     
     // Get protocol go though by emv
-    void HandleBMSMessages(std::string& name, std::shared_ptr<protocol::msg::Bms> data);
+    void HandleBMSMessages(std::string& name, std::shared_ptr<CanProtocolBmsType> data);
+
+    // command status for other device
+    bool SendCommand(const Command& command);
 
     // Get BMS message
     protocol::msg::Bms bms_message() const { return bms_message_; }
 
 private:
     void InitializeBmsProtocol();
-    void SetBuzze(const protocol::msg::Bms::SharedPtr msg);
-    void SetPowerSupply(const protocol::msg::Bms::SharedPtr msg);
-    void SetDisableCharge(const protocol::msg::Bms::SharedPtr msg);
-    void SetShutdown();
-    void ControlLEDState(LED_STATUS_T status);
     void DebugString();
+    protocol::msg::Bms ToROSBmsMessage(std::shared_ptr<CanProtocolBmsType> data);
 
     protocol::msg::Bms bms_message_;
-    std::shared_ptr<embed::Protocol<protocol::msg::Bms>> bms_protocol_bridge_;
+    std::shared_ptr<embed::Protocol<CanProtocolBmsType>> bms_protocol_bridge_;
 };
  
 }  // namespace devices
