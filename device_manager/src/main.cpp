@@ -16,6 +16,7 @@
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
+  
   auto device_manager = std::make_shared<cyberdog::device::DeviceManager>(std::string("device_manager"));
   device_manager->Config();
   if(!device_manager->Init()) {

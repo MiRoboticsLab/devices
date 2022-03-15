@@ -49,7 +49,7 @@ private:
 
 private:
   std::shared_ptr<LedBase> led_ptr {nullptr};
-  std::shared_ptr<TouchBase> touch_ptr {nullptr};
+  // std::shared_ptr<TouchBase> touch_ptr {nullptr};
   std::shared_ptr<BMSBase> bms_ptr_ {nullptr};
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};

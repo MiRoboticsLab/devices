@@ -21,29 +21,29 @@
 #include <sys/types.h>
 #include <linux/input.h>
 
-namespace cyberdog {
-namespace device {
+namespace cyberdog
+{
+namespace device
+{
 
-class InputEventCircularReader 
+class InputEventCircularReader
 {
 public:
-    InputEventCircularReader(size_t numEvents);
-    ~InputEventCircularReader();
-    ssize_t fill(int fd);
-    ssize_t readEvent(input_event const ** events);
-    void next();
+  explicit InputEventCircularReader(size_t numEvents);
+  ~InputEventCircularReader();
+  ssize_t fill(int fd);
+  ssize_t readEvent(input_event const ** events);
+  void next();
 
 private:
-    struct input_event * const mBuffer;
-    struct input_event * const mBufferEnd;
-    struct input_event * mHead;
-    struct input_event * mCurr;
-    ssize_t mFreeSpace;
+  struct input_event * const mBuffer;
+  struct input_event * const mBufferEnd;
+  struct input_event * mHead;
+  struct input_event * mCurr;
+  ssize_t mFreeSpace;
 };
 
-}  // namespace devices
-}  // namespace cyberdog
+}  //  namespace device
+}  //  namespace cyberdog
 
-#endif // CYBERDOG_TOUCH__TOUCH_INPUT_EVENT_READER_HPP_
-
-
+#endif  // CYBERDOG_TOUCH__TOUCH_INPUT_EVENT_READER_HPP_

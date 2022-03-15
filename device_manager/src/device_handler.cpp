@@ -31,14 +31,15 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
   led_ptr->Init();
 
-  pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
-  touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
+  // pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
+  // touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
 
   pluginlib::ClassLoader<cyberdog::device::BMSBase> bms_loader("cyberdog_bms", "cyberdog::device::BMSBase");
   bms_ptr_ = bms_loader.createSharedInstance("cyberdog::device::BMSCarpo");
+                                              
   
-  touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
-  touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
+  // touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
+  // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
 
   bms_pub_  = node_ptr->create_publisher<protocol::msg::Bms>("bms_status", 10);
   bms_ptr_->Init(std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1));
@@ -61,14 +62,14 @@ void cyberdog::device::DeviceHandler::ExecuteLed(const protocol::srv::LedExecute
 
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
 {
-  if(touch_pub_ != nullptr) {
-    touch_pub_->publish(msg);
-  }
+  // if(touch_pub_ != nullptr) {
+  //   touch_pub_->publish(msg);
+  // }
 }
 
 void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::Bms msg)
 {
   if(bms_pub_ != nullptr) {
-    bms_pub_->publish(msg);
+     bms_pub_->publish(msg);
   }
 }

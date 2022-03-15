@@ -22,25 +22,26 @@
 #include "protocol/msg/bms.hpp"
 #include "protocol/srv/bms_info.hpp"
 
-namespace cyberdog {
-namespace device {
+namespace cyberdog
+{
+namespace device
+{
 
 class BMSBase
-{   
+{
 public:
-    using BmsStatusMsg = protocol::msg::Bms;
+  using BmsStatusMsg = protocol::msg::Bms;
 
-    virtual bool Config() = 0;
-    virtual bool Init(std::function<void(BmsStatusMsg)> function_callback) = 0;
-    virtual bool SelfCheck() = 0;
-    virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
-    virtual void Report(
-        const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
-        std::shared_ptr<protocol::srv::BmsInfo::Response> response) = 0;
+  virtual bool Config() = 0;
+  virtual bool Init(std::function<void(BmsStatusMsg)> function_callback) = 0;
+  virtual bool SelfCheck() = 0;
+  virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
+  virtual void Report(
+    const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
+    std::shared_ptr<protocol::srv::BmsInfo::Response> response) = 0;
 
 protected:
-    BMSBase() {}
- 
+  BMSBase() {}
 };  // class BMSBase
 }  // namespace device
 }  // namespace cyberdog
