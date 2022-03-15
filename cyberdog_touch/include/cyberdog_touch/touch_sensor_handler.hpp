@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CYBERDOG_TOUCH__TOUCH_SENSOR_HANDLLER_HPP_
-#define CYBERDOG_TOUCH__TOUCH_SENSOR_HANDLLER_HPP_
+#ifndef CYBERDOG_TOUCH__TOUCH_SENSOR_HANDLER_HPP_
+#define CYBERDOG_TOUCH__TOUCH_SENSOR_HANDLER_HPP_
 
 #include <stdint.h>
 #include <errno.h>
@@ -52,26 +52,26 @@
 #define LPWG_SWIPE_RIGHT                             0x08
 #endif
 
-namespace cyberdog {
-namespace device {
+namespace cyberdog
+{
+namespace device
+{
 
-class TouchSensorHandler: public InputEventCircularReader 
+class TouchSensorHandler : public InputEventCircularReader
 {
 public:
-    TouchSensorHandler();
-    ~TouchSensorHandler();
-    int openInput(void);
-    int processEvents(input_event * data, int count);
-    int pollTouchEvents(input_event * data, int count);
-    int getFd() const;
-    int data_fd;
-    struct input_event mPendingEvent;
-    struct pollfd mPollFd;
+  TouchSensorHandler();
+  ~TouchSensorHandler();
+  int openInput(void);
+  int processEvents(input_event * data, int count);
+  int pollTouchEvents(input_event * data, int count);
+  int getFd() const;
+  int data_fd;
+  struct input_event mPendingEvent;
+  struct pollfd mPollFd;
 };
 
-}  // namespace devices
+}  // namespace device
 }  // namespace cyberdog
 
-#endif // CYBERDOG_TOUCH__TOUCH_SENSOR_HANDLLER_HPP_
-
-
+#endif  // CYBERDOG_TOUCH__TOUCH_SENSOR_HANDLER_HPP_

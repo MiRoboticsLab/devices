@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CYBERDOG_TOUCH__CYBERDOG_TOUCH_HPP_
-#define CYBERDOG_TOUCH__CYBERDOG_TOUCH_HPP_
+#ifndef CYBERDOG_TOUCH__TOUCH_BASE_HPP_
+#define CYBERDOG_TOUCH__TOUCH_BASE_HPP_
+
 #include <string>
 #include <functional>
 #include "rclcpp/rclcpp.hpp"
@@ -26,14 +27,18 @@ namespace device
 class TouchBase
 {
   using TouchStatusMsg = protocol::msg::TouchStatus;
+
 protected:
   TouchBase() {}
+
 public:
   virtual bool Config() = 0;
   virtual bool Init(std::function<void(TouchStatusMsg)> f) = 0;
   virtual bool SelfCheck() = 0;
-  virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> f) = 0;  
-};  // class TouchBasecd
-}  // namespace device
-}  // namespace cyberdog
-#endif  // CYBERDOG_TOUCH__CYBERDOG_TOUCH_HPP_
+  virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> f) = 0;
+};  //  class TouchBasecd
+
+}  //  namespace device
+}  //  namespace cyberdog
+
+#endif  // CYBERDOG_TOUCH__TOUCH_BASE_HPP_

@@ -25,7 +25,7 @@ find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_common REQUIRED)
 
-add_library(${PROJECT_NAME} 
+add_library(${PROJECT_NAME}
   src/cyberdog_touch.cpp
   src/touch_plugin.cpp
   src/touch_input_event_reader.cpp
@@ -63,9 +63,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_export_include_directories(
-  include
-  )
+ament_export_include_directories(include)
 
 ament_export_libraries(
   ${PROJECT_NAME}

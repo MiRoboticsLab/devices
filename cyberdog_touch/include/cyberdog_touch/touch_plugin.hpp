@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef TOUCH_PLUGIN__TOUCH_PLUGIN_HPP_
-#define TOUCH_PLUGIN__TOUCH_PLUGIN_HPP_
+#ifndef CYBERDOG_TOUCH__TOUCH_PLUGIN_HPP_
+#define CYBERDOG_TOUCH__TOUCH_PLUGIN_HPP_
 
 
 #include <memory>
@@ -26,31 +26,29 @@
 #include "rclcpp/rclcpp.hpp"
 
 
-namespace cyberdog {
-namespace device {
-
+namespace cyberdog
+{
+namespace device
+{
 class TouchCarpo : public cyberdog::device::TouchBase
 {
 public:
-    using TouchStatusMsg = protocol::msg::TouchStatus;
+  using TouchStatusMsg = protocol::msg::TouchStatus;
 
-    virtual bool Config() override;
-    virtual bool Init(std::function<void(TouchStatusMsg)> function_callback) override;
-    virtual bool SelfCheck() override;
-    virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> function_callback) override;
-    
+  virtual bool Config();
+  virtual bool Init(std::function<void(TouchStatusMsg)> function_callback);
+  virtual bool SelfCheck();
+  virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> function_callback);
+
 private:
-    void RunTouchTask();
+  void RunTouchTask();
+  std::function<void(TouchStatusMsg)> status_function_;
+  std::shared_ptr<TouchSensorHandler> touch_handler_;
+  std::thread touch_thread_;
+  bool initialized_finished_ {false};
+};  //  class TouchCarpo
 
-    std::function<void(TouchStatusMsg)> status_function_;
-    std::shared_ptr<TouchSensorHandler> touch_handler_;
-    std::thread touch_thread_;
+}  //  namespace device
+}  //  namespace cyberdog
 
-     bool initialized_finished_ {false};
-
-}; // class TouchCarpo 
-
-}  // namespace devices
-}  // namespace cyberdog
-
-#endif  // TOUCH_PLUGIN__TOUCH_PLUGIN_HPP_
+#endif  // CYBERDOG_TOUCH__TOUCH_PLUGIN_HPP_
