@@ -11,11 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include <string>
+#include <memory>
+
 #include "rclcpp/rclcpp.hpp"
 #include "device_manager/device_manager.hpp"
 
-cyberdog::device::DeviceManager::DeviceManager(const std::string& name)
-  : manager::ManagerBase(name),
+cyberdog::device::DeviceManager::DeviceManager(const std::string & name)
+: manager::ManagerBase(name),
   name_(name)
 {
   node_ptr = rclcpp::Node::make_shared(name_);
@@ -28,31 +32,32 @@ cyberdog::device::DeviceManager::~DeviceManager()
 void cyberdog::device::DeviceManager::Config()
 {
   device_handler_->Config();
-  // TODO: config priority and robot states
+  // config priority and robot states
 }
 
 bool cyberdog::device::DeviceManager::Init()
 {
-  if(!device_handler_->Init(node_ptr)) {
+  if (!device_handler_->Init(node_ptr)) {
     // error msg
     return false;
   }
-  if(!RegisterStateHandler(node_ptr)) {
+  if (!RegisterStateHandler(node_ptr)) {
     return false;
   } else {
-    if(! RegisterInitHandler(node_ptr)) {
+    if (!RegisterInitHandler(node_ptr)) {
       return false;
     } else {
-      if(!RegisterHeartbeats(node_ptr)) {
+      if (!RegisterHeartbeats(node_ptr)) {
         return false;
       }
     }
   }
 
-  led_service_ = node_ptr->create_service<protocol::srv::LedExecute>("led_execute",
-    std::bind(&DeviceManager::LedServiceCallback, this,
+  led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
+    "led_execute",
+    std::bind(
+      &DeviceManager::LedServiceCallback, this,
       std::placeholders::_1, std::placeholders::_2));
-
   return true;
 }
 
@@ -94,15 +99,16 @@ void cyberdog::device::DeviceManager::OnActive()
 
 bool cyberdog::device::DeviceManager::IsStateInvalid()
 {
-  // TODO: check from config priority and current states
+  // check from config priority and current states
   return true;
 }
 
-void cyberdog::device::DeviceManager::LedServiceCallback(const protocol::srv::LedExecute_Request::SharedPtr request,
-    protocol::srv::LedExecute_Response::SharedPtr response)
+void cyberdog::device::DeviceManager::LedServiceCallback(
+  const protocol::srv::LedExecute_Request::SharedPtr request,
+  protocol::srv::LedExecute_Response::SharedPtr response)
 {
   std::cout << "led service~\n";
-  if(!IsStateInvalid()){
+  if (!IsStateInvalid()) {
     response->code = (int32_t)system::KeyCode::kStateInvalid;
     return;
   }

@@ -27,7 +27,7 @@ find_package(cyberdog_touch REQUIRED)
 
 include_directories(include)
 
-add_executable(${PROJECT_NAME} 
+add_executable(${PROJECT_NAME}
   src/device_manager.cpp
   src/device_handler.cpp
   src/main.cpp)
@@ -44,7 +44,7 @@ ament_target_dependencies(${PROJECT_NAME}
   pluginlib
 )
 
-install(TARGETS 
+install(TARGETS
   ${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME})
 

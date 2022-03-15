@@ -26,22 +26,21 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   //     pluginlib::ClassLoader<cyberdog::device::CyberDogLed> led_loader(name.first, name.second);
   //     this->
   //   });
-
-  pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led", "cyberdog::device::LedBase");
+  pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led",
+    "cyberdog::device::LedBase");
   led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
   led_ptr->Init();
 
-  // pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
+  // pluginlib::ClassLoader<cyberdog::device::TouchBase>
+  // touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
   // touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
-
-  pluginlib::ClassLoader<cyberdog::device::BMSBase> bms_loader("cyberdog_bms", "cyberdog::device::BMSBase");
+  pluginlib::ClassLoader<cyberdog::device::BMSBase> bms_loader("cyberdog_bms",
+    "cyberdog::device::BMSBase");
   bms_ptr_ = bms_loader.createSharedInstance("cyberdog::device::BMSCarpo");
-                                              
-  
   // touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
   // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
 
-  bms_pub_  = node_ptr->create_publisher<protocol::msg::Bms>("bms_status", 10);
+  bms_pub_ = node_ptr->create_publisher<protocol::msg::Bms>("bms_status", 10);
   bms_ptr_->Init(std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1));
 
   return true;
@@ -52,8 +51,9 @@ bool cyberdog::device::DeviceHandler::SelfCheck()
   return led_ptr->SelfCheck();
 }
 
-void cyberdog::device::DeviceHandler::ExecuteLed(const protocol::srv::LedExecute_Request::SharedPtr request,
-    protocol::srv::LedExecute_Response::SharedPtr response)
+void cyberdog::device::DeviceHandler::ExecuteLed(
+  const protocol::srv::LedExecute_Request::SharedPtr request,
+  protocol::srv::LedExecute_Response::SharedPtr response)
 {
   std::cout << "led service has into handler~\n";
   led_ptr->Play(request, response);
@@ -69,7 +69,7 @@ void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus ms
 
 void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::Bms msg)
 {
-  if(bms_pub_ != nullptr) {
-     bms_pub_->publish(msg);
+  if (bms_pub_ != nullptr) {
+    bms_pub_->publish(msg);
   }
 }

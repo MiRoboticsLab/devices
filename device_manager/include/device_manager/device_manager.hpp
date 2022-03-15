@@ -13,6 +13,10 @@
 // limitations under the License.
 #ifndef DEVICE_MANAGER__DEVICE_MANAGER_HPP_
 #define DEVICE_MANAGER__DEVICE_MANAGER_HPP_
+
+#include <string>
+#include <memory>
+
 #include "manager_base/manager_base.hpp"
 #include "device_manager/device_handler.hpp"
 
@@ -24,14 +28,13 @@ namespace device
 class DeviceManager : public manager::ManagerBase
 {
 public:
-  DeviceManager(const std::string& name);
+  explicit DeviceManager(const std::string & name);
   ~DeviceManager();
 
   void Config() override;
   bool Init() override;
   void Run() override;
   bool SelfCheck() override;
-  
 
 public:
   void OnError() override;
@@ -44,7 +47,8 @@ private:
   bool IsStateInvalid();
 
 private:
-  void LedServiceCallback(const protocol::srv::LedExecute_Request::SharedPtr request,
+  void LedServiceCallback(
+    const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response);
 
 private:
@@ -56,4 +60,4 @@ private:
 }  // namespace device
 }  // namespace cyberdog
 
-#endif  // DEVICE_MANAGER__DEVICE_MANAGER_HPP_
+#endif  //  DEVICE_MANAGER__DEVICE_MANAGER_HPP_
