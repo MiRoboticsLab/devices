@@ -13,6 +13,8 @@
 // limitations under the License.
 #ifndef DEVICE_MANAGER__DEVICE_HANDLER_HPP_
 #define DEVICE_MANAGER__DEVICE_HANDLER_HPP_
+
+#include <string>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -29,17 +31,17 @@ namespace device
 class DeviceHandler
 {
 public:
-  DeviceHandler(){};
-  ~DeviceHandler(){};
+  DeviceHandler() {}
+  ~DeviceHandler() {}
 
   void Config();
   bool Init(rclcpp::Node::SharedPtr node_ptr);
   bool SelfCheck();
 
 public:
-  void ExecuteLed(const protocol::srv::LedExecute_Request::SharedPtr request,
+  void ExecuteLed(
+    const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response);
-  
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::Bms msg);
 
@@ -54,10 +56,9 @@ private:
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::Bms>::SharedPtr bms_pub_ {nullptr};
-
 };  // class DeviceHandler
+
 }  // namespace device
 }  // namespace cyberdog
-
 
 #endif  // DEVICE_MANAGER__DEVICE_HANDLER_HPP_

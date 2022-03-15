@@ -13,9 +13,12 @@
 // limitations under the License.
 #ifndef DEVICE_MANAGER__DEVICE_CONFIG_HPP_
 #define DEVICE_MANAGER__DEVICE_CONFIG_HPP_
+
 #include <map>
 #include <string>
-#include <pluginlib/class_loader.hpp>
+#include <utility>
+
+#include "pluginlib/class_loader.hpp"
 #include "cyberdog_led/led_base.hpp"
 #include "cyberdog_bms/bms_base.hpp"
 #include "cyberdog_touch/touch_base.hpp"
@@ -27,11 +30,12 @@ namespace cyberdog
 {
 namespace device
 {
-  inline void GetDeviceNames(std::map<std::string, std::string> & name_map) {
-    name_map.insert(std::make_pair("led_base", "LedCarpo"));
-    name_map.insert(std::make_pair("touch_base", "TouchCarpo"));
-    name_map.insert(std::make_pair("bms_base", "BMSCarpo"));
-  }
+inline void GetDeviceNames(std::map<std::string, std::string> & name_map)
+{
+  name_map.insert(std::make_pair("led_base", "LedCarpo"));
+  name_map.insert(std::make_pair("touch_base", "TouchCarpo"));
+  name_map.insert(std::make_pair("bms_base", "BMSCarpo"));
+}
 }  // namespace device
 }  // namespace cyberdog
 

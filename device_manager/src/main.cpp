@@ -11,15 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include <string>
+#include <memory>
+
 #include "device_manager/device_manager.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  
-  auto device_manager = std::make_shared<cyberdog::device::DeviceManager>(std::string("device_manager"));
+
+  auto device_manager =
+    std::make_shared<cyberdog::device::DeviceManager>(std::string("device_manager"));
   device_manager->Config();
-  if(!device_manager->Init()) {
+  if (!device_manager->Init()) {
     std::cout << "device manager init failed!\n";
     return -1;
   }
