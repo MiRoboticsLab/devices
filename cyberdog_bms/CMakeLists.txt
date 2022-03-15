@@ -17,6 +17,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
@@ -26,9 +27,8 @@ find_package(cyberdog_common REQUIRED)
 find_package(params REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
-add_library(${PROJECT_NAME} 
-    src/bms_plugin.cpp
-    src/bms_processor.cpp)
+add_library(${PROJECT_NAME} SHARED
+    src/bms_plugin.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -44,7 +44,7 @@ ament_target_dependencies(
   params
   ament_index_cpp
 )
-target_compile_definitions(${PROJECT_NAME} PRIVATE "LED_PLUGIN_BUILDING_LIBRARY")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "BMS_PLUGIN_BUILDING_LIBRARY")
 pluginlib_export_plugin_description_file( ${PROJECT_NAME} plugins.xml)
 
 install(
