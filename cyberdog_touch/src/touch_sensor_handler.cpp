@@ -84,7 +84,7 @@ int TouchSensorHandler::processEvents(input_event * data, int count)
       numEventReceived++;
     }
     printf(
-      "processEvents: type:0x%x, code: 0x%x, value: %d, count: %d, n: %d\n", type, event->code,
+      "processEvents: type:0x%x, code: 0x%x, value: %d, count: %d, n: %ld\n", type, event->code,
       event->value, count, n);
     n--;
     next();
@@ -154,7 +154,7 @@ int TouchSensorHandler::openInput(void)
     return -1;
   }
   // strcpy(devname, dirname); // snprintf
-  snprintf(devname, strlen(dirname), dirname);
+  snprintf(devname, strlen(dirname), "%s", dirname);
   filename = devname + strlen(devname);
   *filename++ = '/';
   while ((de = readdir(dir))) {
@@ -164,7 +164,7 @@ int TouchSensorHandler::openInput(void)
       continue;
     }
     // strcpy(filename, de->d_name);
-    snprintf(filename, strlen(de->d_name), de->d_name);
+    snprintf(filename, strlen(de->d_name), "%s", de->d_name);
     // printf("get input device(%s)\n", devname);
     // printf("get file(%s)\n", filename);
     fd = open(devname, O_RDWR);
