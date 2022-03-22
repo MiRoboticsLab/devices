@@ -12,19 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import protocol.msg._wifi as wifi_info
-
-from protocol.srv import Wifi
-
-from protocol.srv import IP
-
-import rclpy
-from rclpy.node import Node
 import operator
 import subprocess
 
-from std_msgs.msg import String
+import rclpy
+from rclpy.node import Node
 
+import protocol.msg._wifi as wifi_info
+
+from protocol.srv import Wifi
 
 STATUS_WIFI_GET_INFO = 1
 STATUS_WIFI_CONNECT = 2
@@ -90,20 +86,12 @@ def getIP(if_name: str):
     return "0.0.0.0"
 
 
-# def getWifiRssi(cmd):
-#     # print("cmd " + repr(cmd))
-#     res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-#     return res.stdout.read()
-
-
 class WifiNode(Node):
 
     def __init__(self):
         super().__init__('wifi')
         self.get_connected_ssid()
         self.srv_wifi = self.create_service(Wifi, 'wifi', self.wifi_connect)
-        self.srv_ip = self.create_service(IP, 'ip', self.get_ip)        
-        # self.pub_rssi = self.create_publisher(String, 'wifi_rssi', 0)
         self.pub_rssi = self.create_publisher(wifi_info.Wifi, 'wifi_rssi', 0)
         timer_period = 0.3  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
@@ -150,17 +138,8 @@ class WifiNode(Node):
             if response.result == STATUS_WIFI_SUCCESS:
                 self.connected_ssid = request.ssid
         return response
-
-    def get_ip(self, request, response):
-        response.ip = getIP('wlan0')
-        return response
     
     def timer_callback(self):
-        # msg = String()
-        # # self.get_logger().info(repr(getWifiRssi(self.cmd)[1:-1]))
-        # # self.i = int.from_bytes(getWifiRssi(self.cmd)[1:-1], byteorder='big', signed=False)
-        # rssi = bytes.decode(getWifiRssi(self.cmd)[1:-1])
-        # msg.data = 'wifi rssi: %s' % rssi
         msg = wifi_info.Wifi()
         msg.ssid = self.connected_ssid
         if len(msg.ssid) == 0:
@@ -168,8 +147,8 @@ class WifiNode(Node):
         else:
             msg.is_connected = True
         msg.strength = self.get_wifi_rssi()
+        msg.ip = getIP('wlan0')
         self.pub_rssi.publish(msg)
-        # self.get_logger().info('Publishing: "%s"' % msg.data)
 
     def __del__(self):
         self.destroy_service(self.srv_wifi)
