@@ -60,7 +60,7 @@ void cyberdog::device::DeviceHandler::ExecuteLed(
   std::cout << "led service will exit handler~\n";
 }
 
-void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
+void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus /*msg*/)
 {
   // if(touch_pub_ != nullptr) {
   //   touch_pub_->publish(msg);

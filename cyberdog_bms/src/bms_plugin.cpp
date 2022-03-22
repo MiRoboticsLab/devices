@@ -76,8 +76,8 @@ void BMSCarpo::RunBmsTask()
 
 
 void BMSCarpo::Report(
-  const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
-  std::shared_ptr<protocol::srv::BmsInfo::Response> response)
+  const std::shared_ptr<protocol::srv::BmsInfo::Request>/*request*/,
+  std::shared_ptr<protocol::srv::BmsInfo::Response>/*response*/)
 {
   // INFO("[cyberdog_bms]: %s", "BMS report message info");
   // (void)request;
@@ -92,7 +92,7 @@ void BMSCarpo::Report(
   // response->success         = true;
 }
 
-void BMSCarpo::HandleBMSMessages(std::string & name, std::shared_ptr<CanProtocolBmsType> data)
+void BMSCarpo::HandleBMSMessages(std::string & /*name*/, std::shared_ptr<CanProtocolBmsType> data)
 {
   bms_message_ = ToRos(*data);
   DebugString();
