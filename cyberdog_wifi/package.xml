@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
-  <name>wifi</name>
+  <name>cyberdog_wifi</name>
   <version>0.13.0</version>
   <description>Examples of minimal publishers using rclpy.</description>
   <maintainer email="mabel@openrobotics.org">Mabel Zhang</maintainer>

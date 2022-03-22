@@ -92,7 +92,7 @@ class WifiNode(Node):
         super().__init__('wifi')
         self.get_connected_ssid()
         self.srv_wifi = self.create_service(Wifi, 'wifi', self.wifi_connect)
-        self.pub_rssi = self.create_publisher(wifi_info.Wifi, 'wifi_rssi', 0)
+        self.pub_rssi = self.create_publisher(wifi_info.Wifi, 'wifi_status', 0)
         timer_period = 0.3  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         # self.i = 0
