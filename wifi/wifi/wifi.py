@@ -125,13 +125,20 @@ class WifiNode(Node):
     def get_wifi_rssi(self):
         if len(self.connected_ssid) == 0:
             return 0
-        cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' "'
+        cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' " | awk -F " " '
         cmd += "'{ print $7 }'"
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
         rssi = 100
         if result.isdigit():
             rssi = int(result)
+        else:
+            cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' " | awk -F " " '
+            cmd += "'{ print $6 }'"
+            res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = bytes.decode(res.stdout.read()).strip()     
+            if result.isdigit():
+                rssi = int(result)       
         return rssi
 
     def wifi_connect(self, request, response):
