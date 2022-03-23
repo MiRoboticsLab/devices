@@ -18,9 +18,9 @@ import subprocess
 import rclpy
 from rclpy.node import Node
 
-import protocol.msg._wifi as wifi_info
+from protocol.msg import WifiStatus
 
-from protocol.srv import Wifi
+from protocol.srv import WifiConnect
 
 STATUS_WIFI_GET_INFO = 1
 STATUS_WIFI_CONNECT = 2
@@ -86,18 +86,15 @@ def getIP(if_name: str):
     return "0.0.0.0"
 
 
-class WifiNode(Node):
+class CyberdogWifi(Node):
 
     def __init__(self):
-        super().__init__('wifi')
+        super().__init__('cyberdog_wifi')
         self.get_connected_ssid()
-        self.srv_wifi = self.create_service(Wifi, 'wifi', self.wifi_connect)
-        self.pub_rssi = self.create_publisher(wifi_info.Wifi, 'wifi_status', 0)
-        timer_period = 0.3  # seconds
+        self.srv_wifi = self.create_service(WifiConnect, 'connect_wifi', self.wifi_connect)
+        self.pub_rssi = self.create_publisher(WifiStatus, 'wifi_status', 0)
+        timer_period = 1.0  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
-        # self.i = 0
-        self.cmd = 'iw wlan0 link |grep signal | awk -F " " '
-        self.cmd += "'{ print $2 }'"
 
     def get_connected_ssid(self):
         cmd = 'nmcli device status | grep " connected " | grep "wlan0" | awk -F " " '
@@ -140,7 +137,7 @@ class WifiNode(Node):
         return response
     
     def timer_callback(self):
-        msg = wifi_info.Wifi()
+        msg = WifiStatus()
         msg.ssid = self.connected_ssid
         if len(msg.ssid) == 0:
             msg.is_connected = False
@@ -152,14 +149,12 @@ class WifiNode(Node):
 
     def __del__(self):
         self.destroy_service(self.srv_wifi)
-        self.destroy_service(self.srv_ip)
 
 
 def main(args=None):
-    global g_node
     rclpy.init(args=args)
 
-    wifi_node = WifiNode()
+    wifi_node = CyberdogWifi()
     rclpy.spin(wifi_node)
 
     # Destroy the service attached to the node explicitly

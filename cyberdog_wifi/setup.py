@@ -13,10 +13,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    author='Mikael Arguedas',
-    author_email='mikael@osrfoundation.org',
-    maintainer='Mikael Arguedas',
-    maintainer_email='mikael@osrfoundation.org',
+    author='dukun',
+    author_email='dukun1@xiaomi.com',
+    maintainer='wenlinfeng',
+    maintainer_email='wenlinfeng@xiaomi.com',
     keywords=['ROS'],
     classifiers=[
         'Intended Audience :: Developers',
@@ -24,7 +24,7 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development',
     ],
-    description='Examples of minimal publishers using rclpy.',
+    description='Wifi ROS2 interface for Cyberdog.',
     license='Apache License, Version 2.0',
     tests_require=['pytest'],
     entry_points={
