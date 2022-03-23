@@ -2,12 +2,13 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>cyberdog_led</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="liangxiaowei1@xiaomi.com">lxw</maintainer>
-  <license>TODO: License declaration</license>
+  <version>1.0.0</version>
+  <description>led pluginlib plugins</description>
+  <maintainer email="liangxiaowei1@xiaomi.com">dukun</maintainer>
+  <license>Apache License, Version 2.0</license>
 
-  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
   <depend>pluginlib</depend>
   <depend>protocol</depend>
   <depend>cyberdog_embed_protocol</depend>
