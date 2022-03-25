@@ -14,6 +14,7 @@
 
 import operator
 import subprocess
+from time import sleep
 
 import rclpy
 from rclpy.node import Node
@@ -57,20 +58,31 @@ def return_connect_status(output):
         return STATUS_WIFI_OTHER
 
 
-# do a new wlan connect
-def nmcliConnectWifi(ssid, pwd):
-    # global log
-    cmd = "sudo nmcli device wifi connect '"
-    cmd += ssid
-    cmd += "' password '"
-    cmd += pwd
-    cmd += "'"
+def runCommand(cmd):
     output = subprocess.Popen(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output.wait()  # wait for cmd done
     tmp = str(output.stdout.read(), encoding='utf-8')
     print(tmp)
     return tmp
+
+
+# do a new wlan connect
+def nmcliConnectWifi(ssid, pwd):
+    # global log
+    disconnect_cmd = "sudo nmcli device disconnect wlan0"
+    runCommand(disconnect_cmd)
+    sleep(1.0)
+    cmd = "sudo nmcli device wifi connect '"
+    cmd += ssid
+    cmd += "' password '"
+    cmd += pwd
+    cmd += "'"
+    return runCommand(cmd)
+
+def reconnect(ssid):
+    cmd = "sudo nmcli c up " + ssid
+    return runCommand(cmd)
 
 
 def getIP(if_name: str):
@@ -129,11 +141,17 @@ class CyberdogWifi(Node):
     def wifi_connect(self, request, response):
         if self.connected_ssid == request.ssid:
             response.result = STATUS_WIFI_SUCCESS
-        else: 
-            response.result = return_connect_status(
-                nmcliConnectWifi(request.ssid, request.pwd))
+        else:
+            response.result = STATUS_WIFI_NO_SSID
+            trial_times = 0
+            while response.result != STATUS_WIFI_SUCCESS and trial_times < 3:
+                response.result = return_connect_status(
+                    nmcliConnectWifi(request.ssid, request.pwd))
+                trial_times += 1
             if response.result == STATUS_WIFI_SUCCESS:
                 self.connected_ssid = request.ssid
+            elif len(self.connected_ssid) != 0:
+                reconnect(self.connected_ssid)
         return response
     
     def timer_callback(self):
@@ -146,6 +164,7 @@ class CyberdogWifi(Node):
         msg.strength = self.get_wifi_rssi()
         msg.ip = getIP('wlan0')
         self.pub_rssi.publish(msg)
+
 
     def __del__(self):
         self.destroy_service(self.srv_wifi)
