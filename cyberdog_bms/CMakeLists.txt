@@ -23,7 +23,7 @@ find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_embed_protocol REQUIRED)
 find_package(cyberdog_system REQUIRED)
-find_package(cyberdog_common REQUIRED)
+find_package(cyberdog_common REQUIRED) 
 find_package(params REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
@@ -61,16 +61,21 @@ install(
   DESTINATION include
 )
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+# if(BUILD_TESTING)
+#   find_package(ament_lint_auto REQUIRED)
+#   find_package(ament_cmake_gtest REQUIRED)
+#   include_directories(include)
+#   ament_add_gtest(configuration_toml_test test/configuration_toml_test.cpp)
+#   target_compile_definitions(configuration_toml_test PRIVATE BenchmarkPath="${CMAKE_INSTALL_PREFIX}/lib/cyberdog_bms")
+#   ament_target_dependencies(configuration_toml_test rclcpp toml)
+#   install(TARGETS
+#     configuration_toml_test
+#     DESTINATION lib/${PROJECT_NAME})
+#   install(FILES
+#     test/toml_config.toml
+#     DESTINATION lib/${PROJECT_NAME})
+#   ament_lint_auto_find_test_dependencies()
+# endif()
 
 
 ament_export_include_directories(

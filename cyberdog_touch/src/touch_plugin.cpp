@@ -16,6 +16,7 @@
 #include <chrono>
 #include <utility>
 #include <memory>
+#include <random>
 
 #include "cyberdog_touch/touch_plugin.hpp"
 #include "pluginlib/class_list_macros.hpp"
@@ -30,11 +31,12 @@ bool TouchCarpo::Config()
   return true;
 }
 
-bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback)
+bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback, bool simulation)
 {
   touch_handler_ = std::make_shared<TouchSensorHandler>();
   touch_thread_ = std::thread(std::bind(&TouchCarpo::RunTouchTask, this));
   initialized_finished_ = RegisterTopic(function_callback);
+  simulation_ = simulation;
 
   if (!initialized_finished_) {
     WARN("[TouchCarpo]: %s", "Function Init() error.");
@@ -69,6 +71,27 @@ void TouchCarpo::RunTouchTask()
     malloc(sizeof(struct input_event) * count);
 
   while (true) {
+    if (simulation_) {
+      RunSimulation();
+    } else {
+      ret_count = touch_handler_->pollTouchEvents(touch_event, count);
+      if (ret_count <= 0) {
+        continue;
+      }
+
+      if ((touch_event->type == EV_KEY)) {
+        ret = touch_event->code - GESTURE_XM_ADDR;
+        TouchStatusMsg message;
+        message.touch_state = ret;
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        message.timestamp = ts.tv_sec * 1000000000 + ts.tv_nsec;
+        INFO("[TouchCarpo]: touch sensor data received: 0x%x", message.touch_state);
+        status_function_(std::move(message));
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+
     ret_count = touch_handler_->pollTouchEvents(touch_event, count);
     if (ret_count <= 0) {
       continue;
@@ -86,6 +109,23 @@ void TouchCarpo::RunTouchTask()
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
   }
+}
+
+void TouchCarpo::RunSimulation()
+{
+  TouchStatusMsg message;
+  message.touch_state = GenerateRandomNumber(0, 6);
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  message.timestamp = ts.tv_sec * 1000000000 + ts.tv_nsec;
+}
+
+int TouchCarpo::GenerateRandomNumber(int start, int end)
+{
+  std::random_device rd;   //  将用于为随机数引擎获得种子
+  std::mt19937 gen(rd());  //  以播种标准 mersenne_twister_engine
+  std::uniform_int_distribution<> dis(start, end);  // [start end]
+  return dis(gen);
 }
 
 }  //  namespace device

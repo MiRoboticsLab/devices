@@ -19,6 +19,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <random>
 
 #include "cyberdog_bms/bms_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
@@ -61,7 +62,7 @@ public:
 
   BMSCarpo();
   virtual bool Config();
-  virtual bool Init(std::function<void(BmsStatusMsg)> function_callback);
+  virtual bool Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation = false);
   virtual bool SelfCheck();
   virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback);
   virtual void Report(
@@ -80,10 +81,17 @@ private:
   protocol::msg::Bms ToRos(const CanProtocolBmsType & can_data);
   void DebugString();
 
+  // Dimulation Data for debug
+  void RunSimulation(); 
+
+  // Generate random number
+  int GenerateRandomNumber(int start, int end);
+
   protocol::msg::Bms bms_message_;
   std::function<void(BmsStatusMsg)> status_function_;
   std::thread bms_thread_;
   bool initialized_finished_ {false};
+  bool simulation_ {false};
   BMSCanPtr bms_can_bridge_ {nullptr};
 };  //  class BMSCarpo
 }   //  namespace device
