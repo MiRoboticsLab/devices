@@ -101,6 +101,7 @@ class CyberdogWifi(Node):
 
     def __init__(self):
         super().__init__('cyberdog_wifi')
+        self.connected_ssid = ""
         self.get_connected_ssid()
         self.srv_wifi = self.create_service(WifiConnect, 'connect_wifi', self.wifi_connect)
         self.pub_rssi = self.create_publisher(WifiStatus, 'wifi_status', 0)
@@ -109,12 +110,17 @@ class CyberdogWifi(Node):
 
     def get_connected_ssid(self):
         """获取wifi名称"""
-        cmd = 'nmcli device status | grep " connected " | grep "wlan0" | awk -F " " '
-        cmd += "'{ print $4 }'"
+        cmd = 'nmcli device status | grep " connected " | grep wlan0'
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
-        if len(result) != 0:
-            self.connected_ssid = result
+        if len(result) > 4:
+            str_list = result.split()
+            connected_ssid = str_list[3]
+            str_index = 4
+            while str_index < len(str_list) - 1:
+                connected_ssid += " " + str_list[str_index]
+                str_index += 1
+            self.connected_ssid = connected_ssid
         else:
             self.connected_ssid = ''
         return res.stdout.read()
@@ -123,20 +129,18 @@ class CyberdogWifi(Node):
         """获取信号强度"""
         if len(self.connected_ssid) == 0:
             return 0
-        cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' " | awk -F " " '
-        cmd += "'{ print $7 }'"
+        cmd = 'nmcli device wifi | grep "' + self.connected_ssid +'"'
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
-        rssi = 100
-        if result.isdigit():
-            rssi = int(result)
-        else:
-            cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' " | awk -F " " '
-            cmd += "'{ print $6 }'"
-            res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            result = bytes.decode(res.stdout.read()).strip()     
-            if result.isdigit():
-                rssi = int(result)       
+        rssi = 0
+        if len(result) != 0:
+            str_list = result.split()
+            if str_list[-3].isdigit(): #SECURITY只有一项时
+                rssi = int(str_list[-3])
+            elif str_list[-4].isdigit(): #SECURITY有两项时
+                rssi = int(str_list[-4])
+            elif str_list[-5].isdigit(): #SECURITY有三项时
+                rssi = int(str_list[-3])
         return rssi
 
     def wifi_connect(self, request, response):
