@@ -1,3 +1,4 @@
+#coding:utf-8
 # Copyright 2016 Open Source Robotics Foundation, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,15 +24,13 @@ from protocol.msg import WifiStatus
 
 from protocol.srv import WifiConnect
 
-STATUS_WIFI_GET_INFO = 1
-STATUS_WIFI_CONNECT = 2
-STATUS_WIFI_CONNECTING = 3
-STATUS_WIFI_NO_SSID = 4
-STATUS_WIFI_ERR_PWD = 5
-STATUS_WIFI_OTHER = 6
-STATUS_WIFI_SUCCESS = 7
-STATUS_WIFI_INTERRUPT = 14
-STATUS_WIFI_TIMEOUT = 15
+
+RESULT_NO_SSID = 4
+RESULT_ERR_PWD = 5
+RESULT_OTHER = 6
+RESULT_SUCCESS = 7
+RESULT_INTERRUPT = 14
+RESULT_TIMEOUT = 15
 
 
 # parsing the wlan connect/reconnect return value
@@ -45,17 +44,17 @@ def return_connect_status(output):
     # global log
     # log.logger.info('output' + repr(output))
     if operator.contains(output, connected):
-        return STATUS_WIFI_SUCCESS
+        return RESULT_SUCCESS
     elif operator.contains(output, errorpwd):
-        return STATUS_WIFI_ERR_PWD
+        return RESULT_ERR_PWD
     elif operator.contains(output, nossid):
-        return STATUS_WIFI_NO_SSID
+        return RESULT_NO_SSID
     elif operator.contains(output, interrupt) or operator.contains(output, activatefail):
-        return STATUS_WIFI_INTERRUPT
+        return RESULT_INTERRUPT
     elif operator.contains(output, timeout):
-        return STATUS_WIFI_TIMEOUT
+        return RESULT_TIMEOUT
     else:
-        return STATUS_WIFI_OTHER
+        return RESULT_OTHER
 
 
 def runCommand(cmd):
@@ -102,6 +101,7 @@ class CyberdogWifi(Node):
 
     def __init__(self):
         super().__init__('cyberdog_wifi')
+        self.connected_ssid = ""
         self.get_connected_ssid()
         self.srv_wifi = self.create_service(WifiConnect, 'connect_wifi', self.wifi_connect)
         self.pub_rssi = self.create_publisher(WifiStatus, 'wifi_status', 0)
@@ -109,52 +109,59 @@ class CyberdogWifi(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def get_connected_ssid(self):
-        cmd = 'nmcli device status | grep " connected " | grep "wlan0" | awk -F " " '
-        cmd += "'{ print $4 }'"
+        """获取wifi名称"""
+        cmd = 'nmcli device status | grep " connected " | grep wlan0'
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
-        if len(result) != 0:
-            self.connected_ssid = result
+        if len(result) > 4:
+            str_list = result.split()
+            connected_ssid = str_list[3]
+            str_index = 4
+            while str_index < len(str_list) - 1:
+                connected_ssid += " " + str_list[str_index]
+                str_index += 1
+            self.connected_ssid = connected_ssid
         else:
             self.connected_ssid = ''
         return res.stdout.read()
 
     def get_wifi_rssi(self):
+        """获取信号强度"""
         if len(self.connected_ssid) == 0:
             return 0
-        cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' " | awk -F " " '
-        cmd += "'{ print $7 }'"
+        cmd = 'nmcli device wifi | grep "' + self.connected_ssid +'"'
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
-        rssi = 100
-        if result.isdigit():
-            rssi = int(result)
-        else:
-            cmd = 'nmcli device wifi | grep " ' + self.connected_ssid +' " | awk -F " " '
-            cmd += "'{ print $6 }'"
-            res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            result = bytes.decode(res.stdout.read()).strip()     
-            if result.isdigit():
-                rssi = int(result)       
+        rssi = 0
+        if len(result) != 0:
+            str_list = result.split()
+            if str_list[-3].isdigit(): #SECURITY只有一项时
+                rssi = int(str_list[-3])
+            elif str_list[-4].isdigit(): #SECURITY有两项时
+                rssi = int(str_list[-4])
+            elif str_list[-5].isdigit(): #SECURITY有三项时
+                rssi = int(str_list[-3])
         return rssi
 
     def wifi_connect(self, request, response):
+        """连接wifi的服务处理"""
         if self.connected_ssid == request.ssid:
-            response.result = STATUS_WIFI_SUCCESS
+            response.result = RESULT_SUCCESS
         else:
-            response.result = STATUS_WIFI_NO_SSID
+            response.result = RESULT_NO_SSID
             trial_times = 0
-            while response.result != STATUS_WIFI_SUCCESS and trial_times < 3:
+            while response.result != RESULT_SUCCESS and trial_times < 3:
                 response.result = return_connect_status(
                     nmcliConnectWifi(request.ssid, request.pwd))
                 trial_times += 1
-            if response.result == STATUS_WIFI_SUCCESS:
+            if response.result == RESULT_SUCCESS:
                 self.connected_ssid = request.ssid
             elif len(self.connected_ssid) != 0:
                 reconnect(self.connected_ssid)
         return response
     
     def timer_callback(self):
+        """定期发布wifi状态"""
         msg = WifiStatus()
         msg.ssid = self.connected_ssid
         if len(msg.ssid) == 0:
