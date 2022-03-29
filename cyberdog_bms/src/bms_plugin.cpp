@@ -68,7 +68,6 @@ void BMSCarpo::RunBmsTask()
 {
   while (true) {
     // auto message = bms_processor_->bms_message();
-
     if (simulation_) {
       RunSimulation();
     }
@@ -97,65 +96,310 @@ void BMSCarpo::Report(
   // response->success         = true;
 }
 
-void BMSCarpo::HandleBMSMessages(std::string & name, std::shared_ptr<CanProtocolBmsType> data)
+void BMSCarpo::RunTest()
+{
+    // kNormalMode,
+    // kTurnOffMotor,
+    // kLowPowerConsumption,
+    // kSoftShutdown,
+
+    // // 文件传输
+    // // OTA升级
+    // kFileTransfer,
+    // kOTAUpgrade,
+
+    // // 0x01（测试）
+    // kTest
+    switch (test_command_)
+    {
+      case 1:
+        INFO("Test case: Command::kNormalMode");
+        SendCommand(Command::kNormalMode);
+        break;
+
+      case 2:
+        INFO("Test case: Command::kTurnOffMotor");
+        SendCommand(Command::kTurnOffMotor);
+        break;
+
+      case 3:
+        INFO("Test case: Command::kLowPowerConsumption");
+        SendCommand(Command::kLowPowerConsumption);
+        break;
+
+      case 4:
+        INFO("Test case: Command::kSoftShutdown");
+        SendCommand(Command::kSoftShutdown);
+        break;
+
+      case 5:
+        INFO("Test case: Command::kFileTransfer");
+        SendCommand(Command::kFileTransfer);
+        break;
+
+      case 6:
+        INFO("Test case: Command::kOTAUpgrade");
+        SendCommand(Command::kOTAUpgrade);
+        break;
+
+      case 7:
+        INFO("Test case: Command::kTest");
+        SendCommand(Command::kTest);
+        break;
+    
+    default:
+      break;
+    }
+}
+
+void BMSCarpo::StopTest()
+{
+  INFO("[BmsProcessor]: StopTest.");
+  std::lock_guard<std::mutex> lock(test_mutex_);
+  test_ = false;
+}
+
+void BMSCarpo::StartTest()
+{
+  INFO("[BmsProcessor]: StartTest.");
+  std::lock_guard<std::mutex> lock(test_mutex_);
+  test_ = true;
+}
+
+void BMSCarpo::SetTestCase(int test_case)
+{
+  INFO("[BmsProcessor]: SetTestCase.");
+  std::lock_guard<std::mutex> lock(test_mutex_);
+  test_command_ = test_case;
+}
+
+void BMSCarpo::HandleBMSMessages(std::string & name, std::shared_ptr<BMSStatus> data)
 {
   bms_message_ = ToRos(*data);
   DebugString();
 
-  // bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->bms_data_array);
-  // bms_message_ = ToROSBmsMessage(data);
+  if (name == "battery_status") {
+    INFO("[BmsProcessor]: Receive battery_status message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->battery_status);
+    std::array<uint8_t, 8>  battery_status_data;
+    for (size_t i = 0; i < battery_status_data.size(); i++) {
+      battery_status_data[i] = data->battery_status[i];
+    }
+
+    // convert battery_status to ROS
+    SetBatteryStatusData(battery_status_data);
+  } else if (name == "abnormal_status") {
+    INFO("[BmsProcessor]: Receive abnormal_status message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->abnormal_status);
+    std::array<uint8_t, 6>  abnormal_status_data;
+    for (size_t i = 0; i < abnormal_status_data.size(); i++) {
+      abnormal_status_data[i] = data->abnormal_status[i];
+    }
+
+    // convert abnormal_status to ROS
+    SetAbnormalStatusData(abnormal_status_data);
+  } else if (name == "normal_status") {
+    INFO("[BmsProcessor]: Receive normal_status message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_status);
+    std::array<uint8_t, 6>  normal_status_data;
+    for (size_t i = 0; i < normal_status_data.size(); i++) {
+      normal_status_data[i] = data->normal_status[i];
+    }
+
+    // convert normal_status to ROS
+    SetNormalStatusData(normal_status_data);
+  } else if (name == "normal_mode") {
+    INFO("[BmsProcessor]: Receive normal_mode message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_mode);
+
+    // convert normal_mode to ROS 
+    uint8_t normal_mode = data->normal_mode;
+    SetNormalModeData(normal_mode);
+  } else if (name == "charging") {
+    INFO("[BmsProcessor]: Receive charging message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->charging);
+
+    // convert charging to ROS 
+    uint8_t charging = data->charging;
+    SetChargingData(charging);
+  } else if (name == "finished_charging") {
+    INFO("[BmsProcessor]: Receive finished_charging message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->finished_charging);
+
+    // convert charging to ROS 
+    uint8_t finished_charging = data->finished_charging;
+    SetChargingData(finished_charging);
+  } else if (name == "motor_power_down") {
+    INFO("[BmsProcessor]: Receive motor_power_down message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->motor_power_down);
+    
+    // convert charging to ROS 
+    uint8_t motor_power_down = data->motor_power_down;
+    SetChargingData(motor_power_down);
+  } else if (name == "soft_shutdown") {
+    INFO("[BmsProcessor]: Receive soft_shutdown message from can.");
+    can_bridge_->LINK_VAR(can_bridge_->GetData()->soft_shutdown);
+
+    // convert charging to ROS 
+    uint8_t soft_shutdown = data->soft_shutdown;
+    SetChargingData(soft_shutdown);
+  }
 }
 
 bool BMSCarpo::SendCommand(const Command & command)
 {
-  bool commmand_send_success = false;
-  if (command == Command::kBuzze) {
-    INFO("[BmsProcessor]: %s", "command type = Command::kBuzze");
-    bms_can_bridge_->BREAK_VAR(bms_can_bridge_->GetData()->buzze);
-    commmand_send_success = bms_can_bridge_->Operate("cmd_buzze", std::vector<uint8_t>{0x00});
-    bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->buzze);
-  } else if (command == Command::kPowerSupply) {
-    INFO("[BmsProcessor]: %s", "Send command type : Command::kPowerSupply");
-    bms_can_bridge_->BREAK_VAR(bms_can_bridge_->GetData()->power_supply);
-    commmand_send_success = bms_can_bridge_->Operate(
-      "cmd_power_supply",
-      std::vector<uint8_t>{0x00});
-    bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->power_supply);
-  } else if (command == Command::kDisableCharge) {
-    INFO("[BmsProcessor]: %s", "Send command type : Command::kDisableCharge");
-    bms_can_bridge_->BREAK_VAR(bms_can_bridge_->GetData()->disable_charge);
-    commmand_send_success = bms_can_bridge_->Operate(
-      "cmd_disable_charge",
-      std::vector<uint8_t>{0x00});
-    bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->disable_charge);
+  bool success = false;
+  switch (command)
+  {
+    // 0x01(正常模式）
+    case Command::kNormalMode:
+      INFO("[BmsProcessor]: %s", "command type = Command::kNormalMode");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_normal_mode);
+      success = can_bridge_->Operate("cmd_normal_mode", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_normal_mode);
+      break;
+
+    // 0x02(关闭电机）
+    case Command::kTurnOffMotor:
+      INFO("[BmsProcessor]: %s", "command type = Command::kTurnOffMotor");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_turn_off_motor);
+      success = can_bridge_->Operate("cmd_turn_off_motor", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_turn_off_motor);
+      break;
+
+    // 0x03(低功耗）
+    case Command::kLowPowerConsumption:
+      INFO("[BmsProcessor]: %s", "command type = Command::kLowPowerConsumption");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_low_power_consumption);
+      success = can_bridge_->Operate("cmd_low_power_consumption", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_low_power_consumption);
+      break;
+
+    // 0x04(软关机）
+    case Command::kSoftShutdown:
+      INFO("[BmsProcessor]: %s", "command type = Command::kSoftShutdown");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_turn_off_motor);
+      success = can_bridge_->Operate("cmd_soft_shutdown", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_soft_shutdown);
+      break;
+
+    // 文件传输
+    case Command::kFileTransfer:
+      INFO("[BmsProcessor]: %s", "command type = Command::kFileTransfer");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_file_transfer);
+      success = can_bridge_->Operate("cmd_file_transfer", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_file_transfer);
+      break;
+
+    // OTA升级
+    case Command::kOTAUpgrade:
+      INFO("[BmsProcessor]: %s", "command type = Command::kOTAUpgrade");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_ota_upgrade);
+      success = can_bridge_->Operate("cmd_ota_upgrade", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_ota_upgrade);
+      break;
+
+    // 测试
+    case Command::kTest:
+      INFO("[BmsProcessor]: %s", "command type = Command::kTest");
+      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_test);
+      success = can_bridge_->Operate("cmd_test", std::vector<uint8_t>{0x00});
+      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_test);
+      break;
+  
+    default:
+      break;
   }
-  return commmand_send_success;
+  return success;
 }
 
-protocol::msg::Bms BMSCarpo::ToRos(const CanProtocolBmsType & can_data)
+void BMSCarpo::SetBatteryStatusData(const std::array<uint8_t, 8>& data)
+{
+  // battery_status[0]   : 电量
+  // battery_status[1]   : 电压
+  // battery_status[2]   : 电流
+  // battery_status[3]   : 温度
+  // battery_status[4-5] : 循环次数
+  // battery_status[6]   : 健康度
+  // battery_status[7]   : 故障状态
+
+  bms_message_.batt_soc = data[1]; 
+  bms_message_.batt_volt = data[1];           
+  bms_message_.batt_curr = data[2];           
+  bms_message_.batt_temp = data[3];          
+  bms_message_.batt_loop_number = data[4] + data[5] >> 8;
+  bms_message_.batt_health = data[6]; 
+  bms_message_.powerboard_status = data[7];
+}
+
+void BMSCarpo::SetAbnormalStatusData(const std::array<uint8_t, 6>& data)
+{
+
+}
+
+void BMSCarpo::SetNormalStatusData(const std::array<uint8_t, 6>& data)
+{
+
+}
+
+void BMSCarpo::SetNormalModeData(uint8_t normal_mode)
+{
+
+}
+
+void BMSCarpo::SetChargingData(uint8_t charging)
+{
+
+}
+
+void BMSCarpo::SetFinishedChargingData(uint8_t finished_charging)
+{
+
+}
+
+void BMSCarpo::SetMotorPowerDownData(uint8_t motor_power_down)
+{
+
+}
+
+void BMSCarpo::SetSoftShutdownData(uint8_t soft_shutdown)
+{
+
+}
+
+protocol::msg::Bms BMSCarpo::ToRos(const BMSStatus & can_data)
 {
   protocol::msg::Bms message;
   // message.header
   struct timespec time_stu;
   clock_gettime(CLOCK_REALTIME, &time_stu);
+
+  // battery_status[0]   : 电量
+  // battery_status[1]   : 电压
+  // battery_status[2]   : 电流
+  // battery_status[3]   : 温度
+  // battery_status[4-5] : 循环次数
+  // battery_status[6]   : 健康度
+  // battery_status[7]   : 故障状态
+
   // message.header.frame_id = std::string("battery_id");
   // message.header.stamp.nanosec = time_stu.tv_nsec;
   // message.header.stamp.sec = time_stu.tv_sec;
 
   // data
-  message.batt_volt = can_data.batt_volt;
-  message.batt_curr = can_data.batt_curr;
-  message.batt_soc = can_data.batt_soc;
-  message.batt_temp = can_data.batt_temp;
-  message.batt_st = can_data.batt_st;
-  message.key_val = can_data.key_val;
-  message.disable_charge = can_data.disable_charge;
-  message.power_supply = can_data.power_supply;
-  message.buzze = can_data.buzze;
-  message.status = can_data.status;
-  message.batt_health = can_data.batt_health;
-  message.batt_loop_number = can_data.batt_loop_number;
-  message.powerboard_status = can_data.powerboard_status;
+  // message.batt_volt = can_data.batt_volt;
+  // message.batt_curr = can_data.batt_curr;
+  // message.batt_soc = can_data.batt_soc;
+  // message.batt_temp = can_data.batt_temp;
+  // message.batt_st = can_data.batt_st;
+  // message.key_val = can_data.key_val;
+  // message.disable_charge = can_data.disable_charge;
+  // message.power_supply = can_data.power_supply;
+  // message.buzze = can_data.buzze;
+  // message.status = can_data.status;
+  // message.batt_health = can_data.batt_health;
+  // message.batt_loop_number = can_data.batt_loop_number;
+  // message.powerboard_status = can_data.powerboard_status;
   return message;
 }
 
@@ -165,24 +409,38 @@ void BMSCarpo::InitializeBmsProtocol()
   auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
   auto path = local_share_dir + std::string("/toml_config/device/battery.toml");
 
-  // Create Protocol for `CanProtocolBmsType` data
-  bms_can_bridge_ = std::make_shared<cyberdog::embed::Protocol<CanProtocolBmsType>>(path, false);
+  // Create Protocol for `BMSStatus` data
+  can_bridge_ = std::make_shared<cyberdog::embed::Protocol<BMSStatus>>(path, false);
 
-  // link CanProtocolBmsType data type
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_volt);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_curr);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_soc);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_temp);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_st);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->key_val);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->disable_charge);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->power_supply);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->buzze);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->status);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_health);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->batt_loop_number);
-  bms_can_bridge_->LINK_VAR(bms_can_bridge_->GetData()->powerboard_status);
-  bms_can_bridge_->SetDataCallback(
+  // link BMSStatus data type
+  // 电量	电压	电流	温度	循环次数	健康度	故障状态
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->battery_status);
+
+  // 0x01(正常模式)
+  // 0x02(正在充电)
+  // 0x03(充电完成)
+  // 0x04(电机掉电)
+  // 0x05(软关机)
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_mode);
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->charging);
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->finished_charging);
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->motor_power_down);
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->soft_shutdown);
+
+  // 文件传输
+  // OTA升级
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_file_transfer);
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_ota_upgrade);
+
+  // 测试
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_test);
+
+  // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
+  // 01测试失败	01电量异常	01SC8815异常	01CYPD3171异常	01CAN异常	01串口异常
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->abnormal_status);
+  can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_status);
+
+  can_bridge_->SetDataCallback(
     std::bind(
       &BMSCarpo::HandleBMSMessages,
       this, std::placeholders::_1, std::placeholders::_2));
