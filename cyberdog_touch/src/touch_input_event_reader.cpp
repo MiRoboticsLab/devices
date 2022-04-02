@@ -22,6 +22,7 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#include "cyberdog_common/cyberdog_log.hpp"
 #include "cyberdog_touch/touch_input_event_reader.hpp"
 
 namespace cyberdog

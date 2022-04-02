@@ -73,7 +73,7 @@ void BMSCarpo::RunBmsTask()
     }
 
     status_function_(bms_message_);
-    std::cout << "BMSCarpo::RunBmsTask()" << std::endl;
+    INFO("BMSCarpo::RunBmsTask ... ");
     std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 }
