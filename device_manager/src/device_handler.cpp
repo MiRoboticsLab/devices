@@ -55,9 +55,7 @@ void cyberdog::device::DeviceHandler::ExecuteLed(
   const protocol::srv::LedExecute_Request::SharedPtr request,
   protocol::srv::LedExecute_Response::SharedPtr response)
 {
-  std::cout << "led service has into handler~\n";
   led_ptr->Play(request, response);
-  std::cout << "led service will exit handler~\n";
 }
 
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus /*msg*/)
