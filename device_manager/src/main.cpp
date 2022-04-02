@@ -16,16 +16,18 @@
 #include <memory>
 
 #include "device_manager/device_manager.hpp"
+#include "cyberdog_common/cyberdog_log.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
+  LOGGER_MAIN_INSTANCE("device_manager");
 
   auto device_manager =
     std::make_shared<cyberdog::device::DeviceManager>(std::string("device_manager"));
   device_manager->Config();
   if (!device_manager->Init()) {
-    std::cout << "device manager init failed!\n";
+    ERROR("device manager init failed!");
     return -1;
   }
   device_manager->Run();

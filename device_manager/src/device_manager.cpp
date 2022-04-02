@@ -74,27 +74,27 @@ void cyberdog::device::DeviceManager::Run()
 
 void cyberdog::device::DeviceManager::OnError()
 {
-  std::cout << "on error\n";
+  ERROR("on error");
 }
 
 void cyberdog::device::DeviceManager::OnLowPower()
 {
-  std::cout << "on lowpower\n";
+  ERROR("on lowpower");
 }
 
 void cyberdog::device::DeviceManager::OnSuspend()
 {
-  std::cout << "on suspend\n";
+  ERROR("on suspend");
 }
 
 void cyberdog::device::DeviceManager::OnProtected()
 {
-  std::cout << "on protect\n";
+  ERROR("on protect");
 }
 
 void cyberdog::device::DeviceManager::OnActive()
 {
-  std::cout << "on active\n";
+  ERROR("on active");
 }
 
 bool cyberdog::device::DeviceManager::IsStateInvalid()
@@ -107,11 +107,9 @@ void cyberdog::device::DeviceManager::LedServiceCallback(
   const protocol::srv::LedExecute_Request::SharedPtr request,
   protocol::srv::LedExecute_Response::SharedPtr response)
 {
-  std::cout << "led service~\n";
   if (!IsStateInvalid()) {
     response->code = (int32_t)system::KeyCode::kStateInvalid;
     return;
   }
-  std::cout << "led service will into handler~\n";
   device_handler_->ExecuteLed(request, response);
 }
