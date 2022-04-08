@@ -197,6 +197,8 @@ private:
   int GenerateRandomNumber(int start, int end);
 
   protocol::msg::Bms bms_message_;
+  BMSStatus can_message_;
+
   std::function<void(BmsStatusMsg)> status_function_;
   std::thread bms_thread_;
   std::thread bms_test_thread_;

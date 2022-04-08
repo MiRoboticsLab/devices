@@ -46,7 +46,8 @@ public:
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::Bms msg);
 
-  void HandleTestBMSCaseCallback(const std_msgs::msg::Int32 & msg);
+  // void HandleTestBMSCaseCallback(const std_msgs::msg::Int32 & msg);
+  void HandleTestBMSCaseCallback(const std_msgs::msg::Int32::SharedPtr msg);
 
 private:
   std::vector<std::string> device_vec_;
