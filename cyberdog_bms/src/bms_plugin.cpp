@@ -68,10 +68,6 @@ void BMSCarpo::RunBmsTask()
 {
   while (true) {
     // auto message = bms_processor_->bms_message();
-    if (simulation_) {
-      RunSimulation();
-    }
-
     status_function_(bms_message_);
     INFO("BMSCarpo::RunBmsTask ... ");
     std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -445,10 +441,14 @@ void BMSCarpo::InitializeBmsProtocol()
   can_bridge_->LINK_VAR(can_bridge_->GetData()->abnormal_status);
   can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_status);
 
-  can_bridge_->SetDataCallback(
+  if (simulation_) {
+    RunSimulation();
+  } else {
+    can_bridge_->SetDataCallback(
     std::bind(
       &BMSCarpo::HandleBMSMessages,
       this, std::placeholders::_1, std::placeholders::_2));
+  }
 }
 
 void BMSCarpo::DebugString()
