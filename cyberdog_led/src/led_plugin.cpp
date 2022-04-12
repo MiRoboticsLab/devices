@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <pluginlib/class_list_macros.hpp>
+#include <unistd.h>
 #include <mutex>
 #include <thread>
+#include <vector>
 #include <condition_variable>
 #include <string>
 #include <iostream>
 #include <memory>
+#include <map>
 #include "rclcpp/rclcpp.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "protocol/srv/led_execute.hpp"
@@ -26,36 +29,47 @@
 #include "cyberdog_led/led_base.hpp"
 
 
-#define MINI_LED 1
-#define TAIL_LED 2
-typedef struct led_request
-{
-  std::string client;
-  uint8_t target;
-  uint8_t priority;
-  uint64_t timeout;
-  uint8_t effect;
-  int32_t code;
-} led_request;
-// 尾灯的toml映射
-class TailLed
-{
-public:
-  uint8_t effect_id;
-};
-
-class MiniLed
-{
-public:
-  uint8_t effect_id;
-};
-
-
 namespace cyberdog
 {
 namespace device
 {
+  #define HEAD_LED 0
+  #define TAIL_LED 1
+  #define MINI_LED 2
 
+
+// "tail_led", "head_led","mini_led"
+std::map<std::string, int> ID_TARGET = {
+  {"head_led", 0},
+  {"tail_led", 1},
+  {"mini_led", 2}};
+struct led_request
+{
+  std::string client;
+  std::string target;
+  uint8_t priority;
+  uint64_t timeout;
+  std::string effect;
+  int32_t code;
+};
+// 尾灯的toml映射
+
+struct TailLed
+{
+  uint8_t enable_on_ack;
+  uint8_t enable_off_ack;
+  uint8_t PIC_1_ACK;
+  uint8_t PIC_2_ACK;
+  uint8_t PIC_ANIMATION_ACK;
+};
+struct MiniLed
+{
+  uint8_t enable_on_ack;
+  uint8_t enable_off_ack;
+  uint8_t PIC_1_ACK;
+  uint8_t PIC_2_ACK;
+  uint8_t PIC_ANIMATION_ACK;
+};
 class LedCarpo : public cyberdog::device::LedBase
 {
 private:
@@ -67,7 +81,7 @@ private:
   std::mutex tail_led_run_mutex;
   std::thread tail_led_run_thread;
   bool tail_led_workable = false;
-  uint8_t tail_led_alwayson_id;
+  std::string tail_led_alwayson_id;
   // static void start_led_thread(LedCarpo* temp_ptr);
   void tail_led_thread();
   // mini_led controller
@@ -75,7 +89,7 @@ private:
   std::mutex mini_led_run_mutex;
   std::thread mini_led_run_thread;
   bool mini_led_workable = false;
-  uint8_t mini_led_alwayson_id;
+  std::string mini_led_alwayson_id;
   // static void start_led_thread(LedCarpo* temp_ptr);
   void mini_led_thread();
   bool request_legal();
@@ -119,7 +133,7 @@ public:
     new_request.effect = info_request->effect;
     std::unique_lock<std::mutex> run_mini_led_lock(mini_led_run_mutex);
     std::unique_lock<std::mutex> run_tail_led_lock(tail_led_run_mutex);
-    switch (new_request.target) {
+    switch (ID_TARGET[new_request.target]) {
       case MINI_LED:
         // 判断cliet的led command是否合法
         // 若command合法，判定优先级是否
@@ -169,49 +183,54 @@ void LedCarpo::tail_led_thread()
   std::unique_lock<std::mutex> run_tail_led_lock(tail_led_run_mutex);
   auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
   auto local_config_dir = local_share_dir + std::string("/toml_config/device/tail_led.toml");
-  RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), "local_config_dir= %s", local_config_dir.c_str());
-  cyberdog::embed::Protocol<TailLed> tail_led_can(
-    local_config_dir, true);
-  tail_led_can.LINK_VAR(tail_led_can.GetData()->effect_id);
-  auto tail_led_data = tail_led_can.GetData();
-
-  while (!ready) {
-    tail_led_waitcv.wait(
-      run_tail_led_lock, [&] {
-        return tail_led_workable;
-      });
-    if (tail_led_workable == true) {
-      // can发送指令进行灯效设计
-      tail_led_data->effect_id = new_request.effect;
-      tail_led_can.SendSelfData();
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"), "began run tail_led_thread !! request:  client: %s" ", target: %d"
-        ", priority: %d" ", timeout: %lu" ", effect: %d",
-        (new_request.client).c_str(), new_request.target, new_request.priority, new_request.timeout,
-        new_request.effect);
-      tail_led_workable = false;
-    }
-    tail_led_waitcv.wait_for(run_tail_led_lock, std::chrono::milliseconds(new_request.timeout));
-    if (tail_led_workable == true) {
-      RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), " new tail_led_thread command come in .");
-    } else {
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"), "new  tail_led_thread request:  client: %s" ", target: %d"
-        ", priority: %d" ", timeout: %lu" ", effect: %u" ".  run over!!!",
-        (new_request.client).c_str(), new_request.target, new_request.priority, new_request.timeout,
-        new_request.effect);
-      // 继续执行上一条长亮指令
-      tail_led_data->effect_id = tail_led_alwayson_id;
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"), " tail_led_alwayson_id=" " : %d", tail_led_alwayson_id);
-      tail_led_can.SendSelfData();
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"),
-        " alwayson tail_led_thread comand running ,tail_led_thread  dump again! ");
+  if (access(local_config_dir.c_str(), F_OK) != 0) {
+    RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), " %s do not exist!", local_config_dir.c_str());
+  } else {
+    RCLCPP_INFO(
+      rclcpp::get_logger("cyberdog_led"), "local_config_dir= %s",
+      local_config_dir.c_str());
+    auto tail_led_can_ = std::make_shared<cyberdog::embed::Protocol<TailLed>>(
+      local_config_dir, false);
+    while (!ready) {
+      tail_led_waitcv.wait(
+        run_tail_led_lock, [&] {
+          return tail_led_workable;
+        });
+      if (tail_led_workable == true) {
+        // can发送指令进行灯效设计
+        tail_led_can_->Operate(new_request.effect, std::vector<uint8_t>{});
+        RCLCPP_INFO(
+          rclcpp::get_logger(
+            "cyberdog_led"), "began run tail_led_thread !! request: client: %s" ", target: %s"
+          ", priority: %d" ", timeout: %lu" ", effect: %s" ".  run over!!!",
+          (new_request.client).c_str(), (new_request.target).c_str(), new_request.priority,
+          new_request.timeout, (new_request.effect).c_str());
+        tail_led_workable = false;
+      }
+      tail_led_waitcv.wait_for(run_tail_led_lock, std::chrono::milliseconds(new_request.timeout));
+      if (tail_led_workable == true) {
+        RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), " new tail_led_thread command come in .");
+      } else {
+        RCLCPP_INFO(
+          rclcpp::get_logger(
+            "cyberdog_led"), "tail_led_thread request:  client: %s" ", target: %s"
+          ", priority: %d" ", timeout: %lu" ", effect: %s" ".  run over!!!",
+          (new_request.client).c_str(), (new_request.target).c_str(), new_request.priority,
+          new_request.timeout, (new_request.effect).c_str());
+        if (!mini_led_alwayson_id.empty() && new_request.effect != "enable_off") {
+          // 继续执行上一条长亮指令
+          tail_led_can_->Operate(tail_led_alwayson_id, std::vector<uint8_t>{});
+          RCLCPP_INFO(
+            rclcpp::get_logger(
+              "cyberdog_led"), " tail_led_alwayson_id=" " : %s", tail_led_alwayson_id.c_str());
+          RCLCPP_INFO(
+            rclcpp::get_logger(
+              "cyberdog_led"),
+            " alwayson tail_led_thread comand running ,tail_led_thread  dump again! ");
+        } else {
+          tail_led_can_->Operate("enable_off", std::vector<uint8_t>{});
+        }
+      }
     }
   }
 }
@@ -224,44 +243,54 @@ void LedCarpo::mini_led_thread()
   std::unique_lock<std::mutex> run_mini_led_lock(mini_led_run_mutex);
   auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
   auto local_config_dir = local_share_dir + std::string("/toml_config/device/mini_led.toml");
-  cyberdog::embed::Protocol<MiniLed> mini_led_can(
-    local_config_dir, true);
-  mini_led_can.LINK_VAR(mini_led_can.GetData()->effect_id);
-  auto mini_led_data = mini_led_can.GetData();
-  while (!ready) {
-    mini_led_waitcv.wait(
-      run_mini_led_lock, [&] {
-        return mini_led_workable;
-      });
-    if (mini_led_workable == true) {
-      // can发送指令进行灯效设计
-      mini_led_data->effect_id = new_request.effect;
-      mini_led_can.SendSelfData();
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"), "began run mini_led_thread !! request:  client: %s" ", target: %d"
-        ", priority: %d" ", timeout: %lu" ", effect: %u",
-        (new_request.client).c_str(), new_request.target, new_request.priority, new_request.timeout,
-        new_request.effect);
-      mini_led_workable = false;
-    }
-    mini_led_waitcv.wait_for(run_mini_led_lock, std::chrono::milliseconds(new_request.timeout));
-    if (mini_led_workable == true) {
-      RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), " new mini_led_thread command come in .");
-    } else {
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"), "new  mini_led_thread request:  client: %s" ", target: %d"
-        ", priority: %d" ", timeout: %lu" ", effect: %u" ".  run over!!!",
-        (new_request.client).c_str(), new_request.target, new_request.priority, new_request.timeout,
-        new_request.effect);
-      // 继续执行上一条长亮指令
-      mini_led_data->effect_id = mini_led_alwayson_id;
-      mini_led_can.SendSelfData();
-      RCLCPP_INFO(
-        rclcpp::get_logger(
-          "cyberdog_led"),
-        " alwayson mini_led_thread comand running ,mini_led_thread  dump again! ");
+  const char * char_disable = "enable_off";
+  std::string str_disable(char_disable);
+  if (access(local_config_dir.c_str(), F_OK) != 0) {
+    RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), " %s do not exist!", local_config_dir.c_str());
+  } else {
+    RCLCPP_INFO(
+      rclcpp::get_logger("cyberdog_led"), "local_config_dir= %s",
+      local_config_dir.c_str());
+    auto mini_led_can_ = std::make_shared<cyberdog::embed::Protocol<MiniLed>>(
+      local_config_dir, false);
+    while (!ready) {
+      mini_led_waitcv.wait(
+        run_mini_led_lock, [&] {
+          return mini_led_workable;
+        });
+      if (mini_led_workable == true) {
+        // can发送指令进行灯效设计
+        std::cout << new_request.timeout << std::endl;
+        mini_led_can_->Operate(new_request.effect, std::vector<uint8_t>{});
+        RCLCPP_INFO(
+          rclcpp::get_logger(
+            "cyberdog_led"), "began run mini_led_thread !! request:  client: %s" ", target: %s"
+          ", priority: %d" ", timeout: %lu" ", effect: %s",
+          (new_request.client).c_str(), (new_request.target).c_str(), new_request.priority,
+          new_request.timeout, (new_request.effect).c_str());
+        mini_led_workable = false;
+      }
+      mini_led_waitcv.wait_for(run_mini_led_lock, std::chrono::milliseconds(new_request.timeout));
+      if (mini_led_workable == true) {
+        RCLCPP_INFO(rclcpp::get_logger("cyberdog_led"), " new mini_led_thread command come in .");
+      } else {
+        RCLCPP_INFO(
+          rclcpp::get_logger(
+            "cyberdog_led"), "mini_led_thread request:  client: %s" ", target: %s"
+          ", priority: %d" ", timeout: %lu" ", effect: %s" ".  run over!!!",
+          (new_request.client).c_str(), (new_request.target).c_str(), new_request.priority,
+          new_request.timeout, (new_request.effect).c_str());
+        // 继续执行上一条长亮指令
+        if (!mini_led_alwayson_id.empty() && new_request.effect != "enable_off") {
+          mini_led_can_->Operate(mini_led_alwayson_id, std::vector<uint8_t>{});
+          RCLCPP_INFO(
+            rclcpp::get_logger(
+              "cyberdog_led"),
+            " alwayson mini_led_thread comand running ,mini_led_thread  dump again! ");
+        } else {
+          mini_led_can_->Operate("enable_off", std::vector<uint8_t>{});
+        }
+      }
     }
   }
 }

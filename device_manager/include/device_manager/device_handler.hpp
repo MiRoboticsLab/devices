@@ -24,6 +24,7 @@
 
 #include "std_msgs/msg/int32.hpp"
 #include "device_manager/device_config.hpp"
+#include "cyberdog_common/cyberdog_log.hpp"
 
 namespace cyberdog
 {
@@ -31,6 +32,8 @@ namespace device
 {
 class DeviceHandler
 {
+  LOGGER_MINOR_INSTANCE("device_handler");
+
 public:
   DeviceHandler() {}
   ~DeviceHandler() {}
