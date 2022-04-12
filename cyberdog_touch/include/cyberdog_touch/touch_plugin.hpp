@@ -36,16 +36,24 @@ public:
   using TouchStatusMsg = protocol::msg::TouchStatus;
 
   virtual bool Config();
-  virtual bool Init(std::function<void(TouchStatusMsg)> function_callback);
+  virtual bool Init(std::function<void(TouchStatusMsg)> function_callback, bool simulation = false);
   virtual bool SelfCheck();
   virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> function_callback);
 
 private:
   void RunTouchTask();
+
+  // Dimulation Data for debug
+  void RunSimulation();
+
+  // Generate random number
+  int GenerateRandomNumber(int start, int end);
+
   std::function<void(TouchStatusMsg)> status_function_;
   std::shared_ptr<TouchSensorHandler> touch_handler_;
   std::thread touch_thread_;
   bool initialized_finished_ {false};
+  bool simulation_ {false};
 };  //  class TouchCarpo
 
 }  //  namespace device

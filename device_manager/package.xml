@@ -8,8 +8,8 @@
   <license>Apache License, Version 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <depend>rclcpp</depend>
+  <depend>rclcpp</depend> 
+  <depend>std_msgs</depend> 
   <depend>cyberdog_system</depend>
   <depend>cyberdog_common</depend>
   <depend>manager_base</depend>

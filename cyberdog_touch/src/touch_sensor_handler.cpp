@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "cyberdog_common/cyberdog_log.hpp"
+
 #ifdef LOG_TAG
 #undef LOG_TAG
 #define LOG_TAG "touchsensorhandler"
@@ -83,15 +85,16 @@ int TouchSensorHandler::processEvents(input_event * data, int count)
       }
       numEventReceived++;
     }
-    printf(
-      "processEvents: type:0x%x, code: 0x%x, value: %d, count: %d, n: %ld\n", type, event->code,
-      event->value, count, n);
+    // printf(
+    //   "processEvents: type:0x%x, code: 0x%x, value: %d, count: %d, n: %d\n", type, event->code,
+    //   event->value, count, n);
     n--;
     next();
   }
   if (numEventReceived > count) {
     numEventReceived = count;
-    printf("processEvents: numEventReceived > count force setting latest event to read!\n");
+    // printf("processEvents: numEventReceived > count force setting latest event to read!\n");
+    INFO("processEvents: numEventReceived > count force setting latest event to read!");
   }
   return numEventReceived;
 }
@@ -106,8 +109,11 @@ int TouchSensorHandler::pollTouchEvents(input_event * data, int count)
     // printf("pollTouchEvents: check poll status: 0x%x, count: %d\n", mPollFd.revents, count);
     if (mPollFd.revents & POLLIN) {
       int nb = processEvents(data, count);
-      printf(
-        "pollTouchEvents: processEvents: 0x%x, nb: %d, count: %d\n", mPollFd.revents, nb,
+      // printf(
+      //   "pollTouchEvents: processEvents: 0x%x, nb: %d, count: %d\n", mPollFd.revents, nb,
+      //   count);
+      INFO(
+        "pollTouchEvents: processEvents: 0x%x, nb: %d, count: %d", mPollFd.revents, nb,
         count);
       if (nb <= count) {
         // no more data for touch
@@ -127,7 +133,8 @@ int TouchSensorHandler::pollTouchEvents(input_event * data, int count)
       if (n < 0) {
         int err;
         err = errno;
-        printf("poll() failed (%s)\n", strerror(errno));
+        // printf("poll() failed (%s)\n", strerror(errno));
+        INFO("poll() failed (%s)", strerror(errno));
         return -err;
       } else if (n == 0) {
         // stands for timeout
@@ -176,14 +183,16 @@ int TouchSensorHandler::openInput(void)
       }
       // printf("name = %s, inputName = %s\n", name, inputName);
       if (!strcmp(name, "synaptics_dsx")) {
-        printf("get wanted input device(%s)\n", devname);
+        // printf("get wanted input device(%s)\n", devname);
+        INFO("get wanted input device(%s)", devname);
         break;
       } else {
         close(fd);
         fd = -1;
       }
     } else {
-      printf(" input device open failed(%s)(%d)\n", devname, fd);
+      // printf(" input device open failed(%s)(%d)\n", devname, fd);
+      INFO(" input device open failed(%s)(%d)", devname, fd);
     }
   }
   closedir(dir);

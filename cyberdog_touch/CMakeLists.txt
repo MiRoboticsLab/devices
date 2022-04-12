@@ -26,7 +26,6 @@ find_package(protocol REQUIRED)
 find_package(cyberdog_common REQUIRED)
 
 add_library(${PROJECT_NAME}
-  src/cyberdog_touch.cpp
   src/touch_plugin.cpp
   src/touch_input_event_reader.cpp
   src/touch_sensor_handler.cpp)

@@ -22,6 +22,7 @@
 #include <functional>
 #include <condition_variable>
 
+#include "std_msgs/msg/int32.hpp"
 #include "device_manager/device_config.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
 
@@ -48,14 +49,18 @@ public:
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::Bms msg);
 
+  // void HandleTestBMSCaseCallback(const std_msgs::msg::Int32 & msg);
+  void HandleTestBMSCaseCallback(const std_msgs::msg::Int32::SharedPtr msg);
+
 private:
   std::vector<std::string> device_vec_;
   std::map<std::string, std::string> device_map_;
 
 private:
   std::shared_ptr<LedBase> led_ptr {nullptr};
-  // std::shared_ptr<TouchBase> touch_ptr {nullptr};
+  std::shared_ptr<TouchBase> touch_ptr {nullptr};
   std::shared_ptr<BMSBase> bms_ptr_ {nullptr};
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr bms_test_subscription_;
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::Bms>::SharedPtr bms_pub_ {nullptr};

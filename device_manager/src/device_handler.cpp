@@ -13,6 +13,8 @@
 // limitations under the License.
 #include "pluginlib/class_loader.hpp"
 #include "device_manager/device_handler.hpp"
+#include "cyberdog_touch/touch_plugin.hpp"
+#include "cyberdog_bms/bms_plugin.hpp"
 
 void cyberdog::device::DeviceHandler::Config()
 {
@@ -31,17 +33,18 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
   led_ptr->Init();
 
-  // pluginlib::ClassLoader<cyberdog::device::TouchBase>
-  // touch_loader("cyberdog_touch", "cyberdog::device::TouchBase");
-  // touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
   pluginlib::ClassLoader<cyberdog::device::BMSBase> bms_loader("cyberdog_bms",
     "cyberdog::device::BMSBase");
   bms_ptr_ = bms_loader.createSharedInstance("cyberdog::device::BMSCarpo");
   // touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
-  // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1));
+  // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1), true);
 
   bms_pub_ = node_ptr->create_publisher<protocol::msg::Bms>("bms_status", 10);
   bms_ptr_->Init(std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1));
+
+  bms_test_subscription_ = node_ptr->create_subscription<std_msgs::msg::Int32>(
+    "bms_test", 10,
+    std::bind(&DeviceHandler::HandleTestBMSCaseCallback, this, std::placeholders::_1));
 
   return true;
 }
@@ -71,3 +74,25 @@ void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::Bms msg)
     bms_pub_->publish(msg);
   }
 }
+
+
+#if 0
+void cyberdog::device::DeviceHandler::HandleTestBMSCaseCallback(const std_msgs::msg::Int32 & msg)
+{
+  if (msg.data >= 10) {
+    dynamic_cast<BMSCarpo *>(bms_ptr_.get())->StopTest();
+  }
+  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->SetTestCase(msg.data);
+  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->RunTest();
+}
+#else
+void cyberdog::device::DeviceHandler::HandleTestBMSCaseCallback(
+  const std_msgs::msg::Int32::SharedPtr msg)
+{
+  if (msg->data >= 10) {
+    dynamic_cast<BMSCarpo *>(bms_ptr_.get())->StopTest();
+  }
+  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->SetTestCase(msg->data);
+  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->RunTest();
+}
+#endif

@@ -33,7 +33,7 @@ public:
   using BmsStatusMsg = protocol::msg::Bms;
 
   virtual bool Config() = 0;
-  virtual bool Init(std::function<void(BmsStatusMsg)> function_callback) = 0;
+  virtual bool Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
   virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
   virtual void Report(
