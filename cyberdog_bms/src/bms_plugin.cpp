@@ -527,7 +527,8 @@ void BMSCarpo::DebugString()
 
 void BMSCarpo::RunSimulation()
 {
-  std::thread simulation_task([this](){
+  std::thread simulation_task([this]() 
+  {
     while (simulation_) {
       bms_message_.batt_volt = GenerateRandomNumber(0, 36);           // 0 V- 36V
       bms_message_.batt_curr = GenerateRandomNumber(0, 25);           // 0 MA- 25MA
@@ -537,9 +538,11 @@ void BMSCarpo::RunSimulation()
       bms_message_.batt_health = GenerateRandomNumber(0, 100);        // batt_health
       bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
       bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
+      
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   });
+
   simulation_task.detach();
 }
 

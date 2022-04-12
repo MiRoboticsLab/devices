@@ -260,7 +260,7 @@ void LedCarpo::mini_led_thread()
         });
       if (mini_led_workable == true) {
         // can发送指令进行灯效设计
-        std::cout << new_request.timeout << std::endl;
+        // std::cout << new_request.timeout << std::endl;
         mini_led_can_->Operate(new_request.effect, std::vector<uint8_t>{});
         RCLCPP_INFO(
           rclcpp::get_logger(
