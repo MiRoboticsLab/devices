@@ -61,7 +61,7 @@ void cyberdog::device::DeviceHandler::ExecuteLed(
   led_ptr->Play(request, response);
 }
 
-void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
+void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus /*msg*/)
 {
   // if(touch_pub_ != nullptr) {
   //   touch_pub_->publish(msg);
