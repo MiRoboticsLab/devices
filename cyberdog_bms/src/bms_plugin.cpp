@@ -29,7 +29,7 @@ namespace device
 
 BMSCarpo::BMSCarpo()
 {
-  InitializeBmsProtocol();
+  
 }
 
 bool BMSCarpo::Config()
@@ -41,8 +41,16 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
 {
   RegisterTopic(function_callback);
   bms_thread_ = std::thread(std::bind(&BMSCarpo::RunBmsTask, this));
+  bms_thread_.detach();
 
   simulation_ = simulation;
+
+  if (simulation_) {
+    RunSimulation();
+  } else {
+    InitializeBmsProtocol();
+  }
+
   initialized_finished_ = true;
   if (!initialized_finished_) {
     INFO("[BMSCarpo]: %s", "Function Init() error.");
@@ -441,14 +449,11 @@ void BMSCarpo::InitializeBmsProtocol()
   can_bridge_->LINK_VAR(can_bridge_->GetData()->abnormal_status);
   can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_status);
 
-  if (simulation_) {
-    RunSimulation();
-  } else {
-    can_bridge_->SetDataCallback(
-    std::bind(
-      &BMSCarpo::HandleBMSMessages,
-      this, std::placeholders::_1, std::placeholders::_2));
-  }
+  can_bridge_->SetDataCallback(
+  std::bind(
+    &BMSCarpo::HandleBMSMessages,
+    this, std::placeholders::_1, std::placeholders::_2));
+  
 }
 
 void BMSCarpo::DebugString()
@@ -522,14 +527,20 @@ void BMSCarpo::DebugString()
 
 void BMSCarpo::RunSimulation()
 {
-  bms_message_.batt_volt = GenerateRandomNumber(0, 36);           // 0 V- 36V
-  bms_message_.batt_curr = GenerateRandomNumber(0, 25);           // 0 MA- 25MA
-  bms_message_.batt_temp = GenerateRandomNumber(0, 100);          // 0 C- 100 C
-  bms_message_.batt_soc = GenerateRandomNumber(0, 100);           // 电量
-  bms_message_.key_val = GenerateRandomNumber(0, 5);              // key_val
-  bms_message_.batt_health = GenerateRandomNumber(0, 100);        // batt_health
-  bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
-  bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
+  std::thread simulation_task([this](){
+    while (simulation_) {
+      bms_message_.batt_volt = GenerateRandomNumber(0, 36);           // 0 V- 36V
+      bms_message_.batt_curr = GenerateRandomNumber(0, 25);           // 0 MA- 25MA
+      bms_message_.batt_temp = GenerateRandomNumber(0, 100);          // 0 C- 100 C
+      bms_message_.batt_soc = GenerateRandomNumber(0, 100);           // 电量
+      bms_message_.key_val = GenerateRandomNumber(0, 5);              // key_val
+      bms_message_.batt_health = GenerateRandomNumber(0, 100);        // batt_health
+      bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
+      bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  });
+  simulation_task.detach();
 }
 
 int BMSCarpo::GenerateRandomNumber(int start, int end)
