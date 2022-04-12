@@ -390,9 +390,9 @@ protocol::msg::Bms BMSCarpo::ToRos(const BMSStatus & can_data)
   struct timespec time_stu;
   clock_gettime(CLOCK_REALTIME, &time_stu);
 
-  message.header.frame_id = std::string("battery_id");
-  message.header.stamp.nanosec = time_stu.tv_nsec;
-  message.header.stamp.sec = time_stu.tv_sec;
+  // message.header.frame_id = std::string("battery_id");
+  // message.header.stamp.nanosec = time_stu.tv_nsec;
+  // message.header.stamp.sec = time_stu.tv_sec;
 
   // data
   // battery_status[0]   : 电量
