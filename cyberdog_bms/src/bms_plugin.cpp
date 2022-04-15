@@ -77,7 +77,7 @@ void BMSCarpo::RunBmsTask()
   while (true) {
     // auto message = bms_processor_->bms_message();
     status_function_(bms_message_);
-    INFO("BMSCarpo::RunBmsTask ... ");
+    // INFO("BMSCarpo::RunBmsTask ... ");
     std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 }

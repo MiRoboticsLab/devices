@@ -53,6 +53,7 @@ public:
   void HandleTestBMSCaseCallback(const std_msgs::msg::Int32::SharedPtr msg);
 
 private:
+  std::vector<std::string> simulator_;
   std::vector<std::string> device_vec_;
   std::map<std::string, std::string> device_map_;
 

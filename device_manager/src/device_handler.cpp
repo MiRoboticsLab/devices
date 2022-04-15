@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <string>
+#include <vector>
 #include "pluginlib/class_loader.hpp"
 #include "device_manager/device_handler.hpp"
 #include "cyberdog_touch/touch_plugin.hpp"
@@ -31,22 +33,34 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led",
     "cyberdog::device::LedBase");
   led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
-  led_ptr->Init();
 
   pluginlib::ClassLoader<cyberdog::device::BMSBase> bms_loader("cyberdog_bms",
     "cyberdog::device::BMSBase");
   bms_ptr_ = bms_loader.createSharedInstance("cyberdog::device::BMSCarpo");
   // touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
-  // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1), true);
 
   bms_pub_ = node_ptr->create_publisher<protocol::msg::Bms>("bms_status", 10);
-  bms_ptr_->Init(std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1));
 
   bms_test_subscription_ = node_ptr->create_subscription<std_msgs::msg::Int32>(
     "bms_test", 10,
     std::bind(&DeviceHandler::HandleTestBMSCaseCallback, this, std::placeholders::_1));
 
-  return true;
+  node_ptr->declare_parameter("simulator", std::vector<std::string>{});
+  node_ptr->get_parameter("simulator", this->simulator_);
+  auto is_simulator = [this](std::string sensor_name) -> bool {
+      return static_cast<bool>(std::find(
+               this->simulator_.begin(), this->simulator_.end(),
+               sensor_name) != this->simulator_.end());
+    };
+
+  return bool(
+    led_ptr->Init() &&
+    // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1),
+    // is_simulator("touch")) &&
+    bms_ptr_->Init(
+      std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1),
+      is_simulator("bms"))
+  );
 }
 
 bool cyberdog::device::DeviceHandler::SelfCheck()
