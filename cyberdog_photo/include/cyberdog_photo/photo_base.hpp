@@ -15,11 +15,11 @@
 #ifndef CYBERDOG_PHOTO__PHOTO_BASE_HPP_
 #define CYBERDOG_PHOTO__PHOTO_BASE_HPP_
 
-#include <string>
-#include <functional>
-#include <rclcpp/rclcpp.hpp>
-
 #include <protocol/srv/take_photo.hpp>
+
+#include <memory>
+#include <functional>
+#include "rclcpp/rclcpp.hpp"
 
 namespace cyberdog
 {
@@ -30,12 +30,12 @@ class PhotoBase
 public:
   virtual ~PhotoBase() {}
   virtual bool Init(bool simulation = false) = 0;
-  std::function<void (std::shared_ptr<protocol::srv::TakePhoto::Response>)> TakePhoto;
-  
+  std::function<void(std::shared_ptr<protocol::srv::TakePhoto::Response>)> TakePhoto;
+
 protected:
   PhotoBase() {}
 };
-}
-}
+}  // namespace device
+}  // namespace cyberdog
 
-#endif
+#endif  // CYBERDOG_PHOTO__PHOTO_BASE_HPP_

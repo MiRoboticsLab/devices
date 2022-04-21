@@ -15,13 +15,15 @@
 #ifndef CYBERDOG_PHOTO__PHOTO_PLUGIN_HPP_
 #define CYBERDOG_PHOTO__PHOTO_PLUGIN_HPP_
 
+#include <cyberdog_photo/photo_base.hpp>
+
+#include <memory>
 #include <string>
 #include <functional>
-#include <rclcpp/rclcpp.hpp>
+#include "rclcpp/rclcpp.hpp"
 
-#include <cyberdog_common/cyberdog_log.hpp>
-#include <protocol/srv/take_photo.hpp>
-#include <cyberdog_photo/photo_base.hpp>
+#include "cyberdog_common/cyberdog_log.hpp"
+#include "protocol/srv/take_photo.hpp"
 
 namespace cyberdog
 {
@@ -31,11 +33,12 @@ class PhotoCarpo : public PhotoBase
 {
 public:
   bool Init(bool simulation = false) override;
+
 private:
   void takePhoto(std::shared_ptr<protocol::srv::TakePhoto::Response> response);
   LOGGER_MINOR_INSTANCE("PhotoCarpo");
 };
-}
-}
+}  // namespace device
+}  // namespace cyberdog
 
-#endif
+#endif  // CYBERDOG_PHOTO__PHOTO_PLUGIN_HPP_

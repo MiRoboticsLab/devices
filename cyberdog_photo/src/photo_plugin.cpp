@@ -12,28 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cyberdog_photo/photo_plugin.hpp"
+
 #include <opencv2/opencv.hpp>
-#include <cyberdog_photo/photo_plugin.hpp>
+#include <string>
+#include <memory>
 
 namespace cyberdog
 {
 namespace device
 {
-std::string getTegraPipeline(int width, int height, int fps=60) {
-
-  return  std::string("nvarguscamerasrc ! ") +
-          std::string("video/x-raw(memory:NVMM), ") +
-          std::string("width=(int)") + std::to_string(width) + ", " +
-          std::string("height=(int)") + std::to_string(height)  + ", " +
-          std::string("format=(string)NV12, ") +
-          std::string("framerate=(fraction)") + std::to_string(fps) + "/1 ! " +
-          std::string("nvvidconv flip-method=0 ! ") +
-          std::string("video/x-raw, ") +
-          std::string("format=(string)BGRx ! ") +
-          std::string("videoconvert ! ") +
-          std::string("video/x-raw, ") +
-          std::string("format=(string)BGR ! ") +
-          std::string("appsink");
+std::string getTegraPipeline(int width, int height, int fps = 60)
+{
+  return std::string("nvarguscamerasrc ! ") +
+         std::string("video/x-raw(memory:NVMM), ") +
+         std::string("width=(int)") + std::to_string(width) + ", " +
+         std::string("height=(int)") + std::to_string(height) + ", " +
+         std::string("format=(string)NV12, ") +
+         std::string("framerate=(fraction)") + std::to_string(fps) + "/1 ! " +
+         std::string("nvvidconv flip-method=0 ! ") +
+         std::string("video/x-raw, ") +
+         std::string("format=(string)BGRx ! ") +
+         std::string("videoconvert ! ") +
+         std::string("video/x-raw, ") +
+         std::string("format=(string)BGR ! ") +
+         std::string("appsink");
 }
 
 std::string mat_type2encoding(int mat_type)
@@ -54,17 +57,16 @@ std::string mat_type2encoding(int mat_type)
 
 bool PhotoCarpo::Init(bool simulation)
 {
-  auto default_fun = [](std::shared_ptr<protocol::srv::TakePhoto::Response> response)->void
-  {
-    response->message = "simulation mode";
-    response->result = false;
-    return;
-  };
+  auto default_fun = [](std::shared_ptr<protocol::srv::TakePhoto::Response> response) -> void
+    {
+      response->message = "simulation mode";
+      response->result = false;
+      return;
+    };
   if (simulation) {
     TakePhoto = default_fun;
-  }
-  else {
-    TakePhoto =  std::bind(&cyberdog::device::PhotoCarpo::takePhoto, this, std::placeholders::_1);
+  } else {
+    TakePhoto = std::bind(&cyberdog::device::PhotoCarpo::takePhoto, this, std::placeholders::_1);
   }
   return true;
 }
@@ -84,7 +86,6 @@ void PhotoCarpo::takePhoto(std::shared_ptr<protocol::srv::TakePhoto::Response> r
   for (int i = 0; i < 30; ++i) {
     if (video_capture.read(image) && !image.empty() && i == 29) {
       INFO("Captured an image");
-      //cv::imwrite("/home/mi/test.jpg", image);
       try {
         response->img.encoding = mat_type2encoding(image.type());
         response->result = true;
@@ -96,7 +97,7 @@ void PhotoCarpo::takePhoto(std::shared_ptr<protocol::srv::TakePhoto::Response> r
         response->img.step = static_cast<sensor_msgs::msg::Image::_step_type>(image.step);
         response->img.data.assign(image.datastart, image.dataend);
         INFO("Sending photo");
-      } catch (const std::runtime_error& e) {
+      } catch (const std::runtime_error & e) {
         response->result = false;
         response->message = "Unsupported encoding type";
         ERROR("Unsupported encoding type");
@@ -104,11 +105,10 @@ void PhotoCarpo::takePhoto(std::shared_ptr<protocol::srv::TakePhoto::Response> r
     }
   }
   video_capture.release();
-  return;
 }
-}
-}
+}  // namespace device
+}  // namespace cyberdog
 
-#include <pluginlib/class_list_macros.hpp>
+#include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(cyberdog::device::PhotoCarpo, cyberdog::device::PhotoBase)
