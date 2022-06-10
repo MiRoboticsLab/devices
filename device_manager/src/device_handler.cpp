@@ -32,18 +32,20 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   //   });
   pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led",
     "cyberdog::device::LedBase");
-  led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
 
   pluginlib::ClassLoader<cyberdog::device::BMSBase> bms_loader("cyberdog_bms",
     "cyberdog::device::BMSBase");
+
+  pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch",
+    "cyberdog::device::TouchBase");
+
+  led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
+  touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
   bms_ptr_ = bms_loader.createSharedInstance("cyberdog::device::BMSCarpo");
-  // touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
 
-  bms_pub_ = node_ptr->create_publisher<protocol::msg::Bms>("bms_status", 10);
+  touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
+  bms_pub_ = node_ptr->create_publisher<protocol::msg::BmsStatus>("bms_status", 10);
 
-  bms_test_subscription_ = node_ptr->create_subscription<std_msgs::msg::Int32>(
-    "bms_test", 10,
-    std::bind(&DeviceHandler::HandleTestBMSCaseCallback, this, std::placeholders::_1));
 
   node_ptr->declare_parameter("simulator", std::vector<std::string>{});
   node_ptr->get_parameter("simulator", this->simulator_);
@@ -55,8 +57,9 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
 
   return bool(
     led_ptr->Init() &&
-    // touch_ptr->Init(std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1),
-    // is_simulator("touch")) &&
+    touch_ptr->Init(
+      std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1),
+      is_simulator("touch")) &&
     bms_ptr_->Init(
       std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1),
       is_simulator("bms"))
@@ -82,31 +85,9 @@ void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus /*
   // }
 }
 
-void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::Bms msg)
+void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::BmsStatus msg)
 {
   if (bms_pub_ != nullptr) {
     bms_pub_->publish(msg);
   }
 }
-
-
-#if 0
-void cyberdog::device::DeviceHandler::HandleTestBMSCaseCallback(const std_msgs::msg::Int32 & msg)
-{
-  if (msg.data >= 10) {
-    dynamic_cast<BMSCarpo *>(bms_ptr_.get())->StopTest();
-  }
-  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->SetTestCase(msg.data);
-  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->RunTest();
-}
-#else
-void cyberdog::device::DeviceHandler::HandleTestBMSCaseCallback(
-  const std_msgs::msg::Int32::SharedPtr msg)
-{
-  if (msg->data >= 10) {
-    dynamic_cast<BMSCarpo *>(bms_ptr_.get())->StopTest();
-  }
-  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->SetTestCase(msg->data);
-  dynamic_cast<BMSCarpo *>(bms_ptr_.get())->RunTest();
-}
-#endif

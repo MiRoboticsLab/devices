@@ -47,10 +47,7 @@ public:
     const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response);
   void PublishTouch(protocol::msg::TouchStatus msg);
-  void PublishBmsMessage(protocol::msg::Bms msg);
-
-  // void HandleTestBMSCaseCallback(const std_msgs::msg::Int32 & msg);
-  void HandleTestBMSCaseCallback(const std_msgs::msg::Int32::SharedPtr msg);
+  void PublishBmsMessage(protocol::msg::BmsStatus msg);
 
 private:
   std::vector<std::string> simulator_;
@@ -61,10 +58,9 @@ private:
   std::shared_ptr<LedBase> led_ptr {nullptr};
   std::shared_ptr<TouchBase> touch_ptr {nullptr};
   std::shared_ptr<BMSBase> bms_ptr_ {nullptr};
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr bms_test_subscription_;
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
-  rclcpp::Publisher<protocol::msg::Bms>::SharedPtr bms_pub_ {nullptr};
+  rclcpp::Publisher<protocol::msg::BmsStatus>::SharedPtr bms_pub_ {nullptr};
 };  // class DeviceHandler
 
 }  // namespace device

@@ -24,7 +24,7 @@
 #include "cyberdog_touch/touch_base.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "protocol/msg/touch_status.hpp"
-#include "protocol/msg/bms.hpp"
+#include "protocol/msg/bms_status.hpp"
 
 namespace cyberdog
 {
