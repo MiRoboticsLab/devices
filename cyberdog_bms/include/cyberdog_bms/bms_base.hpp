@@ -19,7 +19,7 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 #include "protocol/srv/led_execute.hpp"
-#include "protocol/msg/bms.hpp"
+#include "protocol/msg/bms_status.hpp"
 #include "protocol/srv/bms_info.hpp"
 
 namespace cyberdog
@@ -30,7 +30,7 @@ namespace device
 class BMSBase
 {
 public:
-  using BmsStatusMsg = protocol::msg::Bms;
+  using BmsStatusMsg = protocol::msg::BmsStatus;
 
   virtual bool Config() = 0;
   virtual bool Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation = false) = 0;

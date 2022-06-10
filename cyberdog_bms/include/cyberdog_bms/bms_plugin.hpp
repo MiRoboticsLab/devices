@@ -32,7 +32,7 @@ namespace cyberdog
 namespace device
 {
 
-struct BMSStatus
+struct BatteryStatus
 {
   // 电量	电压	电流	温度	循环次数	健康度	故障状态
   // battery_status[0]   : 电量
@@ -41,24 +41,17 @@ struct BMSStatus
   // battery_status[3]   : 温度
   // battery_status[4-5] : 循环次数
   // battery_status[6]   : 健康度
-  // battery_status[7]   : 故障状态
+  // battery_status[7]   : 状态  bit 0  正常模式
+  //                            bit 1  正在充电
+  //                            bit 2  充电完成
+  //                            bit 3  电机掉电
+  //                            bit 4  软关机
   std::array<uint8_t, 8> battery_status;
 
   // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
-  // 01测试失败	01电量异常	01SC8815异常	01CYPD3171异常	01CAN异常	01串口异常
-  std::array<uint8_t, 6> abnormal_status;
+  // 00 : normal
+  // 01 : abnormal
   std::array<uint8_t, 6> normal_status;
-
-  // 0x01(正常模式)
-  // 0x02(正在充电)
-  // 0x03(充电完成)
-  // 0x04(电机掉电)
-  // 0x05(软关机)
-  uint8_t normal_mode;
-  uint8_t charging;
-  uint8_t finished_charging;
-  uint8_t motor_power_down;
-  uint8_t soft_shutdown;
 
   // 0x01(正常模式）
   // 0x02(关闭电机）
@@ -76,29 +69,6 @@ struct BMSStatus
 
   // 测试
   uint8_t cmd_test;
-
-  // uint8_t test_failed;
-  // uint8_t test_passed;
-
-  // // 电量
-  // uint8_t battery_abnormal;
-  // uint8_t battery_normal;
-
-  // // SC8815
-  // uint8_t SC8815_abnormal;
-  // uint8_t SC8815_normal;
-
-  // // CYPD3171
-  // uint8_t CYPD3171_abnormal;
-  // uint8_t CYPD3171_normal;
-
-  // // CAN
-  // uint8_t CAN_abnormal;
-  // uint8_t CAN_normal;
-
-  // // 串口
-  // uint8_t serial_port_abnormal;
-  // uint8_t serial_port_normal;
 };
 
 
@@ -122,11 +92,18 @@ enum class Command
   kTest
 };
 
+
+enum class PrintMessageType
+{
+  kBatteryStatus,
+  kBatteryTestNormalStatus, 
+};
+
 class BMSCarpo : public cyberdog::device::BMSBase
 {
 public:
-  using BmsStatusMsg = protocol::msg::Bms;
-  using BMSCanPtr = std::shared_ptr<cyberdog::embed::Protocol<BMSStatus>>;
+  using BmsStatusMsg = protocol::msg::BmsStatus;
+  using BatterySharedPtr = std::shared_ptr<cyberdog::embed::Protocol<BatteryStatus>>;
 
   BMSCarpo();
   virtual bool Config();
@@ -157,38 +134,17 @@ private:
   void InitializeBmsProtocol();
 
   // Get protocol go though by emv
-  void HandleBMSMessages(std::string & name, std::shared_ptr<BMSStatus> data);
+  void HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data); 
 
   // command status for other device
   bool SendCommand(const Command & command);
 
-  // Set battery_status
-  void SetBatteryStatusData(const std::array<uint8_t, 8>& data);
+  // normal data
+  void SetNormalStatus(std::array<uint8_t, 6> data);
 
-  // Set abnormal_status
-  void SetAbnormalStatusData(const std::array<uint8_t, 6>& data);
-
-  // Set normal_status
-  void SetNormalStatusData(const std::array<uint8_t, 6>& data);
-
-  // Set normal_mode
-  void SetNormalModeData(uint8_t normal_mode);
-
-  // Set charging
-  void SetChargingData(uint8_t charging);
-
-  // Set finished_charging
-  void SetFinishedChargingData(uint8_t finished_charging);
-
-  // Set motor_power_down
-  void SetMotorPowerDownData(uint8_t motor_power_down);
-
-  // Set soft_shutdown
-  void SetSoftShutdownData(uint8_t soft_shutdown);
-
-  // Convert BMSStatus to protocol::msg::Bms
-  protocol::msg::Bms ToRos(const BMSStatus & can_data);
-  void DebugString();
+  // Convert BatteryStatus to protocol::msg::Bms
+  protocol::msg::BmsStatus ToRos(const BatteryStatus & can_data);
+  void DebugString(const PrintMessageType& type);
 
   // Dimulation Data for debug
   void RunSimulation(); 
@@ -196,8 +152,8 @@ private:
   // Generate random number
   int GenerateRandomNumber(int start, int end);
 
-  protocol::msg::Bms bms_message_;
-  BMSStatus can_message_;
+  protocol::msg::BmsStatus ros_bms_message_;
+  BatteryStatus can_battery_message_;
 
   std::function<void(BmsStatusMsg)> status_function_;
   std::thread bms_thread_;
@@ -205,9 +161,10 @@ private:
   bool initialized_finished_ {false};
   bool simulation_ {false};
   bool test_ {false};
-  int test_command_;
+  int test_command_; 
   std::mutex test_mutex_;
-  BMSCanPtr can_bridge_ {nullptr};
+  std::mutex mutex_battery_;
+  BatterySharedPtr battery_status_ptr_ {nullptr};
 };  //  class BMSCarpo
 }   //  namespace device
 }   //  namespace cyberdog

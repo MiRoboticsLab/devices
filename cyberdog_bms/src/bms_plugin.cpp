@@ -76,8 +76,8 @@ void BMSCarpo::RunBmsTask()
 {
   while (true) {
     // auto message = bms_processor_->bms_message();
-    status_function_(bms_message_);
-    // INFO("BMSCarpo::RunBmsTask ... ");
+    status_function_(ros_bms_message_);
+    INFO("BMSCarpo::RunBmsTask ... ");
     std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 }
@@ -102,17 +102,6 @@ void BMSCarpo::Report(
 
 void BMSCarpo::RunTest()
 {
-    // kNormalMode,
-    // kTurnOffMotor,
-    // kLowPowerConsumption,
-    // kSoftShutdown,
-
-    // // 文件传输
-    // // OTA升级
-    // kFileTransfer,
-    // kOTAUpgrade,
-
-    // // 0x01（测试）
     // kTest
     switch (test_command_)
     {
@@ -177,150 +166,111 @@ void BMSCarpo::SetTestCase(int test_case)
   test_command_ = test_case;
 }
 
-void BMSCarpo::HandleBMSMessages(std::string & name, std::shared_ptr<BMSStatus> data)
+void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data)
 {
-  can_message_ = *data;
-  if (name == "battery_status") {
-    INFO("[BmsProcessor]: Receive battery_status message from can.");
+  {
+    std::lock_guard<std::mutex> lock(test_mutex_);
+    can_battery_message_ = *data;
+    if (name == "battery_status") {
+      INFO("[BmsProcessor]: Receive battery_status message from can.");
+      // link BMSStatus data type
+      // 电量	电压	电流	温度	循环次数	健康度	故障状态
+      // battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
+      std::array<uint8_t, 8>  battery_status_data;
+      for (size_t i = 0; i < battery_status_data.size(); i++) {
+        battery_status_data[i] = data->battery_status[i];
+      }
 
-     // link BMSStatus data type
-     // 电量	电压	电流	温度	循环次数	健康度	故障状态
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->battery_status);
-    std::array<uint8_t, 8>  battery_status_data;
-    for (size_t i = 0; i < battery_status_data.size(); i++) {
-      battery_status_data[i] = data->battery_status[i];
+      // Print bms status
+      DebugString(PrintMessageType::kBatteryStatus);
+
+      // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
+    } else if (name == "normal_status") {
+      INFO("[BmsProcessor]: Receive normal_status message from can.");
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
+   
+      // normal_status
+      std::array<uint8_t, 6>  normal_status_data;
+      for (size_t i = 0; i < normal_status_data.size(); i++) {
+        normal_status_data[i] = data->normal_status[i];
+      }
+      SetNormalStatus(normal_status_data);
+
+      // Print normal_status
+      DebugString(PrintMessageType::kBatteryTestNormalStatus);
+
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->normal_status);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
+
     }
-
-    // convert battery_status to ROS
-    SetBatteryStatusData(battery_status_data);
-  } else if (name == "abnormal_status") {
-    INFO("[BmsProcessor]: Receive abnormal_status message from can.");
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->abnormal_status);
-    std::array<uint8_t, 6>  abnormal_status_data;
-    for (size_t i = 0; i < abnormal_status_data.size(); i++) {
-      abnormal_status_data[i] = data->abnormal_status[i];
-    }
-
-    // convert abnormal_status to ROS
-    SetAbnormalStatusData(abnormal_status_data);
-  } else if (name == "normal_status") {
-    INFO("[BmsProcessor]: Receive normal_status message from can.");
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_status);
-    std::array<uint8_t, 6>  normal_status_data;
-    for (size_t i = 0; i < normal_status_data.size(); i++) {
-      normal_status_data[i] = data->normal_status[i];
-    }
-
-    // convert normal_status to ROS
-    SetNormalStatusData(normal_status_data);
-  } else if (name == "normal_mode") {
-    // 0x01(正常模式)
-    INFO("[BmsProcessor]: Receive normal_mode message from can.");
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_mode);
-
-    // convert normal_mode to ROS 
-    uint8_t normal_mode = data->normal_mode;
-    SetNormalModeData(normal_mode);
-  } else if (name == "charging") {
-    INFO("[BmsProcessor]: Receive charging message from can.");
-    // 0x02(正在充电)
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->charging);
-
-    // convert charging to ROS 
-    uint8_t charging = data->charging;
-    SetChargingData(charging);
-  } else if (name == "finished_charging") {
-    INFO("[BmsProcessor]: Receive finished_charging message from can.");
-    // 0x03(充电完成)
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->finished_charging);
-
-    // convert charging to ROS 
-    uint8_t finished_charging = data->finished_charging;
-    SetChargingData(finished_charging);
-  } else if (name == "motor_power_down") {
-    INFO("[BmsProcessor]: Receive motor_power_down message from can.");
-    // 0x04(电机掉电)
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->motor_power_down);
-    
-    // convert charging to ROS 
-    uint8_t motor_power_down = data->motor_power_down;
-    SetChargingData(motor_power_down);
-  } else if (name == "soft_shutdown") {
-    INFO("[BmsProcessor]: Receive soft_shutdown message from can.");
-    // 0x05(软关机)
-    can_bridge_->LINK_VAR(can_bridge_->GetData()->soft_shutdown);
-
-    // convert charging to ROS 
-    uint8_t soft_shutdown = data->soft_shutdown;
-    SetChargingData(soft_shutdown);
   }
 
    // Convert can message struct to ROS format
-   bms_message_ = ToRos(can_message_);
-
-   // Print bms status
-   DebugString();
+   ros_bms_message_ = ToRos(can_battery_message_);
 }
 
 bool BMSCarpo::SendCommand(const Command & command)
 {
   bool success = false;
+
+  std::lock_guard<std::mutex> lock(test_mutex_);
   switch (command)
   {
     // 0x01(正常模式）
     case Command::kNormalMode:
       INFO("[BmsProcessor]: %s", "command type = Command::kNormalMode");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_normal_mode);
-      success = can_bridge_->Operate("cmd_normal_mode", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_normal_mode);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_normal_mode);
+      success = battery_status_ptr_->Operate("cmd_normal_mode", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_normal_mode);
       break;
 
     // 0x02(关闭电机）
     case Command::kTurnOffMotor:
       INFO("[BmsProcessor]: %s", "command type = Command::kTurnOffMotor");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_turn_off_motor);
-      success = can_bridge_->Operate("cmd_turn_off_motor", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_turn_off_motor);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_turn_off_motor);
+      success = battery_status_ptr_->Operate("cmd_turn_off_motor", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_turn_off_motor);
       break;
 
     // 0x03(低功耗）
     case Command::kLowPowerConsumption:
       INFO("[BmsProcessor]: %s", "command type = Command::kLowPowerConsumption");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_low_power_consumption);
-      success = can_bridge_->Operate("cmd_low_power_consumption", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_low_power_consumption);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_low_power_consumption);
+      success = battery_status_ptr_->Operate("cmd_low_power_consumption", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_low_power_consumption);
       break;
 
     // 0x04(软关机）
     case Command::kSoftShutdown:
       INFO("[BmsProcessor]: %s", "command type = Command::kSoftShutdown");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_turn_off_motor);
-      success = can_bridge_->Operate("cmd_soft_shutdown", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_soft_shutdown);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_soft_shutdown);
+      success = battery_status_ptr_->Operate("cmd_soft_shutdown", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_turn_off_motor);
       break;
 
     // 文件传输
     case Command::kFileTransfer:
       INFO("[BmsProcessor]: %s", "command type = Command::kFileTransfer");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_file_transfer);
-      success = can_bridge_->Operate("cmd_file_transfer", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_file_transfer);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_file_transfer);
+      success = battery_status_ptr_->Operate("cmd_file_transfer", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_file_transfer);
       break;
 
     // OTA升级
     case Command::kOTAUpgrade:
       INFO("[BmsProcessor]: %s", "command type = Command::kOTAUpgrade");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_ota_upgrade);
-      success = can_bridge_->Operate("cmd_ota_upgrade", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_ota_upgrade);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_ota_upgrade);
+      success = battery_status_ptr_->Operate("cmd_ota_upgrade", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_ota_upgrade);
       break;
 
     // 测试
     case Command::kTest:
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->normal_status);
       INFO("[BmsProcessor]: %s", "command type = Command::kTest");
-      can_bridge_->BREAK_VAR(can_bridge_->GetData()->cmd_test);
-      success = can_bridge_->Operate("cmd_test", std::vector<uint8_t>{0x00});
-      can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_test);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_test);
+      success = battery_status_ptr_->Operate("cmd_test", std::vector<uint8_t>{0x00});
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_test);
       break;
   
     default:
@@ -329,63 +279,14 @@ bool BMSCarpo::SendCommand(const Command & command)
   return success;
 }
 
-void BMSCarpo::SetBatteryStatusData(const std::array<uint8_t, 8>& data)
+void BMSCarpo::SetNormalStatus(std::array<uint8_t, 6> data)
 {
-  // battery_status[0]   : 电量
-  // battery_status[1]   : 电压
-  // battery_status[2]   : 电流
-  // battery_status[3]   : 温度
-  // battery_status[4-5] : 循环次数
-  // battery_status[6]   : 健康度
-  // battery_status[7]   : 故障状态
-  // bms_message_.batt_soc = data[0]; 
-  // bms_message_.batt_volt = data[1];           
-  // bms_message_.batt_curr = data[2];           
-  // bms_message_.batt_temp = data[3];          
-  // bms_message_.batt_loop_number = data[4] | data[5] >> 8;
-  // bms_message_.batt_health = data[6]; 
-  // bms_message_.powerboard_status = data[7];
-  can_message_.battery_status = data;
+   can_battery_message_.normal_status = data;
 }
 
-void BMSCarpo::SetAbnormalStatusData(const std::array<uint8_t, 6>& data)
+protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
 {
-  can_message_.abnormal_status = data;
-}
-
-void BMSCarpo::SetNormalStatusData(const std::array<uint8_t, 6>& data)
-{
-  can_message_.abnormal_status = data;
-}
-
-void BMSCarpo::SetNormalModeData(uint8_t normal_mode)
-{
-  can_message_.normal_mode = normal_mode;
-}
-
-void BMSCarpo::SetChargingData(uint8_t charging)
-{
-  can_message_.charging = charging;
-}
-
-void BMSCarpo::SetFinishedChargingData(uint8_t finished_charging)
-{
-  can_message_.finished_charging = finished_charging;
-}
-
-void BMSCarpo::SetMotorPowerDownData(uint8_t motor_power_down)
-{
-  can_message_.motor_power_down = motor_power_down;
-}
-
-void BMSCarpo::SetSoftShutdownData(uint8_t soft_shutdown)
-{
-  can_message_.soft_shutdown = soft_shutdown;
-}
-
-protocol::msg::Bms BMSCarpo::ToRos(const BMSStatus & can_data)
-{
-  protocol::msg::Bms message;
+  protocol::msg::BmsStatus message;
   // message.header
   struct timespec time_stu;
   clock_gettime(CLOCK_REALTIME, &time_stu);
@@ -395,20 +296,20 @@ protocol::msg::Bms BMSCarpo::ToRos(const BMSStatus & can_data)
   // message.header.stamp.sec = time_stu.tv_sec;
 
   // data
-  // battery_status[0]   : 电量
-  // battery_status[1]   : 电压
-  // battery_status[2]   : 电流
-  // battery_status[3]   : 温度
-  // battery_status[4-5] : 循环次数
-  // battery_status[6]   : 健康度
-  // battery_status[7]   : 故障状态
+  // battery[0]   : 电量
+  // battery[1]   : 电压
+  // battery[2]   : 电流
+  // battery[3]   : 温度
+  // battery[4-5] : 循环次数
+  // battery[6]   : 健康度
+  // battery[7]   : 故障状态
   message.batt_soc = can_data.battery_status[0]; 
   message.batt_volt = can_data.battery_status[1];
   message.batt_curr = can_data.battery_status[2];
   message.batt_temp = can_data.battery_status[3];
   message.batt_st = can_data.battery_status[7];
-  message.batt_health = can_message_.battery_status[6];
-  message.batt_loop_number = (can_message_.battery_status[4] | can_message_.battery_status[5] << 8);
+  message.batt_health = can_data.battery_status[6];
+  message.batt_loop_number = (can_data.battery_status[4] | can_data.battery_status[5] << 8);
   return message;
 }
 
@@ -419,110 +320,60 @@ void BMSCarpo::InitializeBmsProtocol()
   auto path = local_share_dir + std::string("/toml_config/device/battery.toml");
 
   // Create Protocol for `BMSStatus` data
-  can_bridge_ = std::make_shared<cyberdog::embed::Protocol<BMSStatus>>(path, false);
+  battery_status_ptr_ = std::make_shared<cyberdog::embed::Protocol<BatteryStatus>>(path, false);
 
   // link BMSStatus data type
   // 电量	电压	电流	温度	循环次数	健康度	故障状态
-  // can_bridge_->LINK_VAR(can_bridge_->GetData()->battery_status);
+  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
 
-  // 0x01(正常模式)
-  // 0x02(正在充电)
-  // 0x03(充电完成)
-  // 0x04(电机掉电)
-  // 0x05(软关机)
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_mode);
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->charging);
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->finished_charging);
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->motor_power_down);
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->soft_shutdown);
-
-  // 文件传输
-  // OTA升级
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_file_transfer);
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_ota_upgrade);
-
-  // 测试
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->cmd_test);
-
-  // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
-  // 01测试失败	01电量异常	01SC8815异常	01CYPD3171异常	01CAN异常	01串口异常
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->abnormal_status);
-  can_bridge_->LINK_VAR(can_bridge_->GetData()->normal_status);
-
-  can_bridge_->SetDataCallback(
+  battery_status_ptr_->SetDataCallback(
   std::bind(
-    &BMSCarpo::HandleBMSMessages,
+    &BMSCarpo::HandleBatteryStatusMessages,
     this, std::placeholders::_1, std::placeholders::_2));
-  
 }
 
-void BMSCarpo::DebugString()
+void BMSCarpo::DebugString(const PrintMessageType& type)
 {
-  INFO("------------------------ battery_status ------------------------");
-  // 电量	电压	电流	温度	循环次数	健康度	故障状态
-  // battery_status[0]   : 电量
-  // battery_status[1]   : 电压
-  // battery_status[2]   : 电流
-  // battery_status[3]   : 温度
-  // battery_status[4-5] : 循环次数
-  // battery_status[6]   : 健康度
-  // battery_status[7]   : 故障状态
-  // std::array<uint8_t, 8> battery_status;
-  // INFO("[BmsProcessor]: BMS volt    : %d", bms_message_.batt_volt);
-  // INFO("[BmsProcessor]: BMS curr    : %d", bms_message_.batt_curr);
-  // INFO("[BmsProcessor]: BMS temp    : %d", bms_message_.batt_temp);
-  // INFO("[BmsProcessor]: BMS soc     : %d", bms_message_.batt_soc);
-  // INFO("[BmsProcessor]: BMS status  : %d", bms_message_.status);
-  // INFO("[BmsProcessor]: BMS key_val : %d", bms_message_.key_val);
-  // INFO("[BmsProcessor]: BMS batt_health       : %d", bms_message_.batt_health);
-  // INFO("[BmsProcessor]: BMS batt_loop_number  : %d", bms_message_.batt_loop_number);
-  // INFO("[BmsProcessor]: BMS powerboard_status : %d", bms_message_.powerboard_status);
+  switch (type)
+  {
+  case PrintMessageType::kBatteryStatus:
+    INFO("------------------------ battery_status ------------------------");
+    // 电量	电压	电流	温度	循环次数	健康度	故障状态
+    // battery_status[0]   : 电量
+    // battery_status[1]   : 电压
+    // battery_status[2]   : 电流
+    // battery_status[3]   : 温度
+    // battery_status[4-5] : 循环次数
+    // battery_status[6]   : 健康度
+    // battery_status[7]   : 状态  bit 0  正常模式
+    //                            bit 1  正在充电
+    //                            bit 2  充电完成
+    //                            bit 3  电机掉电
+    //                            bit 4  软关机
+    INFO("[BmsProcessor]: 电量	  : %d", can_battery_message_.battery_status[0]);
+    INFO("[BmsProcessor]: 电压	  : %d", can_battery_message_.battery_status[1]);
+    INFO("[BmsProcessor]: 电流	  : %d", can_battery_message_.battery_status[2]);
+    INFO("[BmsProcessor]: 温度	  : %d", can_battery_message_.battery_status[3]);
+    INFO("[BmsProcessor]: 循环次数 : %d", (can_battery_message_.battery_status[4] | can_battery_message_.battery_status[5] << 8));
+    INFO("[BmsProcessor]: 健康度   : %d", can_battery_message_.battery_status[6]);
+    INFO("[BmsProcessor]: 状态    : %d", can_battery_message_.battery_status[7]);
+    break;
 
-  INFO("[BmsProcessor]: 电量	  : %d", can_message_.battery_status[0]);
-  INFO("[BmsProcessor]: 电压	  : %d", can_message_.battery_status[1]);
-  INFO("[BmsProcessor]: 电流	  : %d", can_message_.battery_status[2]);
-  INFO("[BmsProcessor]: 温度	  : %d", can_message_.battery_status[3]);
-  INFO("[BmsProcessor]: 循环次数 : %d", (can_message_.battery_status[4] | can_message_.battery_status[5] << 8));
-  INFO("[BmsProcessor]: 健康度   : %d", can_message_.battery_status[6]);
-  INFO("[BmsProcessor]: 故障状态 : %d", can_message_.battery_status[7]);
+  case PrintMessageType::kBatteryTestNormalStatus:
+    INFO("------------------------ normal_status ------------------------");
+    // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
+    // std::array<uint8_t, 6> normal_status;
+    INFO("[BmsProcessor]: 测试通过	     : %d", can_battery_message_.normal_status[0]);
+    INFO("[BmsProcessor]: 电量正常	     : %d", can_battery_message_.normal_status[1]);
+    INFO("[BmsProcessor]: SC8815正常	  : %d", can_battery_message_.normal_status[2]);
+    INFO("[BmsProcessor]: CYPD3171正常	: %d", can_battery_message_.normal_status[3]);
+    INFO("[BmsProcessor]: CAN正常	      : %d", can_battery_message_.normal_status[4]);
+    INFO("[BmsProcessor]: 串口正常	     : %d", can_battery_message_.normal_status[5]);
+    break;
 
-  INFO("------------------------ abnormal_status ------------------------");
-  // 01测试失败	01电量异常	01SC8815异常	01CYPD3171异常	01CAN异常	01串口异常
-  // std::array<uint8_t, 6> abnormal_status;
-  INFO("[BmsProcessor]: 测试失败	     : %d", can_message_.abnormal_status[0]);
-  INFO("[BmsProcessor]: 电量异常	     : %d", can_message_.abnormal_status[1]);
-  INFO("[BmsProcessor]: SC8815异常	  : %d", can_message_.abnormal_status[2]);
-  INFO("[BmsProcessor]: CYPD3171异常	: %d", can_message_.abnormal_status[3]);
-  INFO("[BmsProcessor]: CAN异常	      : %d", can_message_.abnormal_status[4]);
-  INFO("[BmsProcessor]: 串口异常	     : %d", can_message_.abnormal_status[5]);
-  
-
-  INFO("------------------------ normal_status ------------------------");
-  // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
-  // std::array<uint8_t, 6> normal_status;
-  INFO("[BmsProcessor]: 测试通过	     : %d", can_message_.normal_status[0]);
-  INFO("[BmsProcessor]: 电量正常	     : %d", can_message_.normal_status[1]);
-  INFO("[BmsProcessor]: SC8815正常	  : %d", can_message_.normal_status[2]);
-  INFO("[BmsProcessor]: CYPD3171正常	: %d", can_message_.normal_status[3]);
-  INFO("[BmsProcessor]: CAN正常	      : %d", can_message_.normal_status[4]);
-  INFO("[BmsProcessor]: 串口正常	     : %d", can_message_.normal_status[5]);
-
-  INFO("------------------------ power_status ------------------------");
-  // 0x01(正常模式)
-  // 0x02(正在充电)
-  // 0x03(充电完成)
-  // 0x04(电机掉电)
-  // 0x05(软关机)
-  // uint8_t normal_mode;
-  // uint8_t charging;
-  // uint8_t finished_charging;
-  // uint8_t motor_power_down;
-  // uint8_t soft_shutdown;
-  INFO("[BmsProcessor]: normal_mode	      : %d", can_message_.normal_mode);
-  INFO("[BmsProcessor]: charging	        : %d", can_message_.charging);
-  INFO("[BmsProcessor]: finished_charging	: %d", can_message_.finished_charging);
-  INFO("[BmsProcessor]: motor_power_down	: %d", can_message_.motor_power_down);
-  INFO("[BmsProcessor]: soft_shutdown	    : %d", can_message_.soft_shutdown);
+  default:
+    break;
+  }
 }
 
 void BMSCarpo::RunSimulation()
@@ -530,15 +381,14 @@ void BMSCarpo::RunSimulation()
   std::thread simulation_task([this]() 
   {
     while (simulation_) {
-      bms_message_.batt_volt = GenerateRandomNumber(0, 36);           // 0 V- 36V
-      bms_message_.batt_curr = GenerateRandomNumber(0, 25);           // 0 MA- 25MA
-      bms_message_.batt_temp = GenerateRandomNumber(0, 100);          // 0 C- 100 C
-      bms_message_.batt_soc = GenerateRandomNumber(0, 100);           // 电量
-      bms_message_.key_val = GenerateRandomNumber(0, 5);              // key_val
-      bms_message_.batt_health = GenerateRandomNumber(0, 100);        // batt_health
-      bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
-      bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
-      
+      ros_bms_message_.batt_volt = GenerateRandomNumber(0, 36);           // 0 V- 36V
+      ros_bms_message_.batt_curr = GenerateRandomNumber(0, 25);           // 0 MA- 25MA
+      ros_bms_message_.batt_temp = GenerateRandomNumber(0, 100);          // 0 C- 100 C
+      ros_bms_message_.batt_soc = GenerateRandomNumber(0, 100);           // 电量
+      ros_bms_message_.key_val = GenerateRandomNumber(0, 5);              // key_val
+      ros_bms_message_.batt_health = GenerateRandomNumber(0, 100);        // batt_health
+      ros_bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
+      ros_bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   });
