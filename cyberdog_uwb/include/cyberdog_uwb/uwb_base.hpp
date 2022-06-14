@@ -11,33 +11,37 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef DEVICE_MANAGER__DEVICE_CONFIG_HPP_
-#define DEVICE_MANAGER__DEVICE_CONFIG_HPP_
 
-#include <map>
+#ifndef CYBERDOG_UWB__UWB_BASE_HPP_
+#define CYBERDOG_UWB__UWB_BASE_HPP_
+
 #include <string>
-#include <utility>
+#include <memory>
+#include "rclcpp/rclcpp.hpp"
 
-#include "pluginlib/class_loader.hpp"
-#include "cyberdog_led/led_base.hpp"
-#include "cyberdog_bms/bms_base.hpp"
-#include "cyberdog_touch/touch_base.hpp"
-#include "protocol/srv/led_execute.hpp"
-#include "protocol/msg/touch_status.hpp"
-#include "protocol/msg/bms_status.hpp"
+// #include "protocol/msg/bms_status.hpp"
+
 
 namespace cyberdog
 {
 namespace device
 {
-inline void GetDeviceNames(std::map<std::string, std::string> & name_map)
+
+class UWBBase
 {
-  name_map.insert(std::make_pair("led_base", "LedCarpo"));
-  name_map.insert(std::make_pair("touch_base", "TouchCarpo"));
-  name_map.insert(std::make_pair("bms_base", "BMSCarpo"));
-}
+public:
+  // using BmsStatusMsg = protocol::msg::BmsStatus;
+
+  virtual bool Config() = 0;
+  // virtual bool Init(std::function<void(BmsStatusMsg)>
+  // function_callback, bool simulation = false) = 0;
+  virtual bool SelfCheck() = 0;
+  // virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
+
+protected:
+  UWBBase() {}
+};  // class UWBBase
 }  // namespace device
 }  // namespace cyberdog
 
-
-#endif  // DEVICE_MANAGER__DEVICE_CONFIG_HPP_
+#endif  // CYBERDOG_UWB__UWB_BASE_HPP_

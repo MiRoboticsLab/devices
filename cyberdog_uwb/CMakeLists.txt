@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(cyberdog_bms)
+project(cyberdog_uwb)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -28,7 +28,7 @@ find_package(params REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
-    src/bms_plugin.cpp)
+    src/uwb_plugin.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

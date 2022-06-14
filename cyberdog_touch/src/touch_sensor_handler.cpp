@@ -160,8 +160,9 @@ int TouchSensorHandler::openInput(void)
   if (dir == NULL) {
     return -1;
   }
+
   // strcpy(devname, dirname); // snprintf
-  snprintf(devname, strlen(dirname), "%s", dirname);
+  snprintf(devname, strlen(dirname) + 1, "%s", dirname);
   filename = devname + strlen(devname);
   *filename++ = '/';
   while ((de = readdir(dir))) {
@@ -170,18 +171,18 @@ int TouchSensorHandler::openInput(void)
     {
       continue;
     }
-    // strcpy(filename, de->d_name);
-    snprintf(filename, strlen(de->d_name), "%s", de->d_name);
+
+    snprintf(filename, strlen(de->d_name) + 1, "%s", de->d_name);
     // printf("get input device(%s)\n", devname);
     // printf("get file(%s)\n", filename);
     fd = open(devname, O_RDWR);
     if (fd >= 0) {
-      // printf("get input device(%s)\n", devname);
+      INFO("get input device(%s)\n", devname);
       char name[80];
       if (ioctl(fd, EVIOCGNAME(sizeof(name) - 1), &name) < 1) {
         name[0] = '\0';
       }
-      // printf("name = %s, inputName = %s\n", name, inputName);
+      // INFO("name = %s\n", name);
       if (!strcmp(name, "synaptics_dsx")) {
         // printf("get wanted input device(%s)\n", devname);
         INFO("get wanted input device(%s)", devname);
