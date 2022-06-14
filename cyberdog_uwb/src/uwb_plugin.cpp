@@ -29,7 +29,6 @@ namespace device
 
 UWBCarpo::UWBCarpo()
 {
-  
 }
 
 bool UWBCarpo::Config()

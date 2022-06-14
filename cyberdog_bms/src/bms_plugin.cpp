@@ -29,7 +29,6 @@ namespace device
 
 BMSCarpo::BMSCarpo()
 {
-  
 }
 
 bool BMSCarpo::Config()
@@ -102,47 +101,46 @@ void BMSCarpo::Report(
 
 void BMSCarpo::RunTest()
 {
-    // kTest
-    switch (test_command_)
-    {
-      case 1:
-        INFO("Test case: Command::kNormalMode");
-        SendCommand(Command::kNormalMode);
-        break;
+  // kTest
+  switch (test_command_) {
+    case 1:
+      INFO("Test case: Command::kNormalMode");
+      SendCommand(Command::kNormalMode);
+      break;
 
-      case 2:
-        INFO("Test case: Command::kTurnOffMotor");
-        SendCommand(Command::kTurnOffMotor);
-        break;
+    case 2:
+      INFO("Test case: Command::kTurnOffMotor");
+      SendCommand(Command::kTurnOffMotor);
+      break;
 
-      case 3:
-        INFO("Test case: Command::kLowPowerConsumption");
-        SendCommand(Command::kLowPowerConsumption);
-        break;
+    case 3:
+      INFO("Test case: Command::kLowPowerConsumption");
+      SendCommand(Command::kLowPowerConsumption);
+      break;
 
-      case 4:
-        INFO("Test case: Command::kSoftShutdown");
-        SendCommand(Command::kSoftShutdown);
-        break;
+    case 4:
+      INFO("Test case: Command::kSoftShutdown");
+      SendCommand(Command::kSoftShutdown);
+      break;
 
-      case 5:
-        INFO("Test case: Command::kFileTransfer");
-        SendCommand(Command::kFileTransfer);
-        break;
+    case 5:
+      INFO("Test case: Command::kFileTransfer");
+      SendCommand(Command::kFileTransfer);
+      break;
 
-      case 6:
-        INFO("Test case: Command::kOTAUpgrade");
-        SendCommand(Command::kOTAUpgrade);
-        break;
+    case 6:
+      INFO("Test case: Command::kOTAUpgrade");
+      SendCommand(Command::kOTAUpgrade);
+      break;
 
-      case 7:
-        INFO("Test case: Command::kTest");
-        SendCommand(Command::kTest);
-        break;
-    
+    case 7:
+      INFO("Test case: Command::kTest");
+      SendCommand(Command::kTest);
+      break;
+
     default:
       break;
-    }
+  }
 }
 
 void BMSCarpo::StopTest()
@@ -174,9 +172,8 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
     if (name == "battery_status") {
       INFO("[BmsProcessor]: Receive battery_status message from can.");
       // link BMSStatus data type
-      // 电量	电压	电流	温度	循环次数	健康度	故障状态
       // battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
-      std::array<uint8_t, 8>  battery_status_data;
+      std::array<uint8_t, 8> battery_status_data;
       for (size_t i = 0; i < battery_status_data.size(); i++) {
         battery_status_data[i] = data->battery_status[i];
       }
@@ -188,9 +185,9 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
     } else if (name == "normal_status") {
       INFO("[BmsProcessor]: Receive normal_status message from can.");
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
-   
+
       // normal_status
-      std::array<uint8_t, 6>  normal_status_data;
+      std::array<uint8_t, 6> normal_status_data;
       for (size_t i = 0; i < normal_status_data.size(); i++) {
         normal_status_data[i] = data->normal_status[i];
       }
@@ -201,12 +198,11 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
 
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->normal_status);
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
-
     }
   }
 
-   // Convert can message struct to ROS format
-   ros_bms_message_ = ToRos(can_battery_message_);
+  // Convert can message struct to ROS format
+  ros_bms_message_ = ToRos(can_battery_message_);
 }
 
 bool BMSCarpo::SendCommand(const Command & command)
@@ -214,8 +210,7 @@ bool BMSCarpo::SendCommand(const Command & command)
   bool success = false;
 
   std::lock_guard<std::mutex> lock(test_mutex_);
-  switch (command)
-  {
+  switch (command) {
     // 0x01(正常模式）
     case Command::kNormalMode:
       INFO("[BmsProcessor]: %s", "command type = Command::kNormalMode");
@@ -236,7 +231,8 @@ bool BMSCarpo::SendCommand(const Command & command)
     case Command::kLowPowerConsumption:
       INFO("[BmsProcessor]: %s", "command type = Command::kLowPowerConsumption");
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_low_power_consumption);
-      success = battery_status_ptr_->Operate("cmd_low_power_consumption", std::vector<uint8_t>{0x00});
+      success =
+        battery_status_ptr_->Operate("cmd_low_power_consumption", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_low_power_consumption);
       break;
 
@@ -272,7 +268,7 @@ bool BMSCarpo::SendCommand(const Command & command)
       success = battery_status_ptr_->Operate("cmd_test", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_test);
       break;
-  
+
     default:
       break;
   }
@@ -281,7 +277,7 @@ bool BMSCarpo::SendCommand(const Command & command)
 
 void BMSCarpo::SetNormalStatus(std::array<uint8_t, 6> data)
 {
-   can_battery_message_.normal_status = data;
+  can_battery_message_.normal_status = data;
 }
 
 protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
@@ -303,7 +299,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   // battery[4-5] : 循环次数
   // battery[6]   : 健康度
   // battery[7]   : 故障状态
-  message.batt_soc = can_data.battery_status[0]; 
+  message.batt_soc = can_data.battery_status[0];
   message.batt_volt = can_data.battery_status[1];
   message.batt_curr = can_data.battery_status[2];
   message.batt_temp = can_data.battery_status[3];
@@ -323,84 +319,70 @@ void BMSCarpo::InitializeBmsProtocol()
   battery_status_ptr_ = std::make_shared<cyberdog::embed::Protocol<BatteryStatus>>(path, false);
 
   // link BMSStatus data type
-  // 电量	电压	电流	温度	循环次数	健康度	故障状态
   battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
 
   battery_status_ptr_->SetDataCallback(
-  std::bind(
-    &BMSCarpo::HandleBatteryStatusMessages,
-    this, std::placeholders::_1, std::placeholders::_2));
+    std::bind(
+      &BMSCarpo::HandleBatteryStatusMessages,
+      this, std::placeholders::_1, std::placeholders::_2));
 }
 
-void BMSCarpo::DebugString(const PrintMessageType& type)
+void BMSCarpo::DebugString(const PrintMessageType & type)
 {
-  switch (type)
-  {
-  case PrintMessageType::kBatteryStatus:
-    INFO("------------------------ battery_status ------------------------");
-    // 电量	电压	电流	温度	循环次数	健康度	故障状态
-    // battery_status[0]   : 电量
-    // battery_status[1]   : 电压
-    // battery_status[2]   : 电流
-    // battery_status[3]   : 温度
-    // battery_status[4-5] : 循环次数
-    // battery_status[6]   : 健康度
-    // battery_status[7]   : 状态  bit 0  正常模式
-    //                            bit 1  正在充电
-    //                            bit 2  充电完成
-    //                            bit 3  电机掉电
-    //                            bit 4  软关机
-    INFO("[BmsProcessor]: 电量	  : %d", can_battery_message_.battery_status[0]);
-    INFO("[BmsProcessor]: 电压	  : %d", can_battery_message_.battery_status[1]);
-    INFO("[BmsProcessor]: 电流	  : %d", can_battery_message_.battery_status[2]);
-    INFO("[BmsProcessor]: 温度	  : %d", can_battery_message_.battery_status[3]);
-    INFO("[BmsProcessor]: 循环次数 : %d", (can_battery_message_.battery_status[4] | can_battery_message_.battery_status[5] << 8));
-    INFO("[BmsProcessor]: 健康度   : %d", can_battery_message_.battery_status[6]);
-    INFO("[BmsProcessor]: 状态    : %d", can_battery_message_.battery_status[7]);
-    break;
+  switch (type) {
+    case PrintMessageType::kBatteryStatus:
+      INFO("------------------------ battery_status ------------------------");
+      INFO("[BmsProcessor]: 电量: %d", can_battery_message_.battery_status[0]);
+      INFO("[BmsProcessor]: 电压: %d", can_battery_message_.battery_status[1]);
+      INFO("[BmsProcessor]: 电流: %d", can_battery_message_.battery_status[2]);
+      INFO("[BmsProcessor]: 温度: %d", can_battery_message_.battery_status[3]);
+      INFO(
+        "[BmsProcessor]: 循环次数 : %d",
+        (can_battery_message_.battery_status[4] | can_battery_message_.battery_status[5] << 8));
+      INFO("[BmsProcessor]: 健康度: %d", can_battery_message_.battery_status[6]);
+      INFO("[BmsProcessor]: 状态: %d", can_battery_message_.battery_status[7]);
+      break;
 
-  case PrintMessageType::kBatteryTestNormalStatus:
-    INFO("------------------------ normal_status ------------------------");
-    // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
-    // std::array<uint8_t, 6> normal_status;
-    INFO("[BmsProcessor]: 测试通过	     : %d", can_battery_message_.normal_status[0]);
-    INFO("[BmsProcessor]: 电量正常	     : %d", can_battery_message_.normal_status[1]);
-    INFO("[BmsProcessor]: SC8815正常	  : %d", can_battery_message_.normal_status[2]);
-    INFO("[BmsProcessor]: CYPD3171正常	: %d", can_battery_message_.normal_status[3]);
-    INFO("[BmsProcessor]: CAN正常	      : %d", can_battery_message_.normal_status[4]);
-    INFO("[BmsProcessor]: 串口正常	     : %d", can_battery_message_.normal_status[5]);
-    break;
+    case PrintMessageType::kBatteryTestNormalStatus:
+      INFO("------------------------ normal_status ------------------------");
+      INFO("[BmsProcessor]: 测试通过: %d", can_battery_message_.normal_status[0]);
+      INFO("[BmsProcessor]: 电量正常: %d", can_battery_message_.normal_status[1]);
+      INFO("[BmsProcessor]: SC8815正常: %d", can_battery_message_.normal_status[2]);
+      INFO("[BmsProcessor]: CYPD3171正常: %d", can_battery_message_.normal_status[3]);
+      INFO("[BmsProcessor]: CAN正常: %d", can_battery_message_.normal_status[4]);
+      INFO("[BmsProcessor]: 串口正常: %d", can_battery_message_.normal_status[5]);
+      break;
 
-  default:
-    break;
+    default:
+      break;
   }
 }
 
 void BMSCarpo::RunSimulation()
 {
-  std::thread simulation_task([this]() 
-  {
-    while (simulation_) {
-      ros_bms_message_.batt_volt = GenerateRandomNumber(0, 36);           // 0 V- 36V
-      ros_bms_message_.batt_curr = GenerateRandomNumber(0, 25);           // 0 MA- 25MA
-      ros_bms_message_.batt_temp = GenerateRandomNumber(0, 100);          // 0 C- 100 C
-      ros_bms_message_.batt_soc = GenerateRandomNumber(0, 100);           // 电量
-      ros_bms_message_.key_val = GenerateRandomNumber(0, 5);              // key_val
-      ros_bms_message_.batt_health = GenerateRandomNumber(0, 100);        // batt_health
-      ros_bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
-      ros_bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  });
+  std::thread simulation_task([this]()
+    {
+      while (simulation_) {
+        ros_bms_message_.batt_volt = GenerateRandomNumber(0, 36);       // 0 V- 36V
+        ros_bms_message_.batt_curr = GenerateRandomNumber(0, 25);       // 0 MA- 25MA
+        ros_bms_message_.batt_temp = GenerateRandomNumber(0, 100);      // 0 C- 100 C
+        ros_bms_message_.batt_soc = GenerateRandomNumber(0, 100);       // 电量
+        ros_bms_message_.key_val = GenerateRandomNumber(0, 5);          // key_val
+        ros_bms_message_.batt_health = GenerateRandomNumber(0, 100);    // batt_health
+        ros_bms_message_.batt_loop_number = GenerateRandomNumber(0, 1000);  // batt_loop_number
+        ros_bms_message_.powerboard_status = GenerateRandomNumber(0, 6);    // powerboard_status
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+    });
 
   simulation_task.detach();
 }
 
 int BMSCarpo::GenerateRandomNumber(int start, int end)
 {
-  std::random_device rd;  // 将用于为随机数引擎获得种子
-  std::mt19937 gen(rd()); // 以播种标准 mersenne_twister_engine
-  std::uniform_int_distribution<> dis(start, end); // [start end]
+  std::random_device rd;   // 将用于为随机数引擎获得种子
+  std::mt19937 gen(rd());  // 以播种标准 mersenne_twister_engine
+  std::uniform_int_distribution<> dis(start, end);  // [start end]
   return dis(gen);
 }
 

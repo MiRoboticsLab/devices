@@ -37,13 +37,12 @@ class UWBCarpo : public cyberdog::device::UWBBase
 public:
   UWBCarpo();
   virtual bool Config();
-  // virtual bool Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation = false);
+  // virtual bool Init(std::function<void(BmsStatusMsg)>
+  // function_callback, bool simulation = false);
   virtual bool SelfCheck();
   // virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback);
 
 private:
-
-  
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog

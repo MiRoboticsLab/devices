@@ -34,21 +34,7 @@ namespace device
 
 struct BatteryStatus
 {
-  // 电量	电压	电流	温度	循环次数	健康度	故障状态
-  // battery_status[0]   : 电量
-  // battery_status[1]   : 电压
-  // battery_status[2]   : 电流
-  // battery_status[3]   : 温度
-  // battery_status[4-5] : 循环次数
-  // battery_status[6]   : 健康度
-  // battery_status[7]   : 状态  bit 0  正常模式
-  //                            bit 1  正在充电
-  //                            bit 2  充电完成
-  //                            bit 3  电机掉电
-  //                            bit 4  软关机
   std::array<uint8_t, 8> battery_status;
-
-  // 01测试通过	01电量正常	01SC8815正常	01CYPD3171正常	01CAN正常	01串口正常
   // 00 : normal
   // 01 : abnormal
   std::array<uint8_t, 6> normal_status;
@@ -96,7 +82,7 @@ enum class Command
 enum class PrintMessageType
 {
   kBatteryStatus,
-  kBatteryTestNormalStatus, 
+  kBatteryTestNormalStatus,
 };
 
 class BMSCarpo : public cyberdog::device::BMSBase
@@ -114,7 +100,7 @@ public:
     const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
     std::shared_ptr<protocol::srv::BmsInfo::Response> response);
 
-  // Test 
+  // Test
   void RunTest();
 
   // Stop command.
@@ -134,7 +120,7 @@ private:
   void InitializeBmsProtocol();
 
   // Get protocol go though by emv
-  void HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data); 
+  void HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data);
 
   // command status for other device
   bool SendCommand(const Command & command);
@@ -144,10 +130,10 @@ private:
 
   // Convert BatteryStatus to protocol::msg::Bms
   protocol::msg::BmsStatus ToRos(const BatteryStatus & can_data);
-  void DebugString(const PrintMessageType& type);
+  void DebugString(const PrintMessageType & type);
 
   // Dimulation Data for debug
-  void RunSimulation(); 
+  void RunSimulation();
 
   // Generate random number
   int GenerateRandomNumber(int start, int end);
@@ -161,7 +147,7 @@ private:
   bool initialized_finished_ {false};
   bool simulation_ {false};
   bool test_ {false};
-  int test_command_; 
+  int test_command_;
   std::mutex test_mutex_;
   std::mutex mutex_battery_;
   BatterySharedPtr battery_status_ptr_ {nullptr};
