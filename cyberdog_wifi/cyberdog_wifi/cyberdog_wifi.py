@@ -150,7 +150,7 @@ class CyberdogWifi(Node):
         else:
             response.result = RESULT_NO_SSID
             trial_times = 0
-            while response.result != RESULT_SUCCESS and trial_times < 3:
+            while response.result != RESULT_SUCCESS and trial_times < 5:
                 response.result = return_connect_status(
                     nmcliConnectWifi(request.ssid, request.pwd))
                 trial_times += 1
@@ -163,13 +163,21 @@ class CyberdogWifi(Node):
     def timer_callback(self):
         """定期发布wifi状态"""
         msg = WifiStatus()
-        msg.ssid = self.connected_ssid
-        if len(msg.ssid) == 0:
-            msg.is_connected = False
-        else:
-            msg.is_connected = True
-        msg.strength = self.get_wifi_rssi()
         msg.ip = getIP('wlan0')
+        if msg.ip != '0.0.0.0':
+            self.get_connected_ssid()
+            if 'Processing' in self.connected_ssid:  #switching
+                msg.ssid = self.connected_ssid = ''
+                msg.strength = 0
+                msg.is_connected = False
+            else:
+                msg.ssid = self.connected_ssid
+                msg.strength = self.get_wifi_rssi()
+                msg.is_connected = True
+        else:
+            msg.is_connected = False
+            msg.ssid = self.connected_ssid = ''
+            msg.strength = 0
         self.pub_rssi.publish(msg)
 
 
