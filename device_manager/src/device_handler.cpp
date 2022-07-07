@@ -79,7 +79,7 @@ void cyberdog::device::DeviceHandler::ExecuteLed(
 
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
 {
-  if(touch_pub_ != nullptr) {
+  if (touch_pub_ != nullptr) {
     touch_pub_->publish(msg);
   }
 }
