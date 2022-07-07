@@ -43,6 +43,12 @@ public:
   // virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback);
 
 private:
+  // Dimulation Data for debug
+  void RunSimulation();
+
+  // Generate random number
+  int GenerateRandomNumber(int start, int end);
+
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog

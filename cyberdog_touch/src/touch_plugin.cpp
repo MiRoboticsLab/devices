@@ -17,6 +17,7 @@
 #include <utility>
 #include <memory>
 #include <random>
+#include <string>
 
 #include "cyberdog_touch/touch_plugin.hpp"
 #include "pluginlib/class_list_macros.hpp"
@@ -85,27 +86,12 @@ void TouchCarpo::RunTouchTask()
         message.touch_state = ret;
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
-        message.timestamp = ts.tv_sec * 1000000000 + ts.tv_nsec;
+        message.header.frame_id = std::string("touch_id");
+        message.header.stamp.nanosec = ts.tv_nsec;
+        message.header.stamp.sec = ts.tv_sec;
         INFO("[TouchCarpo]: touch sensor data received: 0x%x", message.touch_state);
         status_function_(std::move(message));
       }
-      std::this_thread::sleep_for(std::chrono::seconds(2));
-    }
-
-    ret_count = touch_handler_->pollTouchEvents(touch_event, count);
-    if (ret_count <= 0) {
-      continue;
-    }
-
-    if ((touch_event->type == EV_KEY)) {
-      ret = touch_event->code - GESTURE_XM_ADDR;
-      TouchStatusMsg message;
-      message.touch_state = ret;
-      struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      message.timestamp = ts.tv_sec * 1000000000 + ts.tv_nsec;
-      INFO("[TouchCarpo]: touch sensor data received: 0x%x", message.touch_state);
-      status_function_(std::move(message));
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
   }

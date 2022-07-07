@@ -179,8 +179,9 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       }
 
       // Print bms status
-      DebugString(PrintMessageType::kBatteryStatus);
-
+      if (ros_bms_message_.batt_volt != battery_status_data[0]) {
+        DebugString(PrintMessageType::kBatteryStatus);
+      }
       // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
     } else if (name == "normal_status") {
       INFO("[BmsProcessor]: Receive normal_status message from can.");
@@ -287,9 +288,9 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   struct timespec time_stu;
   clock_gettime(CLOCK_REALTIME, &time_stu);
 
-  // message.header.frame_id = std::string("battery_id");
-  // message.header.stamp.nanosec = time_stu.tv_nsec;
-  // message.header.stamp.sec = time_stu.tv_sec;
+  message.header.frame_id = std::string("battery_id");
+  message.header.stamp.nanosec = time_stu.tv_nsec;
+  message.header.stamp.sec = time_stu.tv_sec;
 
   // data
   // battery[0]   : 电量
@@ -298,7 +299,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   // battery[3]   : 温度
   // battery[4-5] : 循环次数
   // battery[6]   : 健康度
-  // battery[7]   : 故障状态
+  // battery[7]   : 状态
   message.batt_soc = can_data.battery_status[0];
   message.batt_volt = can_data.battery_status[1];
   message.batt_curr = can_data.battery_status[2];
