@@ -179,8 +179,9 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       }
 
       // Print bms status
-      DebugString(PrintMessageType::kBatteryStatus);
-
+      if (ros_bms_message_.batt_volt != battery_status_data[0]) {
+        DebugString(PrintMessageType::kBatteryStatus);
+      }
       // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
     } else if (name == "normal_status") {
       INFO("[BmsProcessor]: Receive normal_status message from can.");

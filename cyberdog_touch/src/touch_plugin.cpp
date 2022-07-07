@@ -17,6 +17,7 @@
 #include <utility>
 #include <memory>
 #include <random>
+#include <string>
 
 #include "cyberdog_touch/touch_plugin.hpp"
 #include "pluginlib/class_list_macros.hpp"
