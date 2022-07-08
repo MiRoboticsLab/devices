@@ -49,6 +49,7 @@ private:
   // Generate random number
   int GenerateRandomNumber(int start, int end);
 
+  bool simulation_ {false};
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog
