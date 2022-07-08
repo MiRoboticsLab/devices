@@ -19,10 +19,9 @@ from time import sleep
 
 import rclpy
 from rclpy.node import Node
-
 from protocol.msg import WifiStatus
-
 from protocol.srv import WifiConnect
+from std_msgs.msg import Bool
 
 
 RESULT_NO_SSID = 4
@@ -62,9 +61,10 @@ def runCommand(cmd):
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output.wait()  # wait for cmd done
     tmp = str(output.stdout.read(), encoding='utf-8')
-    print(tmp)
     return tmp
 
+def rescanWifi():
+    runCommand('sudo nmcli device wifi rescan')
 
 # do a new wlan connect
 def nmcliConnectWifi(ssid, pwd):
@@ -102,22 +102,28 @@ class CyberdogWifi(Node):
     def __init__(self):
         super().__init__('cyberdog_wifi')
         self.connected_ssid = ""
-        self.get_connected_ssid()
+        self.get_wifi_rssi()
         self.srv_wifi = self.create_service(WifiConnect, 'connect_wifi', self.wifi_connect)
-        self.pub_rssi = self.create_publisher(WifiStatus, 'wifi_status', 0)
+        self.pub_rssi = self.create_publisher(WifiStatus, 'wifi_status', 10)
+        self.mode_sub = self.create_subscription(Bool, 'app_connection_state', self.switchMode ,1)
         timer_period = 1.0  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.connection_list = []
+        self.app_connected = True
+        init_msg = Bool()
+        init_msg.data = False
+        self.switchMode(init_msg)
 
     def get_connected_ssid(self):
         """获取wifi名称"""
-        cmd = 'nmcli device status | grep " connected " | grep wlan0'
+        cmd = 'nmcli device status | grep wlan0'
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
-        if len(result) > 4:
+        if result != '' and not ('disconnected' in result):
             str_list = result.split()
             connected_ssid = str_list[3]
             str_index = 4
-            while str_index < len(str_list) - 1:
+            while str_index < len(str_list):
                 connected_ssid += " " + str_list[str_index]
                 str_index += 1
             self.connected_ssid = connected_ssid
@@ -127,9 +133,7 @@ class CyberdogWifi(Node):
 
     def get_wifi_rssi(self):
         """获取信号强度"""
-        if len(self.connected_ssid) == 0:
-            return 0
-        cmd = 'nmcli device wifi | grep "' + self.connected_ssid +'"'
+        cmd = 'nmcli device wifi | grep "*"'
         res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
         rssi = 0
@@ -141,6 +145,17 @@ class CyberdogWifi(Node):
                 rssi = int(str_list[-4])
             elif str_list[-5].isdigit(): #SECURITY有三项时
                 rssi = int(str_list[-3])
+            ssid_last_index = str_list.index('Mbit/s') - 4
+            connected_ssid = str_list[1]
+            str_index = 2
+            while str_index <= ssid_last_index:
+                connected_ssid += " " + str_list[str_index]
+                str_index += 1
+            self.connected_ssid = connected_ssid
+        else:
+            rssi = 0
+            self.connected_ssid = ''
+        
         return rssi
 
     def wifi_connect(self, request, response):
@@ -165,21 +180,52 @@ class CyberdogWifi(Node):
         msg = WifiStatus()
         msg.ip = getIP('wlan0')
         if msg.ip != '0.0.0.0':
-            self.get_connected_ssid()
-            if 'Processing' in self.connected_ssid:  #switching
-                msg.ssid = self.connected_ssid = ''
-                msg.strength = 0
-                msg.is_connected = False
-            else:
-                msg.ssid = self.connected_ssid
-                msg.strength = self.get_wifi_rssi()
-                msg.is_connected = True
+            msg.strength = self.get_wifi_rssi()
+            msg.ssid = self.connected_ssid
+            msg.is_connected = True
         else:
             msg.is_connected = False
             msg.ssid = self.connected_ssid = ''
             msg.strength = 0
         self.pub_rssi.publish(msg)
 
+
+
+    def updateConnectionList(self):
+        self.connection_list.clear()
+        raw_str = runCommand('nmcli connection show | grep wifi')
+        str_list = raw_str.split('\n')
+        num = len(str_list) - 1
+        index = 0
+        while index < num:
+            one_line_str_list = str_list[index].split()
+            ssid = one_line_str_list[0]
+            i = 1
+            while i < len(one_line_str_list) - 3:
+                ssid += " " + one_line_str_list[i]
+                i += 1
+            self.connection_list.append(ssid)
+            index += 1
+
+    def setAutoconnect(self, ssid, autoconnect):
+        activate = ''
+        if autoconnect:
+            activate = 'yes'
+        else:
+            activate = 'no'
+        cmd = 'sudo nmcli connection modify "' + ssid + '" connection.autoconnect ' + activate
+        runCommand(cmd)
+
+    def switchMode(self, msg):
+        if self.app_connected == msg.data:
+            return
+        if msg.data:
+            self.get_wifi_rssi()
+        self.updateConnectionList()
+        for ssid in self.connection_list:
+            if (msg.data and not(self.connected_ssid in ssid)) or not msg.data:
+                self.setAutoconnect(ssid, not msg.data)
+        self.app_connected = msg.data
 
     def __del__(self):
         self.destroy_service(self.srv_wifi)
@@ -189,6 +235,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     wifi_node = CyberdogWifi()
+    print("cyberdog wifi started.")
     rclpy.spin(wifi_node)
 
     # Destroy the service attached to the node explicitly
