@@ -164,8 +164,17 @@ class CyberdogWifi(Node):
             response.result = RESULT_SUCCESS
         else:
             response.result = RESULT_NO_SSID
+            self.updateConnectionList()
+            if request.ssid in self.connection_list:
+                cmd = 'sudo nmcli connection up "' + request.ssid + '"'
+                if 'successfully' in runCommand(cmd):
+                    response.result = RESULT_SUCCESS
+                    return response
+                else:
+                    cmd = 'sudo nmcli connection delete "' + request.ssid + '"'
+                    runCommand(cmd)
             trial_times = 0
-            while response.result != RESULT_SUCCESS and trial_times < 5:
+            while response.result != RESULT_SUCCESS and trial_times < 3:
                 response.result = return_connect_status(
                     nmcliConnectWifi(request.ssid, request.pwd))
                 trial_times += 1
