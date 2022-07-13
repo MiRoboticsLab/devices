@@ -80,7 +80,7 @@ def nmcliConnectWifi(ssid, pwd):
     return runCommand(cmd)
 
 def reconnect(ssid):
-    cmd = "sudo nmcli c up " + ssid
+    cmd = 'sudo nmcli connection up "' + ssid + '"'
     return runCommand(cmd)
 
 
@@ -166,7 +166,7 @@ class CyberdogWifi(Node):
             response.result = RESULT_NO_SSID
             self.updateConnectionList()
             if request.ssid in self.connection_list:
-                cmd = 'sudo nmcli connection up "' + request.ssid + '"'
+                cmd = reconnect(request.ssid)
                 if 'successfully' in runCommand(cmd):
                     response.result = RESULT_SUCCESS
                     return response
