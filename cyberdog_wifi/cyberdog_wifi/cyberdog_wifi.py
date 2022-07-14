@@ -23,7 +23,6 @@ from protocol.msg import WifiStatus
 from protocol.srv import WifiConnect
 from std_msgs.msg import Bool
 
-
 RESULT_NO_SSID = 4
 RESULT_ERR_PWD = 5
 RESULT_OTHER = 6
@@ -31,17 +30,15 @@ RESULT_SUCCESS = 7
 RESULT_INTERRUPT = 14
 RESULT_TIMEOUT = 15
 
-
 # parsing the wlan connect/reconnect return value
+nossid = 'No network with SSID'
+errorpwd = 'Secrets were required, but not provided'
+connected = 'successfully activated'
+interrupt = 'The base network connection was interrupted'
+activatefail = 'Connection activation failed'
+timeout = 'Timeout expired'
+
 def return_connect_status(output):
-    nossid = 'No network with SSID'
-    errorpwd = 'Secrets were required, but not provided'
-    connected = 'successfully activated'
-    interrupt = 'The base network connection was interrupted'
-    activatefail = 'Connection activation failed'
-    timeout = 'Timeout expired'
-    # global log
-    # log.logger.info('output' + repr(output))
     if operator.contains(output, connected):
         return RESULT_SUCCESS
     elif operator.contains(output, errorpwd):
@@ -68,9 +65,7 @@ def rescanWifi():
 
 # do a new wlan connect
 def nmcliConnectWifi(ssid, pwd):
-    # global log
-    disconnect_cmd = "sudo nmcli device disconnect wlan0"
-    runCommand(disconnect_cmd)
+    runCommand("sudo nmcli device disconnect wlan0")
     sleep(1.0)
     cmd = "sudo nmcli device wifi connect '"
     cmd += ssid
@@ -80,14 +75,13 @@ def nmcliConnectWifi(ssid, pwd):
     return runCommand(cmd)
 
 def reconnect(ssid):
-    cmd = "sudo nmcli c up " + ssid
+    cmd = 'sudo nmcli connection up "' + ssid + '"'
     return runCommand(cmd)
 
 
 def getIP(if_name: str):
-    cmd = 'ifconfig ' + if_name
-    output = subprocess.Popen(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    output = subprocess.Popen('ifconfig ' + if_name,
+        shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output.wait()  # wait for cmd done
     tmp = str(output.stdout.read(), encoding='utf-8')
     tmps = tmp.split('\n')[1].split(' ')
@@ -116,8 +110,8 @@ class CyberdogWifi(Node):
 
     def get_connected_ssid(self):
         """获取wifi名称"""
-        cmd = 'nmcli device status | grep wlan0'
-        res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        res = subprocess.Popen('nmcli device status | grep wlan0',
+            shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
         if result != '' and not ('disconnected' in result):
             str_list = result.split()
@@ -133,29 +127,39 @@ class CyberdogWifi(Node):
 
     def get_wifi_rssi(self):
         """获取信号强度"""
-        cmd = 'nmcli device wifi | grep "*"'
-        res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        res = subprocess.Popen('nmcli device wifi | grep "*"',
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
         rssi = 0
-        if len(result) != 0:
+        if len(result) != 0 and ('Mbit/s' in result) and\
+            (not (('Processing' in result) or ('WARNING' in result))):
             str_list = result.split()
-            if str_list[-3].isdigit(): #SECURITY只有一项时
+            if str_list[-2].isdigit(): #No SECURITY
+                rssi = int(str_list[-2])
+            elif str_list[-3].isdigit(): #SECURITY只有一项时
                 rssi = int(str_list[-3])
             elif str_list[-4].isdigit(): #SECURITY有两项时
                 rssi = int(str_list[-4])
             elif str_list[-5].isdigit(): #SECURITY有三项时
-                rssi = int(str_list[-3])
-            ssid_last_index = str_list.index('Mbit/s') - 4
+                rssi = int(str_list[-5])
+            ssid_last_index = 0
+            try:
+                ssid_last_index = str_list.index('Mbit/s') - 4
+            except:
+                return 200 #exception
             connected_ssid = str_list[1]
             str_index = 2
             while str_index <= ssid_last_index:
                 connected_ssid += " " + str_list[str_index]
                 str_index += 1
             self.connected_ssid = connected_ssid
-        else:
+        elif len(result) == 0:
             rssi = 0
             self.connected_ssid = ''
-        
+        else:
+            rssi = 200 #exception
         return rssi
 
     def wifi_connect(self, request, response):
@@ -166,13 +170,11 @@ class CyberdogWifi(Node):
             response.result = RESULT_NO_SSID
             self.updateConnectionList()
             if request.ssid in self.connection_list:
-                cmd = 'sudo nmcli connection up "' + request.ssid + '"'
-                if 'successfully' in runCommand(cmd):
+                if 'successfully' in runCommand(reconnect(request.ssid)):
                     response.result = RESULT_SUCCESS
                     return response
                 else:
-                    cmd = 'sudo nmcli connection delete "' + request.ssid + '"'
-                    runCommand(cmd)
+                    runCommand('sudo nmcli connection delete "' + request.ssid + '"')
             trial_times = 0
             while response.result != RESULT_SUCCESS and trial_times < 3:
                 response.result = return_connect_status(
@@ -190,6 +192,8 @@ class CyberdogWifi(Node):
         msg.ip = getIP('wlan0')
         if msg.ip != '0.0.0.0':
             msg.strength = self.get_wifi_rssi()
+            if msg.strength > 100: #exception
+                return
             msg.ssid = self.connected_ssid
             msg.is_connected = True
         else:
