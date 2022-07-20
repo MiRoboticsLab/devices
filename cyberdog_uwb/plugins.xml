@@ -1,6 +1,6 @@
 <library path="cyberdog_uwb">
   <class type="cyberdog::device::UWBCarpo" base_class_type="cyberdog::device::UWBBase">
-    <description>This is a bms plugin.</description>
+    <description>This is a uwb plugin.</description>
   </class>
 
 </library>
