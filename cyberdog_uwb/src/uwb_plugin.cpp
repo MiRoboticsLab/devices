@@ -35,7 +35,8 @@ bool UWBCarpo::Config()
   return true;
 }
 
-bool UWBCarpo::Init(std::function<void(UwbRawStatusMsg)>
+bool UWBCarpo::Init(
+  std::function<void(UwbRawStatusMsg)>
   function_callback, bool simulation)
 {
   RegisterTopic(function_callback);
@@ -48,23 +49,31 @@ bool UWBCarpo::Init(std::function<void(UwbRawStatusMsg)>
     initialized_finished_ = true;
     return initialized_finished_;
   } else {
+    // make link for can
     initialized_finished_ = InitializeCanCommunication();
-    Initialize();
+    if (!initialized_finished_) {
+      INFO("Create can communication error.");
+      return initialized_finished_;
+    }
+
+    // Enable
+    initialized_finished_ = Initialize();
+    if (!initialized_finished_) {
+      INFO("Enable initialize error.");
+      return initialized_finished_;
+    }
 
     // Uwb bringup time
     sleep(3);
 
-    if (!initialized_finished_) {
-      INFO("[BMSCarpo]: %s", "Function Init() error.");
-    }
-
+    // Open uwb
     initialized_finished_ = Open();
     if (!initialized_finished_) {
-      INFO("Open uwb device failed.");
+      INFO("Open uwb open device failed.");
       return initialized_finished_;
     }
   }
-  
+
   INFO("[UWBCarpo]: %s", "UWBCarpo initialize success.");
   return initialized_finished_;
 }
@@ -86,36 +95,59 @@ bool UWBCarpo::Open()
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
 
   time_t now = time(nullptr);
-  while (head_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (head_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
   }
 
-  head_can_ptr_->Operate(
-    "head_tof_enable_on", std::vector<uint8_t>{});
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
+  if (head_turn_on_) {
+    INFO("head turn on success.");
+  }
+
+  head_can_ptr_->Operate("head_tof_enable_on", std::vector<uint8_t>{});
+  head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
 
   now = time(nullptr);
-  while (head_tof_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (head_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
   }
 
-  rear_can_ptr_->Operate(
-    "rear_enable_on", std::vector<uint8_t>{});
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
+  if (head_tof_turn_on_) {
+    INFO("head tof turn on success.");
+  }
+
+  rear_can_ptr_->Operate("rear_enable_on", std::vector<uint8_t>{});
+  rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
 
   now = time(nullptr);
-  while (rear_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (rear_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
   }
 
-  rear_can_ptr_->Operate(
-    "rear_tof_enable_on", std::vector<uint8_t>{});
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
+  if (rear_turn_on_) {
+    INFO("rear turn on success.");
+  }
+
+  rear_can_ptr_->Operate("rear_tof_enable_on", std::vector<uint8_t>{});
+  rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
 
   now = time(nullptr);
-  while (rear_tof_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (rear_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
   }
+
+  if (rear_tof_turn_on_) {
+    INFO("rear tof turn on success.");
+  }
+
+  if (!rear_tof_turn_on_ || !rear_turn_on_ || !head_tof_turn_on_ || !head_turn_on_) {
+    INFO("UWB opened failed.");
+    return false;
+  }
+
+  head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_data_array);
+  head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
+  rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_data_array);
+  rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
 
   INFO("UWB opened successfully");
   return true;
@@ -124,43 +156,62 @@ bool UWBCarpo::Open()
 bool UWBCarpo::Close()
 {
   // head UWB
-  head_can_ptr_->Operate(
-    "head_enable_off", std::vector<uint8_t>{});
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_off_ack);
+  head_can_ptr_->Operate("head_enable_off", std::vector<uint8_t>{});
+  head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_off_ack);
 
   time_t now = time(nullptr);
-  while (head_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (head_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
+  }
+
+  if (head_turn_on_ == false) {
+    INFO("Close head uwb success.");
   }
 
   // head TOF UWB
-  head_can_ptr_->Operate(
-    "head_tof_enable_off", std::vector<uint8_t>{});
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_off_ack);
+  head_can_ptr_->Operate("head_tof_enable_off", std::vector<uint8_t>{});
+  head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_off_ack);
 
   now = time(nullptr);
-  while (head_tof_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (head_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
+  }
+
+  if (head_tof_turn_on_ == false) {
+    INFO("Close head tof uwb success.");
   }
 
   // rear UWB
-  rear_can_ptr_->Operate(
-    "head_tof_enable_off", std::vector<uint8_t>{});
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_off_ack);
+  rear_can_ptr_->Operate("head_tof_enable_off", std::vector<uint8_t>{});
+  rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_off_ack);
 
   now = time(nullptr);
-  while (rear_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (rear_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
   }
 
+  if (rear_turn_on_ == false) {
+    INFO("Close rear uwb success.");
+  }
+
   // rear TOF UWB
-  rear_can_ptr_->Operate(
-    "rear_tof_enable_off", std::vector<uint8_t>{});
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_off_ack);
+  rear_can_ptr_->Operate("rear_tof_enable_off", std::vector<uint8_t>{});
+  rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_off_ack);
 
   now = time(nullptr);
-  while (rear_tof_turn_on_== false && difftime(time(nullptr), now) < 4.0f) {
+  while (rear_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
+  }
+
+  if (rear_tof_turn_on_ == false) {
+    INFO("Close rear tof uwb success.");
+  }
+
+  if (head_turn_on_ || head_tof_turn_on_ ||
+    rear_turn_on_ || rear_tof_turn_on_)
+  {
+    INFO("Close all uwb error.");
+    return false;
   }
 
   INFO("UWB closed successfully");
@@ -216,7 +267,14 @@ bool UWBCarpo::Initialize()
     std::this_thread::sleep_for(std::chrono::microseconds(30000));
   }
   if (rear_tof_enable_initial_) {
-     INFO("rear tof enable initial success.");
+    INFO("rear tof enable initial success.");
+  }
+
+  if (!rear_tof_enable_initial_ || !rear_enable_initial_ ||
+    !head_tof_enable_initial_ || !head_enable_initial_)
+  {
+    INFO("UWB initialized failed.");
+    return false;
   }
 
   INFO("UWB initialized successfully");
@@ -229,125 +287,168 @@ bool UWBCarpo::GetVersion()
   return true;
 }
 
-void UWBCarpo::HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBData> data)
+void UWBCarpo::HandleCan0Messages(
+  std::string & name,
+  std::shared_ptr<cyberdog::device::UWBRearData> data)
 {
   INFO_STREAM("~~~~ can0 uwb callback ~~~~~ ");
   INFO_STREAM("    name ==   " << name);
+
   if (name == "rear_enable_initial_ack") {
     rear_enable_initial_ = true;
     rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_initial_ack);
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
-  } else if (name == "head_enable_on_ack") {
-    rear_turn_on_ = true;
-    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear);
-  } else if (name == "head_enable_off_ack") {
-    rear_turn_on_ = false;
-  } else if (name == "head_data_array"){
-    rear_turn_on_= true;
-
-    // header
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-    ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-    ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-    
-    uint32_t dist = (data->rear[0] + data->rear[1] << 8);
-    uint32_t angle = (data->rear[2] + data->rear[3] << 8);
-    UwbSignleStatusMsg uwb;
-    uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
-    uwb.range = ConvertRange(dist);
-    uwb.angle = ConvertRange(dist);
-    ros_uwb_status_.data[2] = uwb;
-
-  } else if (name == "head_tof_enable_initial_ack") {
+  } else if (name == "rear_tof_enable_initial_ack") {
     rear_tof_enable_initial_ = true;
     rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_initial_ack);
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
-  } else if (name == "head_tof_enable_on_ack") {
-    rear_tof_turn_on_ = true;
-    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
-    rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof);
-  } else if (name == "rear_enable_off_ack") {
+  }
+
+  if (rear_enable_initial_ && rear_tof_enable_initial_) {
+    if (name == "rear_enable_on_ack") {
+      rear_turn_on_ = true;
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
+    } else if (name == "rear_tof_enable_on_ack") {
+      rear_tof_turn_on_ = true;
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
+    }
+  }
+
+  if (name == "rear_enable_off_ack") {
+    rear_turn_on_ = false;
+    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_off_ack);
+  } else if (name == "rear_tof_enable_off_ack") {
     rear_tof_turn_on_ = false;
-  } else if (name == "rear_data_array") {
-    rear_tof_turn_on_ = true;
-    // header
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-    ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-    ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-    
-    uint32_t dist = (data->rear_tof[0] + data->rear_tof[1] << 8);
-    uint32_t angle = (data->rear_tof[2] + data->rear_tof[3] << 8);
-    UwbSignleStatusMsg uwb;
-    uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
-    uwb.range = ConvertRange(dist);
-    uwb.angle = ConvertRange(dist);
-    ros_uwb_status_.data[3] = uwb;
+    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_off_ack);
+  }
+
+  if (rear_tof_turn_on_ && head_turn_on_) {
+    if (name == "rear_data_array") {
+      INFO("Receive rear data.");
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
+
+      // header
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
+      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
+
+      uint32_t dist = (data->rear_data_array[0] + data->rear_data_array[1] << 8);
+      uint32_t angle = (data->rear_data_array[2] + data->rear_data_array[3] << 8);
+      UwbSignleStatusMsg uwb;
+      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
+      uwb.range = ConvertRange(dist);
+      uwb.angle = ConvertRange(dist);
+      ros_uwb_status_.data[2] = uwb;
+
+      rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_data_array);
+    } else if (name == "rear_tof_data_array") {
+      INFO("Receive rear tof data.");
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_data_array);
+
+      // header
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
+      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
+
+      uint32_t dist = (data->rear_tof_data_array[0] << 8 + data->rear_tof_data_array[1]);
+      uint32_t angle = (data->rear_tof_data_array[2] << 8 + data->rear_tof_data_array[3]);
+      uint32_t nLos = data->rear_tof_data_array[4];
+      uint32_t rssi_1 = (data->rear_tof_data_array[6] << 8 + data->rear_tof_data_array[7]);
+      uint32_t rssi_2 = (data->rear_tof_data_array[8] << 8 + data->rear_tof_data_array[9]);
+
+      INFO("Current dist : %d", dist);
+      INFO("Current angle : %d", angle);
+      INFO("Current nLos : %d", nLos);
+      INFO("Current dist : %d", dist);
+      INFO("Current rssi_1 : %d", rssi_1);
+      INFO("Current rssi_2 : %d", rssi_2);
+
+      UwbSignleStatusMsg uwb;
+      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
+      uwb.range = ConvertRange(dist);
+      uwb.angle = ConvertRange(dist);
+      ros_uwb_status_.data[3] = uwb;
+
+      rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
+    }
   }
 }
 
-void UWBCarpo::HandleCan1Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBData> data)
+void UWBCarpo::HandleCan1Messages(
+  std::string & name,
+  std::shared_ptr<cyberdog::device::UWBHeadData> data)
 {
   INFO_STREAM("~~~~ can1 uwb callback ~~~~~ ");
   INFO_STREAM("    name ==   " << name);
+
   if (name == "head_enable_initial_ack") {
     head_enable_initial_ = true;
     head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_initial_ack);
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
-  } else if (name == "head_enable_on_ack") {
-    head_turn_on_ = true;
-    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head);
-  } else if (name == "head_enable_off_ack") {
-    head_turn_on_ = false;
-  } else if (name == "head_data_array"){
-    head_turn_on_= true;
-
-    // header
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-    ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-    ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-    
-    uint32_t dist = (data->head[0] + data->head[1] << 8);
-    uint32_t angle = (data->head[2] + data->head[3] << 8);
-    UwbSignleStatusMsg uwb;
-    uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
-    uwb.range = ConvertRange(dist);
-    uwb.angle = ConvertRange(dist);
-    ros_uwb_status_.data[0] = uwb;
-
   } else if (name == "head_tof_enable_initial_ack") {
     head_tof_enable_initial_ = true;
     head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_initial_ack);
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
-  } else if (name == "head_tof_enable_on_ack") {
-    head_tof_turn_on_= true;
-    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
-    head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof);
-  } else if (name == "rear_enable_off_ack") {
+  }
+
+  if (head_enable_initial_ && head_tof_enable_initial_) {
+    if (name == "head_enable_on_ack") {
+      head_turn_on_ = true;
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
+    } else if (name == "head_tof_enable_on_ack") {
+      head_tof_turn_on_ = true;
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
+    }
+  }
+
+  if (name == "head_enable_off_ack") {
+    head_turn_on_ = false;
+    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_off_ack);
+  } else if (name == "head_tof_enable_off_ack") {
     head_tof_turn_on_ = false;
-  } else if (name == "rear_data_array") {
-    head_tof_turn_on_ = true;
-    // header
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-    ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-    ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-    
-    uint32_t dist = (data->head_tof[0] + data->head_tof[1] << 8);
-    uint32_t angle = (data->head_tof[2] + data->head_tof[3] << 8);
-    UwbSignleStatusMsg uwb;
-    uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
-    uwb.range = ConvertRange(dist);
-    uwb.angle = ConvertRange(dist);
-    ros_uwb_status_.data[1] = uwb;
+    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_off_ack);
+  }
+
+  if (head_tof_turn_on_ && head_turn_on_) {
+    if (name == "head_data_array") {
+      INFO("Receive head data.");
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
+
+      // header
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
+      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
+
+      uint32_t dist = (data->head_data_array[0] + data->head_data_array[1] << 8);
+      uint32_t angle = (data->head_data_array[2] + data->head_data_array[3] << 8);
+      UwbSignleStatusMsg uwb;
+      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
+      uwb.range = ConvertRange(dist);
+      uwb.angle = ConvertRange(dist);
+      ros_uwb_status_.data[0] = uwb;
+      head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_data_array);
+    } else if (name == "head_tof_data_array") {
+      INFO("Receive head tof data.");
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_data_array);
+
+      // header
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
+      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
+
+      uint32_t dist = (data->head_tof_data_array[0] + data->head_tof_data_array[1] << 8);
+      uint32_t angle = (data->head_tof_data_array[2] + data->head_tof_data_array[3] << 8);
+      UwbSignleStatusMsg uwb;
+      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
+      uwb.range = ConvertRange(dist);
+      uwb.angle = ConvertRange(dist);
+      ros_uwb_status_.data[1] = uwb;
+      head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
+    }
   }
 }
 
@@ -369,20 +470,20 @@ bool UWBCarpo::InitializeCanCommunication()
   auto rear_path = local_share_dir + std::string("/toml_config/device/uwb_rear.toml");
 
   // Create Protocol for `BMSStatus` data
-  head_can_ptr_ = std::make_shared<cyberdog::embed::Protocol<UWBData>>(head_path, false);
-  rear_can_ptr_ = std::make_shared<cyberdog::embed::Protocol<UWBData>>(rear_path, false);
+  head_can_ptr_ = std::make_shared<cyberdog::embed::Protocol<UWBHeadData>>(head_path, false);
+  rear_can_ptr_ = std::make_shared<cyberdog::embed::Protocol<UWBRearData>>(rear_path, false);
 
   if (head_can_ptr_ == nullptr || rear_can_ptr_ == nullptr) {
     INFO("Create UWB Can bridge error.");
     return false;
   }
-  
-  head_can_ptr_->SetDataCallback(
+
+  rear_can_ptr_->SetDataCallback(
     std::bind(
       &UWBCarpo::HandleCan0Messages,
       this, std::placeholders::_1, std::placeholders::_2));
 
-  rear_can_ptr_->SetDataCallback(
+  head_can_ptr_->SetDataCallback(
     std::bind(
       &UWBCarpo::HandleCan1Messages,
       this, std::placeholders::_1, std::placeholders::_2));
@@ -404,7 +505,7 @@ void UWBCarpo::RunSimulation()
 
         // 1 head
         // 2 head TOF
-        // 3 rear 
+        // 3 rear
         // 4 rear TOF
         constexpr int NumberUWB = 4;
         for (int i = 0; i < NumberUWB; i++) {
@@ -414,7 +515,7 @@ void UWBCarpo::RunSimulation()
           uwb.angle = GenerateRandomNumber(0, 36000);
           ros_uwb_status_.data.push_back(uwb);
         }
-        
+
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
     });
@@ -435,12 +536,12 @@ protocol::msg::UwbArray UWBCarpo::ToROS()
   return ros_uwb_status_;
 }
 
-int UWBCarpo::ConvertAngle(const int& angle)
+int UWBCarpo::ConvertAngle(const int & angle)
 {
   return 0;
 }
 
-int UWBCarpo::ConvertRange(const int& rangle)
+int UWBCarpo::ConvertRange(const int & rangle)
 {
   return 0;
 }

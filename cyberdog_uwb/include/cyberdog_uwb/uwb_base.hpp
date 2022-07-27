@@ -35,8 +35,9 @@ public:
   using UwbSignleStatusMsg = protocol::msg::UwbRaw;
 
   virtual bool Config() = 0;
-  virtual bool Init(std::function<void(UwbRawStatusMsg)>
-  function_callback, bool simulation = false) = 0;
+  virtual bool Init(
+    std::function<void(UwbRawStatusMsg)>
+    function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
   virtual bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) = 0;
 

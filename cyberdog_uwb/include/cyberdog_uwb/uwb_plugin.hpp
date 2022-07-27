@@ -34,41 +34,10 @@ namespace cyberdog
 namespace device
 {
 
-struct UWBData
+struct UWBHeadData
 {
-  uint8_t head[64];   // Data[0-1]	  distance距离
-                      // Data[2-3]	  aoa 角度
-                      // Data[4]	    nLos  多径标志
-                      // Data[5]	    reserved
-                      // Data[6-7]	  rssi_1
-                      // Data[8-9]	  rssi_2
-                      // Data[10-15]	reserved
-
-
-  uint8_t head_tof[64];   // Data[0-1]	  distance距离
-                      // Data[2-3]	  aoa 角度
-                      // Data[4]	    nLos  多径标志
-                      // Data[5]	    reserved
-                      // Data[6-7]	  rssi_1
-                      // Data[8-9]	  rssi_2
-                      // Data[10-15]	reserved
-
-  uint8_t rear[64];   // Data[0-1]	  distance距离
-                      // Data[2-3]	  aoa 角度
-                      // Data[4]	    nLos  多径标志
-                      // Data[5]	    reserved
-                      // Data[6-7]	  rssi_1
-                      // Data[8-9]	  rssi_2
-                      // Data[10-15]	reserved
-
-  uint8_t rear_tof[64];   // Data[0-1]	  distance距离
-                      // Data[2-3]	  aoa 角度
-                      // Data[4]	    nLos  多径标志
-                      // Data[5]	    reserved
-                      // Data[6-7]	  rssi_1
-                      // Data[8-9]	  rssi_2
-                      // Data[10-15]	reserved
-
+  uint8_t head_data_array[16];
+  uint8_t head_tof_data_array[16];
   uint8_t version[2];
 
   // can0
@@ -78,6 +47,13 @@ struct UWBData
   uint8_t head_tof_enable_initial_ack;
   uint8_t head_tof_enable_on_ack;
   uint8_t head_tof_enable_off_ack;
+};
+
+struct UWBRearData
+{
+  uint8_t rear_data_array[16];
+  uint8_t rear_tof_data_array[16];
+  uint8_t version[2];
 
   // can1
   uint8_t rear_enable_initial_ack;
@@ -88,15 +64,17 @@ struct UWBData
   uint8_t rear_tof_enable_off_ack;
 };
 
+
 class UWBCarpo : public cyberdog::device::UWBBase
 {
 public:
   UWBCarpo();
-  virtual bool Config() override;
-  virtual bool Init(std::function<void(UwbRawStatusMsg)>
+  bool Config() override;
+  bool Init(
+    std::function<void(UwbRawStatusMsg)>
     function_callback, bool simulation = false) override;
-  virtual bool SelfCheck() override;
-  virtual bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) override;
+  bool SelfCheck() override;
+  bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) override;
 
   bool Open();
   bool Close();
@@ -104,8 +82,8 @@ public:
   bool GetVersion();
 
 private:
-  void HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBData> data);
-  void HandleCan1Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBData> data);
+  void HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBRearData> data);
+  void HandleCan1Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBHeadData> data);
 
   void RunTask();
 
@@ -122,22 +100,16 @@ private:
   UwbRawStatusMsg ToROS();
 
   // uwb raw data conver readable data
-  int ConvertAngle(const int& angle);
-  int ConvertRange(const int& rangle);
+  int ConvertAngle(const int & angle);
+  int ConvertRange(const int & rangle);
 
-  std::shared_ptr<cyberdog::embed::Protocol<UWBData>> head_can_ptr_ {nullptr};
-  std::shared_ptr<cyberdog::embed::Protocol<UWBData>> rear_can_ptr_ {nullptr};
-  std::shared_ptr<std::thread> uwb_thread_ {nullptr}; 
+  std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
+  std::shared_ptr<cyberdog::embed::Protocol<UWBRearData>> rear_can_ptr_ {nullptr};
+  std::shared_ptr<std::thread> uwb_thread_ {nullptr};
 
   std::mutex mutex_;
   UwbRawStatusMsg ros_uwb_status_;
   std::function<void(UwbRawStatusMsg)> status_function_;
-
-  // uwb data
-  UWBData uwb_head_data_;
-  UWBData uwb_rear_data_;
-  UWBData uwb_tof_head_data_;
-  UWBData uwb_tof_rear_data_;
 
   // turn on initial flag
   bool head_enable_initial_ {false};
@@ -159,6 +131,7 @@ private:
 
   bool simulation_ {false};
   bool initialized_finished_ {false};
+  bool enable_initialized_finished_ {false};
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog
