@@ -23,6 +23,8 @@
 #include <random>
 #include <mutex>
 
+#include "protocol/msg/uwb_raw.hpp"
+#include "protocol/msg/uwb_array.hpp"
 #include "cyberdog_uwb/uwb_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -32,24 +34,104 @@ namespace cyberdog
 namespace device
 {
 
+struct UWBHeadData
+{
+  uint8_t head_data_array[16];
+  uint8_t head_tof_data_array[16];
+  uint8_t version[2];
+
+  // can0
+  uint8_t head_enable_initial_ack;
+  uint8_t head_enable_on_ack;
+  uint8_t head_enable_off_ack;
+  uint8_t head_tof_enable_initial_ack;
+  uint8_t head_tof_enable_on_ack;
+  uint8_t head_tof_enable_off_ack;
+};
+
+struct UWBRearData
+{
+  uint8_t rear_data_array[16];
+  uint8_t rear_tof_data_array[16];
+  uint8_t version[2];
+
+  // can1
+  uint8_t rear_enable_initial_ack;
+  uint8_t rear_enable_on_ack;
+  uint8_t rear_enable_off_ack;
+  uint8_t rear_tof_enable_initial_ack;
+  uint8_t rear_tof_enable_on_ack;
+  uint8_t rear_tof_enable_off_ack;
+};
+
+
 class UWBCarpo : public cyberdog::device::UWBBase
 {
 public:
   UWBCarpo();
-  virtual bool Config();
-  // virtual bool Init(std::function<void(BmsStatusMsg)>
-  // function_callback, bool simulation = false);
-  virtual bool SelfCheck();
-  // virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback);
+  bool Config() override;
+  bool Init(
+    std::function<void(UwbRawStatusMsg)>
+    function_callback, bool simulation = false) override;
+  bool SelfCheck() override;
+  bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) override;
+
+  bool Open();
+  bool Close();
+  bool Initialize();
+  bool GetVersion();
 
 private:
+  void HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBRearData> data);
+  void HandleCan1Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBHeadData> data);
+
+  void RunTask();
+
+  // CAN
+  bool InitializeCanCommunication();
+
   // Dimulation Data for debug
   void RunSimulation();
 
   // Generate random number
   int GenerateRandomNumber(int start, int end);
 
+  // Convert struct dat to ROS format
+  UwbRawStatusMsg ToROS();
+
+  // uwb raw data conver readable data
+  int ConvertAngle(const int & angle);
+  int ConvertRange(const int & rangle);
+
+  std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
+  std::shared_ptr<cyberdog::embed::Protocol<UWBRearData>> rear_can_ptr_ {nullptr};
+  std::shared_ptr<std::thread> uwb_thread_ {nullptr};
+
+  std::mutex mutex_;
+  UwbRawStatusMsg ros_uwb_status_;
+  std::function<void(UwbRawStatusMsg)> status_function_;
+
+  // turn on initial flag
+  bool head_enable_initial_ {false};
+  bool head_tof_enable_initial_ {false};
+  bool rear_enable_initial_ {false};
+  bool rear_tof_enable_initial_ {false};
+
+  // turn on flag
+  bool head_turn_on_ {false};
+  bool rear_turn_on_ {false};
+  bool head_tof_turn_on_ {false};
+  bool rear_tof_turn_on_ {false};
+
+  // version flag
+  bool head_version_ {false};
+  bool head_tof_version_ {false};
+  bool rear_version_ {false};
+  bool rear_tof_version_ {false};
+
   bool simulation_ {false};
+  bool initialized_finished_ {false};
+  bool enable_initialized_finished_ {false};
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog

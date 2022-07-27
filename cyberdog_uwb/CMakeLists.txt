@@ -44,7 +44,7 @@ ament_target_dependencies(
   params
   ament_index_cpp
 )
-target_compile_definitions(${PROJECT_NAME} PRIVATE "BMS_PLUGIN_BUILDING_LIBRARY")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "UWB_PLUGIN_BUILDING_LIBRARY")
 pluginlib_export_plugin_description_file( ${PROJECT_NAME} plugins.xml)
 
 install(

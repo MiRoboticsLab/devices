@@ -19,7 +19,8 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 
-// #include "protocol/msg/bms_status.hpp"
+#include "protocol/msg/uwb_raw.hpp"
+#include "protocol/msg/uwb_array.hpp"
 
 
 namespace cyberdog
@@ -30,13 +31,15 @@ namespace device
 class UWBBase
 {
 public:
-  // using BmsStatusMsg = protocol::msg::BmsStatus;
+  using UwbRawStatusMsg = protocol::msg::UwbArray;
+  using UwbSignleStatusMsg = protocol::msg::UwbRaw;
 
   virtual bool Config() = 0;
-  // virtual bool Init(std::function<void(BmsStatusMsg)>
-  // function_callback, bool simulation = false) = 0;
+  virtual bool Init(
+    std::function<void(UwbRawStatusMsg)>
+    function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
-  // virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
+  virtual bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) = 0;
 
 protected:
   UWBBase() {}
