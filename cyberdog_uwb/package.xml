@@ -3,7 +3,7 @@
 <package format="3">
   <name>cyberdog_uwb</name>
   <version>0.0.0</version>
-  <description>bms pluginlib plugins</description>
+  <description>uwb pluginlib plugins</description>
   <maintainer email="duyongquan1@xiaomi.com">dukun</maintainer>
   <license>Apache License, Version 2.0</license>
 
