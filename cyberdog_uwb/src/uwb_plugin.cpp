@@ -323,26 +323,6 @@ void UWBCarpo::HandleCan0Messages(
   if (rear_tof_turn_on_ && head_turn_on_) {
     if (name == "rear_data_array") {
       INFO("Receive rear data.");
-      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
-
-      // header
-      struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-
-      uint32_t dist = (data->rear_data_array[0] + data->rear_data_array[1] << 8);
-      uint32_t angle = (data->rear_data_array[2] + data->rear_data_array[3] << 8);
-      UwbSignleStatusMsg uwb;
-      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
-      uwb.range = ConvertRange(dist);
-      uwb.angle = ConvertRange(dist);
-      ros_uwb_status_.data[2] = uwb;
-
-      rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_data_array);
-    } else if (name == "rear_tof_data_array") {
-      INFO("Receive rear tof data.");
       rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_data_array);
 
       // header
@@ -352,18 +332,54 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
       ros_uwb_status_.header.stamp.sec = ts.tv_sec;
 
-      uint32_t dist = (data->rear_tof_data_array[0] << 8 + data->rear_tof_data_array[1]);
-      uint32_t angle = (data->rear_tof_data_array[2] << 8 + data->rear_tof_data_array[3]);
-      uint32_t nLos = data->rear_tof_data_array[4];
-      uint32_t rssi_1 = (data->rear_tof_data_array[6] << 8 + data->rear_tof_data_array[7]);
-      uint32_t rssi_2 = (data->rear_tof_data_array[8] << 8 + data->rear_tof_data_array[9]);
+      uint32_t dist = data->rear_data_array[0] << 8 + (data->rear_data_array[1] << 8);
+      short angle = data->rear_data_array[2] << 8 + (data->rear_data_array[3] << 8);
+      uint32_t nLos = data->rear_data_array[4];
+      short rssi_1 = data->rear_data_array[6] << 8 + (data->rear_data_array[7] << 8);
+      short rssi_2 = data->rear_data_array[8] << 8 + (data->rear_data_array[9] << 8);
+
+      INFO("%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
 
       INFO("Current dist : %d", dist);
-      INFO("Current angle : %d", angle);
+      INFO("Current angle : %f", format_9_7(angle));
       INFO("Current nLos : %d", nLos);
       INFO("Current dist : %d", dist);
-      INFO("Current rssi_1 : %d", rssi_1);
-      INFO("Current rssi_2 : %d", rssi_2);
+      INFO("Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+
+      UwbSignleStatusMsg uwb;
+      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
+      uwb.range = ConvertRange(dist);
+      uwb.angle = ConvertRange(dist);
+      ros_uwb_status_.data[2] = uwb;
+
+      rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
+    } else if (name == "rear_tof_data_array") {
+      INFO("Receive rear tof data.");
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
+
+      // header
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
+      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
+
+      uint32_t dist = data->rear_tof_data_array[0] + (data->rear_tof_data_array[1] << 8);
+      short angle = data->rear_tof_data_array[2]+ (data->rear_tof_data_array[3] << 8);
+      uint32_t nLos = data->rear_tof_data_array[4];
+      short rssi_1 = data->rear_tof_data_array[6] + (data->rear_tof_data_array[7] << 8);
+      short rssi_2 = data->rear_tof_data_array[8] + (data->rear_tof_data_array[9] << 8);
+
+
+      INFO("%02X, %02X", data->rear_tof_data_array[0], data->rear_tof_data_array[1]);
+
+      INFO("Current dist : %d", dist);
+      INFO("Current angle : %f", format_9_7(angle));
+      INFO("Current nLos : %d", nLos);
+      INFO("Current dist : %d", dist);
+      INFO("Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO("Current rssi_2 : %f", format_8_8(rssi_2));
 
       UwbSignleStatusMsg uwb;
       uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
@@ -371,7 +387,7 @@ void UWBCarpo::HandleCan0Messages(
       uwb.angle = ConvertRange(dist);
       ros_uwb_status_.data[3] = uwb;
 
-      rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_data_array);
+      rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_data_array);
     }
   }
 }
@@ -412,25 +428,6 @@ void UWBCarpo::HandleCan1Messages(
   if (head_tof_turn_on_ && head_turn_on_) {
     if (name == "head_data_array") {
       INFO("Receive head data.");
-      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
-
-      // header
-      struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-
-      uint32_t dist = (data->head_data_array[0] + data->head_data_array[1] << 8);
-      uint32_t angle = (data->head_data_array[2] + data->head_data_array[3] << 8);
-      UwbSignleStatusMsg uwb;
-      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
-      uwb.range = ConvertRange(dist);
-      uwb.angle = ConvertRange(dist);
-      ros_uwb_status_.data[0] = uwb;
-      head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_data_array);
-    } else if (name == "head_tof_data_array") {
-      INFO("Receive head tof data.");
       head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_data_array);
 
       // header
@@ -440,14 +437,59 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
       ros_uwb_status_.header.stamp.sec = ts.tv_sec;
 
-      uint32_t dist = (data->head_tof_data_array[0] + data->head_tof_data_array[1] << 8);
-      uint32_t angle = (data->head_tof_data_array[2] + data->head_tof_data_array[3] << 8);
+      uint32_t dist = data->head_data_array[0] + (data->head_data_array[1] << 8);
+      short angle = data->head_data_array[2] + (data->head_data_array[3] << 8);
+      uint32_t nLos = data->head_data_array[4];
+      short rssi_1 = data->head_data_array[6] + (data->head_data_array[7] << 8);
+      short rssi_2 = data->head_data_array[8] + (data->head_data_array[9] << 8);
+
+      INFO("%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
+
+      INFO("Current dist : %d", dist);
+      INFO("Current angle : %f", format_9_7(angle));
+      INFO("Current nLos : %d", nLos);
+      INFO("Current dist : %d", dist);
+      INFO("Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+
+      UwbSignleStatusMsg uwb;
+      uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
+      uwb.range = ConvertRange(dist);
+      uwb.angle = ConvertRange(dist);
+      ros_uwb_status_.data[0] = uwb;
+      head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
+    } else if (name == "head_tof_data_array") {
+      INFO("Receive head tof data.");
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
+
+      // header
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
+      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
+
+      uint32_t dist = data->head_tof_data_array[0] + (data->head_tof_data_array[1] << 8);
+      short angle = data->head_tof_data_array[2] + (data->head_tof_data_array[3] << 8);
+      uint32_t nLos = data->head_tof_data_array[4];
+      short rssi_1 = data->head_tof_data_array[6] + (data->head_tof_data_array[7] << 8);
+      short rssi_2 = data->head_tof_data_array[8] + (data->head_tof_data_array[9] << 8);
+
+      INFO("%02X, %02X", data->head_tof_data_array[0], data->head_tof_data_array[1]);
+
+      INFO("Current dist : %d", dist);
+      INFO("Current angle : %f", format_9_7(angle));
+      INFO("Current nLos : %d", nLos);
+      INFO("Current dist : %d", dist);
+      INFO("Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+
       UwbSignleStatusMsg uwb;
       uwb.nanosec = ts.tv_sec + 1000000000 * ts.tv_nsec;
       uwb.range = ConvertRange(dist);
       uwb.angle = ConvertRange(dist);
       ros_uwb_status_.data[1] = uwb;
-      head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_data_array);
+      head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_data_array);
     }
   }
 }
