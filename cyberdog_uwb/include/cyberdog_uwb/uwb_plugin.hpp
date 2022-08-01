@@ -115,6 +115,16 @@ private:
     return data * 1.0 /256;
   }
 
+  enum class Type
+  {
+    HeadTOF,
+    HeadUWB,
+    RearTOF,
+    RearUWB
+  };
+
+  void SetData(const Type & type, const UwbSignleStatusMsg& data);
+  void Debug2String(const Type & type);
 
 
   std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
