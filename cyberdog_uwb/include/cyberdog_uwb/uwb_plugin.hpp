@@ -103,6 +103,36 @@ private:
   int ConvertAngle(const int & angle);
   int ConvertRange(const int & rangle);
 
+  // AOA
+  inline float format_9_7(short data)  // NOLINT
+  {
+    return data * 1.0 / 128;
+  }
+
+  // RSSI
+  inline float format_8_8(short data)  // NOLINT
+  {
+    return data * 1.0 / 256;
+  }
+
+
+  std::vector<float> FrontPose(const float & dist, const float & angle);
+  std::vector<float> BackPose(const float & dist, const float & angle);
+  std::vector<float> RightPose(const float & dist, const float & angle);
+  std::vector<float> LeftPose(const float & dist, const float & angle);  // NOLINT
+
+  enum class Type
+  {
+    HeadTOF,
+    HeadUWB,
+    RearTOF,
+    RearUWB
+  };
+
+  void SetData(const Type & type, const UwbSignleStatusMsg & data);
+  void Debug2String(const Type & type);
+
+
   std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
   std::shared_ptr<cyberdog::embed::Protocol<UWBRearData>> rear_can_ptr_ {nullptr};
   std::shared_ptr<std::thread> uwb_thread_ {nullptr};
