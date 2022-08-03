@@ -104,16 +104,22 @@ private:
   int ConvertRange(const int & rangle);
 
   // AOA
-  inline float format_9_7(short data)
+  inline float format_9_7(short data)  // NOLINT
   {
-    return data * 1.0 /128;
+    return data * 1.0 / 128;
   }
 
   // RSSI
-  inline float format_8_8(short data)
+  inline float format_8_8(short data)  // NOLINT
   {
-    return data * 1.0 /256;
+    return data * 1.0 / 256;
   }
+
+
+  std::vector<float> FrontPose(const float & dist, const float & angle);
+  std::vector<float> BackPose(const float & dist, const float & angle);
+  std::vector<float> RightPose(const float & dist, const float & angle);
+  std::vector<float> LeftPose(const float & dist, const float & angle);  // NOLINT
 
   enum class Type
   {
@@ -123,7 +129,7 @@ private:
     RearUWB
   };
 
-  void SetData(const Type & type, const UwbSignleStatusMsg& data);
+  void SetData(const Type & type, const UwbSignleStatusMsg & data);
   void Debug2String(const Type & type);
 
 
