@@ -23,10 +23,13 @@
 #include <random>
 #include <mutex>
 
+
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
 #include "protocol/msg/uwb_array.hpp"
 #include "cyberdog_uwb/uwb_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
+#include "cyberdog_common/cyberdog_toml.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "embed_protocol/embed_protocol.hpp"
 namespace cyberdog
@@ -64,6 +67,36 @@ struct UWBRearData
   uint8_t rear_tof_enable_off_ack;
 };
 
+struct UWBConfig
+{
+  // front_back_threshold = 7
+  // left_right_threshold = 7
+
+  // [HeadUWB]
+  // AoA_F_NMAX = -48
+  // AoA_F_PMAX = 60.0
+  // AoA_B_NMAX = -60
+  // AoA_B_PMAX = 60.0
+
+  // [RearUWB]
+  // AoA_L_NMAX = -40
+  // AoA_L_PMAX = 60
+  // AoA_R_NMAX = -48
+  // AoA_R_PMAX = 48
+
+  double front_back_threshold;
+  double left_right_threshold;
+  double AoA_F_NMAX;
+  double AoA_F_PMAX;
+  double AoA_B_NMAX;
+  double AoA_B_PMAX;
+
+  double AoA_L_NMAX;
+  double AoA_L_PMAX;
+  double AoA_R_NMAX;
+  double AoA_R_PMAX;
+};
+
 
 class UWBCarpo : public cyberdog::device::UWBBase
 {
@@ -71,10 +104,11 @@ public:
   UWBCarpo();
   bool Config() override;
   bool Init(
-    std::function<void(UwbRawStatusMsg)>
+    std::function<void(geometry_msgs::msg::PoseStamped)>
     function_callback, bool simulation = false) override;
   bool SelfCheck() override;
-  bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) override;
+  bool RegisterTopic(
+    std::function<void(geometry_msgs::msg::PoseStamped)> function_callback) override;
 
   bool Open();
   bool Close();
@@ -84,6 +118,7 @@ public:
 private:
   void HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBRearData> data);
   void HandleCan1Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBHeadData> data);
+
 
   void RunTask();
 
@@ -115,7 +150,6 @@ private:
     return data * 1.0 / 256;
   }
 
-
   std::vector<float> FrontPose(const float & dist, const float & angle);
   std::vector<float> BackPose(const float & dist, const float & angle);
   std::vector<float> RightPose(const float & dist, const float & angle);
@@ -126,12 +160,17 @@ private:
     HeadTOF,
     HeadUWB,
     RearTOF,
-    RearUWB
+    RearUWB,
+    Unknown
   };
+
+
+  bool LoadUWBTomlConfig();
+  UWBConfig & GetUWBConfig();
 
   void SetData(const Type & type, const UwbSignleStatusMsg & data);
   void Debug2String(const Type & type);
-
+  void UwbRawStatusMsg2Ros();
 
   std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
   std::shared_ptr<cyberdog::embed::Protocol<UWBRearData>> rear_can_ptr_ {nullptr};
@@ -139,7 +178,11 @@ private:
 
   std::mutex mutex_;
   UwbRawStatusMsg ros_uwb_status_;
-  std::function<void(UwbRawStatusMsg)> status_function_;
+  std::function<void(geometry_msgs::msg::PoseStamped)> status_function_;
+
+  // uwb config parameters
+  UWBConfig uwb_config_;
+  toml::value params_toml_;
 
   // turn on initial flag
   bool head_enable_initial_ {false};
@@ -162,6 +205,9 @@ private:
   bool simulation_ {false};
   bool initialized_finished_ {false};
   bool enable_initialized_finished_ {false};
+
+  // geometry_msgs/msg/pose_stamped
+  geometry_msgs::msg::PoseStamped uwb_posestamped_;
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog

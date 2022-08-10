@@ -25,6 +25,7 @@ find_package(cyberdog_embed_protocol REQUIRED)
 find_package(cyberdog_system REQUIRED)
 find_package(cyberdog_common REQUIRED)
 find_package(params REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
@@ -42,6 +43,7 @@ ament_target_dependencies(
   cyberdog_system
   cyberdog_common
   params
+  geometry_msgs
   ament_index_cpp
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE "UWB_PLUGIN_BUILDING_LIBRARY")
