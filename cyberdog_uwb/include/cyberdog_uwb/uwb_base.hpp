@@ -18,10 +18,10 @@
 #include <string>
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 #include "protocol/msg/uwb_raw.hpp"
 #include "protocol/msg/uwb_array.hpp"
-
 
 namespace cyberdog
 {
@@ -36,10 +36,11 @@ public:
 
   virtual bool Config() = 0;
   virtual bool Init(
-    std::function<void(UwbRawStatusMsg)>
+    std::function<void(geometry_msgs::msg::PoseStamped)>
     function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
-  virtual bool RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback) = 0;
+  virtual bool RegisterTopic(
+    std::function<void(geometry_msgs::msg::PoseStamped)> function_callback) = 0;
 
 protected:
   UWBBase() {}

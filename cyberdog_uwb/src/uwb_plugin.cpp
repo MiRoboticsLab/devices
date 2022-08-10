@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "cyberdog_uwb/uwb_plugin.hpp"
+#include "cyberdog_uwb/float_comparisons.hpp"
 #include "pluginlib/class_list_macros.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
@@ -28,6 +29,9 @@ namespace device
 UWBCarpo::UWBCarpo()
 {
   ros_uwb_status_.data.resize(4);
+  if (!LoadUWBTomlConfig()) {
+    ERROR("Load UWB parameters error.");
+  }
 }
 
 bool UWBCarpo::Config()
@@ -36,7 +40,7 @@ bool UWBCarpo::Config()
 }
 
 bool UWBCarpo::Init(
-  std::function<void(UwbRawStatusMsg)>
+  std::function<void(geometry_msgs::msg::PoseStamped)>
   function_callback, bool simulation)
 {
   RegisterTopic(function_callback);
@@ -83,7 +87,7 @@ bool UWBCarpo::SelfCheck()
   return true;
 }
 
-bool UWBCarpo::RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback)
+bool UWBCarpo::RegisterTopic(std::function<void(geometry_msgs::msg::PoseStamped)> function_callback)
 {
   status_function_ = function_callback;
   return true;
@@ -334,40 +338,42 @@ void UWBCarpo::HandleCan0Messages(
       // UWB data
       uint32_t dist = data->rear_data_array[0] + (data->rear_data_array[1] << 8);
       short angle = data->rear_data_array[2] + (data->rear_data_array[3] << 8);  // NOLINT
-      uint32_t nLos = data->rear_data_array[4];
+      float nLos = data->rear_data_array[4];
       short rssi_1 = data->rear_data_array[6] + (data->rear_data_array[7] << 8);  // NOLINT
       short rssi_2 = data->rear_data_array[8] + (data->rear_data_array[9] << 8);  // NOLINT
       ros_uwb_status_.data[1].second = ts.tv_sec;
-      ros_uwb_status_.data[1].position = LeftPose(dist, static_cast<float>(angle));
+      // ros_uwb_status_.data[1].position = LeftPose(dist, static_cast<float>(angle));
+      ros_uwb_status_.data[1].angle = format_9_7(angle);
       ros_uwb_status_.data[1].n_los = nLos;
-      ros_uwb_status_.data[1].rssi_1 = rssi_1;
-      ros_uwb_status_.data[1].rssi_2 = rssi_2;
+      ros_uwb_status_.data[1].rssi_1 = format_8_8(rssi_1);
+      ros_uwb_status_.data[1].rssi_2 = format_8_8(rssi_2);
 
       // TOF data
-      uint32_t dist_tof = data->rear_tof_data_array[0] + (data->rear_tof_data_array[1] << 8); // NOLINT
+      float dist_tof = data->rear_tof_data_array[0] + (data->rear_tof_data_array[1] << 8); // NOLINT
       short angle_tof = data->rear_tof_data_array[2] + (data->rear_tof_data_array[3] << 8);   // NOLINT
-      uint32_t nLos_tof = data->rear_tof_data_array[4];
-      short rssi_1_tof = data->rear_tof_data_array[6] + (data->rear_tof_data_array[7] << 8);  // NOLINT
+      float nLos_tof = data->rear_tof_data_array[4];
+      float rssi_1_tof = data->rear_tof_data_array[6] + (data->rear_tof_data_array[7] << 8);  // NOLINT
       short rssi_2_tof = data->rear_tof_data_array[8] + (data->rear_tof_data_array[9] << 8);  // NOLINT
       ros_uwb_status_.data[2].second = ts.tv_sec;
-      ros_uwb_status_.data[2].position = RightPose(dist_tof, angle_tof);
+      // ros_uwb_status_.data[2].position = RightPose(dist_tof, angle_tof);
+      ros_uwb_status_.data[2].angle = format_9_7(angle_tof);
       ros_uwb_status_.data[2].n_los = nLos_tof;
-      ros_uwb_status_.data[2].rssi_1 = rssi_1_tof;
-      ros_uwb_status_.data[2].rssi_2 = rssi_2_tof;
+      ros_uwb_status_.data[2].rssi_1 = format_8_8(rssi_1_tof);
+      ros_uwb_status_.data[2].rssi_2 = format_8_8(rssi_2_tof);
 
       INFO("--------------------[UWB]----------------------");
       INFO("%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
-      INFO("Current dist : %d", dist);
+      INFO("Current dist : %f", dist);
       INFO("Current angle : %f", format_9_7(angle));
-      INFO("Current nLos : %d", nLos);
+      INFO("Current nLos : %f", nLos);
       INFO("Current rssi_1 : %f", format_8_8(rssi_1));
       INFO("Current rssi_2 : %f", format_8_8(rssi_2));
 
       INFO("--------------------[TOF]----------------------");
       INFO("%02X, %02X", data->rear_tof_data_array[0], data->rear_tof_data_array[1]);
-      INFO("Current dist : %d", dist_tof);
+      INFO("Current dist : %f", dist_tof);
       INFO("Current angle : %f", format_9_7(angle_tof));
-      INFO("Current nLos : %d", nLos_tof);
+      INFO("Current nLos : %f", nLos_tof);
       INFO("Current rssi_1 : %f", format_8_8(rssi_1_tof));
       INFO("Current rssi_2 : %f", format_8_8(rssi_2_tof));
     }
@@ -419,43 +425,46 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.header.stamp.sec = ts.tv_sec;
 
       // UWB data
-      uint32_t dist = data->head_data_array[0] + (data->head_data_array[1] << 8);
+      float dist = data->head_data_array[0] + (data->head_data_array[1] << 8);
       short angle = data->head_data_array[2] + (data->head_data_array[3] << 8);   // NOLINT
-      uint32_t nLos = data->head_data_array[4];
+      float nLos = data->head_data_array[4];
       short rssi_1 = data->head_data_array[6] + (data->head_data_array[7] << 8);  // NOLINT
       short rssi_2 = data->head_data_array[8] + (data->head_data_array[9] << 8);  // NOLINT
       ros_uwb_status_.data[0].second = ts.tv_sec;
-      ros_uwb_status_.data[0].position = FrontPose(dist, angle);
+      // ros_uwb_status_.data[0].position = FrontPose(dist, angle);
+      ros_uwb_status_.data[0].dist = dist;
+      ros_uwb_status_.data[0].angle = format_9_7(angle);
       ros_uwb_status_.data[0].n_los = nLos;
-      ros_uwb_status_.data[0].rssi_1 = rssi_1;
-      ros_uwb_status_.data[0].rssi_2 = rssi_2;
+      ros_uwb_status_.data[0].rssi_1 = format_8_8(rssi_1);
+      ros_uwb_status_.data[0].rssi_2 = format_8_8(rssi_2);
 
       // TOF data
-      uint32_t dist_tof = data->head_tof_data_array[0] + (data->head_tof_data_array[1] << 8);
+      float dist_tof = data->head_tof_data_array[0] + (data->head_tof_data_array[1] << 8);
       short angle_tof = data->head_tof_data_array[2] + (data->head_tof_data_array[3] << 8);   // NOLINT
-      uint32_t nLos_tof = data->head_tof_data_array[4];
+      float nLos_tof = data->head_tof_data_array[4];
       short rssi_1_tof = data->head_tof_data_array[6] + (data->head_tof_data_array[7] << 8);  // NOLINT
       short rssi_2_tof = data->head_tof_data_array[8] + (data->head_tof_data_array[9] << 8);  // NOLINT
       ros_uwb_status_.data[3].second = ts.tv_sec;
-      ros_uwb_status_.data[3].position = BackPose(dist_tof, angle_tof);
+      // ros_uwb_status_.data[3].position = BackPose(dist_tof, angle_tof);
+      ros_uwb_status_.data[3].dist = dist_tof;
+      ros_uwb_status_.data[3].angle = format_9_7(angle_tof);
       ros_uwb_status_.data[3].n_los = nLos_tof;
-      ros_uwb_status_.data[3].rssi_1 = rssi_1_tof;
-      ros_uwb_status_.data[3].rssi_2 = rssi_2_tof;
-
+      ros_uwb_status_.data[3].rssi_1 = format_8_8(rssi_1_tof);
+      ros_uwb_status_.data[3].rssi_2 = format_8_8(rssi_2_tof);
 
       INFO("--------------------[UWB]----------------------");
       INFO("%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
-      INFO("Current dist : %d", dist);
+      INFO("Current dist : %f", dist);
       INFO("Current angle : %f", format_9_7(angle));
-      INFO("Current nLos : %d", nLos);
+      INFO("Current nLos : %f", nLos);
       INFO("Current rssi_1 : %f", format_8_8(rssi_1));
       INFO("Current rssi_2 : %f", format_8_8(rssi_2));
 
       INFO("--------------------[TOF]----------------------");
       INFO("%02X, %02X", data->head_tof_data_array[0], data->head_tof_data_array[1]);
-      INFO("Current dist : %d", dist_tof);
+      INFO("Current dist : %f", dist_tof);
       INFO("Current angle : %f", format_9_7(angle_tof));
-      INFO("Current nLos : %d", nLos_tof);
+      INFO("Current nLos : %f", nLos_tof);
       INFO("Current rssi_1 : %f", format_8_8(rssi_1_tof));
       INFO("Current rssi_2 : %f", format_8_8(rssi_2_tof));
     }
@@ -465,10 +474,10 @@ void UWBCarpo::HandleCan1Messages(
 void UWBCarpo::RunTask()
 {
   while (true) {
-    // auto message = bms_processor_->bms_message();
-    status_function_(ros_uwb_status_);
     // INFO("UWBCarpo::RunTask ... ");
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    UwbRawStatusMsg2Ros();
+    status_function_(uwb_posestamped_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 }
 
@@ -520,14 +529,9 @@ void UWBCarpo::RunSimulation()
         constexpr int NumberUWB = 4;
         for (int i = 0; i < NumberUWB; i++) {
           UwbSignleStatusMsg uwb;
-          std::vector<float> pos {
-            GenerateRandomNumber(0, 100),
-            GenerateRandomNumber(0, 100),
-            0.0f
-          };
-
           uwb.second = ts.tv_sec;
-          uwb.position = pos;
+          uwb.dist = GenerateRandomNumber(0, 100);
+          uwb.angle = GenerateRandomNumber(0, 100);
           uwb.n_los = GenerateRandomNumber(0, 100);
           uwb.rssi_1 = GenerateRandomNumber(0, 100);
           uwb.rssi_1 = GenerateRandomNumber(0, 100);
@@ -566,38 +570,87 @@ int UWBCarpo::ConvertRange(const int & rangle)
 
 std::vector<float> UWBCarpo::FrontPose(const float & dist, const float & angle)
 {
+  constexpr float offset_x = 170.0f;
+  constexpr float offset_y = 0.0f;
+  constexpr float offset_z = 164.0f;
+
   return std::vector<float> {
-    dist * std::cos(-angle),
-    dist * std::sin(-angle),
-    0.0f
+    dist * std::cos(-angle) + offset_x,
+    dist * std::sin(-angle) + offset_y,
+    0.0f + offset_z
   };
 }
 
 std::vector<float> UWBCarpo::BackPose(const float & dist, const float & angle)
 {
+  constexpr float offset_x = 218.5f;
+  constexpr float offset_y = 0.0f;
+  constexpr float offset_z = -4.95f;
+
   return std::vector<float> {
-    dist * std::cos(180.0 - angle),
-    dist * std::sin(180.0 - angle),
-    0.0f
+    dist * std::cos(180.0 - angle) + offset_x,
+    dist * std::sin(180.0 - angle) + offset_y,
+    0.0f + offset_z
   };
 }
 
 std::vector<float> UWBCarpo::RightPose(const float & dist, const float & angle)
 {
+  constexpr float offset_x = -23.0f;
+  constexpr float offset_y = 84.5f;
+  constexpr float offset_z = -3.25f;
+
   return std::vector<float> {
-    dist * std::cos(-90.0 - angle),
-    dist * std::sin(-90.0 - angle),
-    0.0f
+    dist * std::cos(-90.0 - angle) + offset_x,
+    dist * std::sin(-90.0 - angle) + offset_y,
+    0.0f + offset_z
   };
 }
 
+
 std::vector<float> UWBCarpo::LeftPose(const float & dist, const float & angle)
 {
+  constexpr float offset_x = -23.5f;
+  constexpr float offset_y = -84.5f;
+  constexpr float offset_z = -3.25f;
+
   return std::vector<float> {
-    dist * std::cos(90.0 - angle),
-    dist * std::sin(90.0 - angle),
-    0.0f
+    dist * std::cos(90.0 - angle) + offset_x,
+    dist * std::sin(90.0 - angle) + offset_y,
+    0.0f + offset_z
   };
+}
+
+bool UWBCarpo::LoadUWBTomlConfig()
+{
+  auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
+  auto path = local_share_dir + std::string("/toml_config/device/uwb_config.toml");
+
+  if (!cyberdog::common::CyberdogToml::ParseFile(path.c_str(), params_toml_)) {
+    ERROR("Params config file is not in toml format");
+    return false;
+  }
+
+  uwb_config_.front_back_threshold = toml::find<double>(params_toml_, "front_back_threshold");
+  uwb_config_.left_right_threshold = toml::find<double>(params_toml_, "left_right_threshold");
+
+  // HeadUWB
+  uwb_config_.AoA_F_NMAX = toml::find<double>(params_toml_, "HeadUWB", "AoA_F_NMAX");
+  uwb_config_.AoA_F_PMAX = toml::find<double>(params_toml_, "HeadUWB", "AoA_F_PMAX");
+  uwb_config_.AoA_B_NMAX = toml::find<double>(params_toml_, "HeadUWB", "AoA_B_NMAX");
+  uwb_config_.AoA_B_PMAX = toml::find<double>(params_toml_, "HeadUWB", "AoA_B_PMAX");
+
+  // RearUWB
+  uwb_config_.AoA_L_NMAX = toml::find<double>(params_toml_, "RearUWB", "AoA_L_NMAX");
+  uwb_config_.AoA_L_PMAX = toml::find<double>(params_toml_, "RearUWB", "AoA_L_PMAX");
+  uwb_config_.AoA_R_NMAX = toml::find<double>(params_toml_, "RearUWB", "AoA_R_NMAX");
+  uwb_config_.AoA_R_PMAX = toml::find<double>(params_toml_, "RearUWB", "AoA_R_PMAX");
+  return true;
+}
+
+UWBConfig & UWBCarpo::GetUWBConfig()
+{
+  return uwb_config_;
 }
 
 void UWBCarpo::SetData(const Type & type, const UwbSignleStatusMsg & data)
@@ -635,54 +688,180 @@ void UWBCarpo::SetData(const Type & type, const UwbSignleStatusMsg & data)
 
 void UWBCarpo::Debug2String(const Type & type)
 {
+  // ros_uwb_status_.data[0] // head uwb front
+  // ros_uwb_status_.data[3] // head tof back
+
+  // ros_uwb_status_.data[1] // rear uwb left
+  // ros_uwb_status_.data[2] // rear tof right
+
+  // float32 dist
+  // float32 angle
+  // uint64 n_los
+  // uint16 rssi_1
+  // uint16 rssi_2
+
   switch (type) {
     case Type::HeadTOF:
       {
-        // INFO("Current dist : %d", ros_uwb_status_[0].range);
-        // INFO("Current angle : %f",  ros_uwb_status_[0].range);
-        // INFO("Current nLos : %d", nLos);
-        // INFO("Current dist : %d", dist);
-        // INFO("Current rssi_1 : %f", format_8_8(rssi_1));
-        // INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+        INFO("################## [Current uwb type : Type::HeadTOF] ##################");
+        INFO("Current dist : %f", ros_uwb_status_.data[3].dist);
+        INFO("Current angle : %f", ros_uwb_status_.data[3].angle);
+        INFO("Current nLos : %f", ros_uwb_status_.data[3].n_los);
+        INFO("Current rssi_1 : %f", ros_uwb_status_.data[3].rssi_1);
+        INFO("Current rssi_2 : %f", ros_uwb_status_.data[3].rssi_2);
+        INFO("position x = %f", uwb_posestamped_.pose.position.x);
+        INFO("position y = %f", uwb_posestamped_.pose.position.y);
+        INFO("position z = %f", uwb_posestamped_.pose.position.z);
       }
       break;
 
     case Type::HeadUWB:
       {
-        // INFO("Current dist : %d", ros_uwb_status_[0].range);
-        // INFO("Current angle : %f",  ros_uwb_status_[0].range);
-        // INFO("Current nLos : %d", nLos);
-        // INFO("Current dist : %d", dist);
-        // INFO("Current rssi_1 : %f", format_8_8(rssi_1));
-        // INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+        INFO("################## [Current uwb type : Type::HeadUWB] ##################");
+        INFO("Current dist : %f", ros_uwb_status_.data[0].dist);
+        INFO("Current angle : %f", ros_uwb_status_.data[0].angle);
+        INFO("Current nLos : %f", ros_uwb_status_.data[0].n_los);
+        INFO("Current rssi_1 : %f", ros_uwb_status_.data[0].rssi_1);
+        INFO("Current rssi_2 : %f", ros_uwb_status_.data[0].rssi_2);
+        INFO("position x = %f", uwb_posestamped_.pose.position.x);
+        INFO("position y = %f", uwb_posestamped_.pose.position.y);
+        INFO("position z = %f", uwb_posestamped_.pose.position.z);
       }
       break;
 
     case Type::RearTOF:
       {
-        // INFO("Current dist : %d", ros_uwb_status_[0].range);
-        // INFO("Current angle : %f",  ros_uwb_status_[0].range);
-        // INFO("Current nLos : %d", nLos);
-        // INFO("Current dist : %d", dist);
-        // INFO("Current rssi_1 : %f", format_8_8(rssi_1));
-        // INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+        INFO("################## [Current uwb type : Type::RearTOF] ##################");
+        INFO("Current dist : %f", ros_uwb_status_.data[2].dist);
+        INFO("Current angle : %f", ros_uwb_status_.data[2].angle);
+        INFO("Current nLos : %f", ros_uwb_status_.data[2].n_los);
+        INFO("Current rssi_1 : %f", ros_uwb_status_.data[2].rssi_1);
+        INFO("Current rssi_2 : %f", ros_uwb_status_.data[2].rssi_2);
+        INFO("position x = %f", uwb_posestamped_.pose.position.x);
+        INFO("position y = %f", uwb_posestamped_.pose.position.y);
+        INFO("position z = %f", uwb_posestamped_.pose.position.z);
       }
       break;
 
     case Type::RearUWB:
       {
-        // INFO("Current dist : %d", ros_uwb_status_[0].range);
-        // INFO("Current angle : %f",  ros_uwb_status_[0].range);
-        // INFO("Current nLos : %d", nLos);
-        // INFO("Current dist : %d", dist);
-        // INFO("Current rssi_1 : %f", format_8_8(rssi_1));
-        // INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+        INFO("################## [Current uwb type : Type::RearUWB] ##################");
+        INFO("Current dist : %f", ros_uwb_status_.data[1].dist);
+        INFO("Current angle : %f", ros_uwb_status_.data[1].angle);
+        INFO("Current nLos : %f", ros_uwb_status_.data[1].n_los);
+        INFO("Current rssi_1 : %f", ros_uwb_status_.data[1].rssi_1);
+        INFO("Current rssi_2 : %f", ros_uwb_status_.data[1].rssi_2);
+        INFO("position x = %f", uwb_posestamped_.pose.position.x);
+        INFO("position y = %f", uwb_posestamped_.pose.position.y);
+        INFO("position z = %f", uwb_posestamped_.pose.position.z);
       }
       break;
 
     default:
       break;
   }
+}
+
+void UWBCarpo::UwbRawStatusMsg2Ros()
+{
+  // ros_uwb_status_.data[0] // head uwb front
+  // ros_uwb_status_.data[3] // head tof back
+
+  // ros_uwb_status_.data[1] // rear uwb left
+  // ros_uwb_status_.data[2] // rear tof right
+
+  Type type = Type::Unknown;
+  constexpr double front_back_threshold = 7.0;
+  double delta = std::fabs(ros_uwb_status_.data[0].rssi_1 - ros_uwb_status_.data[3].rssi_1);
+  if (delta > front_back_threshold) {
+    constexpr double AoA_F_NMAX = -48.0f;
+    constexpr double AoA_F_PMAX = 60.0f;
+
+    if (ros_uwb_status_.data[0].rssi_1 > ros_uwb_status_.data[3].rssi_1) {
+      // Head UWB
+      if (ros_uwb_status_.data[0].angle > AoA_F_NMAX &&
+        ros_uwb_status_.data[0].angle < AoA_F_PMAX)  // NOLINT
+      {
+        auto pose = FrontPose(ros_uwb_status_.data[0].dist, ros_uwb_status_.data[0].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::HeadUWB;
+      } else if (ros_uwb_status_.data[0].angle > AoA_F_PMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_PMAX, 0.001))
+      {
+        // Rear TOF
+        auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::RearTOF;
+      } else if (ros_uwb_status_.data[0].angle < AoA_F_NMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_NMAX, 0.001))
+      {
+        // Rear UWB
+        auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::RearUWB;
+      }
+    } else {
+      constexpr double AoA_B_NMAX = -60.0f;
+      constexpr double AoA_B_PMAX = 60.0f;
+
+      if (ros_uwb_status_.data[3].angle > AoA_B_NMAX &&
+        ros_uwb_status_.data[3].angle < AoA_B_PMAX)
+      {
+        // Head TOF
+        auto pose = BackPose(ros_uwb_status_.data[3].dist, ros_uwb_status_.data[3].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::HeadTOF;
+      } else if (ros_uwb_status_.data[3].angle > AoA_B_PMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_PMAX, 0.001))    // NOLINT
+      {
+        // Rear UWB
+        auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::RearUWB;
+      } else if (ros_uwb_status_.data[3].angle < AoA_B_NMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_NMAX, 0.001))    // NOLINT
+      {
+        // Rear TOF
+        auto pose = RightPose(ros_uwb_status_.data[3].dist, ros_uwb_status_.data[3].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::RearTOF;
+      }
+    }
+  } else {
+    constexpr double left_right_threshold = 7.0;
+    double delta = std::fabs(ros_uwb_status_.data[1].rssi_1 - ros_uwb_status_.data[2].rssi_1);
+
+    if (delta > left_right_threshold) {
+      // rear uwb
+      if (ros_uwb_status_.data[1].rssi_1 > ros_uwb_status_.data[2].rssi_1) {
+        auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::RearUWB;
+      } else {
+        // rear tof uwb
+        auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
+        uwb_posestamped_.pose.position.x = pose[0];
+        uwb_posestamped_.pose.position.y = pose[1];
+        uwb_posestamped_.pose.position.z = 0.0;
+        type = Type::RearTOF;
+      }
+    }
+  }
+  Debug2String(type);
 }
 
 }  //  namespace device
