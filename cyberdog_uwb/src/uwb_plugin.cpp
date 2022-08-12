@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <limits>
 
 #include "cyberdog_uwb/uwb_plugin.hpp"
 #include "cyberdog_uwb/float_comparisons.hpp"
@@ -789,7 +790,9 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
   bool debug_to_string = false;
   Type type = Type::Unknown;
   constexpr double front_back_threshold = 7.0;
+  constexpr auto eps = std::numeric_limits<float>::epsilon();
   double delta = std::fabs(ros_uwb_status_.data[0].rssi_1 - ros_uwb_status_.data[3].rssi_1);
+
   if (delta > front_back_threshold) {
     constexpr double AoA_F_NMAX = -48.0f;
     constexpr double AoA_F_PMAX = 60.0f;
@@ -812,7 +815,7 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
         pose_queue_.push_back(uwb_posestamped);
         debug_to_string = true;
       } else if (ros_uwb_status_.data[0].angle > AoA_F_PMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_PMAX, 0.001))
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_PMAX, eps))
       {
         // Rear TOF
         // INFO("Rear TOF: ros_uwb_status_.data[2].angle = %f", ros_uwb_status_.data[2].angle);
@@ -829,7 +832,7 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
         pose_queue_.push_back(uwb_posestamped);
         debug_to_string = true;
       } else if (ros_uwb_status_.data[0].angle < AoA_F_NMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_NMAX, 0.001))
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_NMAX, eps))
       {
         // Rear UWB
         // INFO("Rear UWB: ros_uwb_status_.data[1].angle = %f", ros_uwb_status_.data[1].angle);
@@ -867,7 +870,7 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
         pose_queue_.push_back(uwb_posestamped);
         debug_to_string = true;
       } else if (ros_uwb_status_.data[3].angle > AoA_B_PMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_PMAX, 0.001))    // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_PMAX, eps))    // NOLINT
       {
         // Rear UWB
         auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
@@ -883,7 +886,7 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
         pose_queue_.push_back(uwb_posestamped);
         debug_to_string = true;
       } else if (ros_uwb_status_.data[3].angle < AoA_B_NMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_NMAX, 0.001))    // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_NMAX, eps))    // NOLINT
       {
         // Rear TOF
         // INFO("# Rear TOF: ros_uwb_status_.data[2].angle = %f", ros_uwb_status_.data[2].angle);
