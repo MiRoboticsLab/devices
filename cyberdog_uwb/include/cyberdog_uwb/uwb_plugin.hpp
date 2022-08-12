@@ -22,7 +22,7 @@
 #include <chrono>
 #include <random>
 #include <mutex>
-
+#include <deque>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -98,6 +98,13 @@ struct UWBConfig
 };
 
 
+// Converts from degrees to radians.
+constexpr double DegToRad(double deg) {return M_PI * deg / 180.;}
+
+// Converts form radians to degrees.
+constexpr double RadToDeg(double rad) {return 180. * rad / M_PI;}
+
+
 class UWBCarpo : public cyberdog::device::UWBBase
 {
 public:
@@ -169,7 +176,7 @@ private:
   UWBConfig & GetUWBConfig();
 
   void SetData(const Type & type, const UwbSignleStatusMsg & data);
-  void Debug2String(const Type & type);
+  void Debug2String(const Type & type, const geometry_msgs::msg::PoseStamped & uwb_posestamped);
   void UwbRawStatusMsg2Ros();
 
   std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
@@ -207,7 +214,7 @@ private:
   bool enable_initialized_finished_ {false};
 
   // geometry_msgs/msg/pose_stamped
-  geometry_msgs::msg::PoseStamped uwb_posestamped_;
+  std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog
