@@ -336,13 +336,14 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.header.stamp.sec = ts.tv_sec;
 
       // UWB data
-      uint32_t dist = data->rear_data_array[0] + (data->rear_data_array[1] << 8);
+      float dist = data->rear_data_array[0] + (data->rear_data_array[1] << 8);
       short angle = data->rear_data_array[2] + (data->rear_data_array[3] << 8);  // NOLINT
       float nLos = data->rear_data_array[4];
       short rssi_1 = data->rear_data_array[6] + (data->rear_data_array[7] << 8);  // NOLINT
       short rssi_2 = data->rear_data_array[8] + (data->rear_data_array[9] << 8);  // NOLINT
       ros_uwb_status_.data[1].second = ts.tv_sec;
       // ros_uwb_status_.data[1].position = LeftPose(dist, static_cast<float>(angle));
+      ros_uwb_status_.data[1].dist = dist;
       ros_uwb_status_.data[1].angle = format_9_7(angle);
       ros_uwb_status_.data[1].n_los = nLos;
       ros_uwb_status_.data[1].rssi_1 = format_8_8(rssi_1);
@@ -356,6 +357,7 @@ void UWBCarpo::HandleCan0Messages(
       short rssi_2_tof = data->rear_tof_data_array[8] + (data->rear_tof_data_array[9] << 8);  // NOLINT
       ros_uwb_status_.data[2].second = ts.tv_sec;
       // ros_uwb_status_.data[2].position = RightPose(dist_tof, angle_tof);
+      ros_uwb_status_.data[2].dist = dist_tof;
       ros_uwb_status_.data[2].angle = format_9_7(angle_tof);
       ros_uwb_status_.data[2].n_los = nLos_tof;
       ros_uwb_status_.data[2].rssi_1 = format_8_8(rssi_1_tof);
@@ -476,7 +478,17 @@ void UWBCarpo::RunTask()
   while (true) {
     // INFO("UWBCarpo::RunTask ... ");
     UwbRawStatusMsg2Ros();
-    status_function_(uwb_posestamped_);
+
+    if (pose_queue_.empty()) {
+      continue;
+    }
+
+    // get msg from queue
+    auto msg = pose_queue_.front();
+    pose_queue_.pop_front();
+
+    // publish msgs
+    status_function_(msg);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 }
@@ -570,54 +582,56 @@ int UWBCarpo::ConvertRange(const int & rangle)
 
 std::vector<float> UWBCarpo::FrontPose(const float & dist, const float & angle)
 {
-  constexpr float offset_x = 170.0f;
+  constexpr float offset_x = 17.0f;
   constexpr float offset_y = 0.0f;
-  constexpr float offset_z = 164.0f;
+  constexpr float offset_z = 16.4f;
 
   return std::vector<float> {
-    dist * std::cos(-angle) + offset_x,
-    dist * std::sin(-angle) + offset_y,
-    0.0f + offset_z
+    (dist * std::cos(DegToRad(-angle)) + offset_x) / 100,
+    (dist * std::sin(DegToRad(-angle)) + offset_y) / 100,
+    (0.0f + offset_z) / 100
   };
 }
 
 std::vector<float> UWBCarpo::BackPose(const float & dist, const float & angle)
 {
-  constexpr float offset_x = 218.5f;
+  constexpr float offset_x = 21.85f;
   constexpr float offset_y = 0.0f;
-  constexpr float offset_z = -4.95f;
+  constexpr float offset_z = -0.495f;
 
   return std::vector<float> {
-    dist * std::cos(180.0 - angle) + offset_x,
-    dist * std::sin(180.0 - angle) + offset_y,
-    0.0f + offset_z
+    (dist * std::cos(DegToRad(180.0 - angle)) + offset_x) / 100,
+    (dist * std::sin(DegToRad(180.0 - angle)) + offset_y) / 100,
+    (0.0f + offset_z) / 100
   };
 }
 
 std::vector<float> UWBCarpo::RightPose(const float & dist, const float & angle)
 {
-  constexpr float offset_x = -23.0f;
-  constexpr float offset_y = 84.5f;
-  constexpr float offset_z = -3.25f;
-
+  constexpr float offset_x = -2.3f;
+  constexpr float offset_y = 8.45f;
+  constexpr float offset_z = -0.325f;
+  // INFO("----------------------------------------------------------------------------");
+  // INFO("angle = %f, dist = %f", angle, dist);
+  // INFO("----------------------------------------------------------------------------");
   return std::vector<float> {
-    dist * std::cos(-90.0 - angle) + offset_x,
-    dist * std::sin(-90.0 - angle) + offset_y,
-    0.0f + offset_z
+    (dist * std::cos(DegToRad(-90.0 - angle)) + offset_x) / 100,
+    (dist * std::sin(DegToRad(-90.0 - angle)) + offset_y) / 100,
+    (0.0f + offset_z) / 100
   };
 }
 
 
 std::vector<float> UWBCarpo::LeftPose(const float & dist, const float & angle)
 {
-  constexpr float offset_x = -23.5f;
-  constexpr float offset_y = -84.5f;
-  constexpr float offset_z = -3.25f;
+  constexpr float offset_x = -2.35f;
+  constexpr float offset_y = -8.45f;
+  constexpr float offset_z = -0.325f;
 
   return std::vector<float> {
-    dist * std::cos(90.0 - angle) + offset_x,
-    dist * std::sin(90.0 - angle) + offset_y,
-    0.0f + offset_z
+    (dist * std::cos(DegToRad(90.0 - angle)) + offset_x) / 100,
+    (dist * std::sin(DegToRad(90.0 - angle)) + offset_y) / 100,
+    (0.0f + offset_z) / 100
   };
 }
 
@@ -686,7 +700,9 @@ void UWBCarpo::SetData(const Type & type, const UwbSignleStatusMsg & data)
   }
 }
 
-void UWBCarpo::Debug2String(const Type & type)
+void UWBCarpo::Debug2String(
+  const Type & type,
+  const geometry_msgs::msg::PoseStamped & uwb_posestamped)
 {
   // ros_uwb_status_.data[0] // head uwb front
   // ros_uwb_status_.data[3] // head tof back
@@ -709,9 +725,9 @@ void UWBCarpo::Debug2String(const Type & type)
         INFO("Current nLos : %f", ros_uwb_status_.data[3].n_los);
         INFO("Current rssi_1 : %f", ros_uwb_status_.data[3].rssi_1);
         INFO("Current rssi_2 : %f", ros_uwb_status_.data[3].rssi_2);
-        INFO("position x = %f", uwb_posestamped_.pose.position.x);
-        INFO("position y = %f", uwb_posestamped_.pose.position.y);
-        INFO("position z = %f", uwb_posestamped_.pose.position.z);
+        INFO("position x = %f", uwb_posestamped.pose.position.x);
+        INFO("position y = %f", uwb_posestamped.pose.position.y);
+        INFO("position z = %f", uwb_posestamped.pose.position.z);
       }
       break;
 
@@ -723,9 +739,9 @@ void UWBCarpo::Debug2String(const Type & type)
         INFO("Current nLos : %f", ros_uwb_status_.data[0].n_los);
         INFO("Current rssi_1 : %f", ros_uwb_status_.data[0].rssi_1);
         INFO("Current rssi_2 : %f", ros_uwb_status_.data[0].rssi_2);
-        INFO("position x = %f", uwb_posestamped_.pose.position.x);
-        INFO("position y = %f", uwb_posestamped_.pose.position.y);
-        INFO("position z = %f", uwb_posestamped_.pose.position.z);
+        INFO("position x = %f", uwb_posestamped.pose.position.x);
+        INFO("position y = %f", uwb_posestamped.pose.position.y);
+        INFO("position z = %f", uwb_posestamped.pose.position.z);
       }
       break;
 
@@ -737,9 +753,9 @@ void UWBCarpo::Debug2String(const Type & type)
         INFO("Current nLos : %f", ros_uwb_status_.data[2].n_los);
         INFO("Current rssi_1 : %f", ros_uwb_status_.data[2].rssi_1);
         INFO("Current rssi_2 : %f", ros_uwb_status_.data[2].rssi_2);
-        INFO("position x = %f", uwb_posestamped_.pose.position.x);
-        INFO("position y = %f", uwb_posestamped_.pose.position.y);
-        INFO("position z = %f", uwb_posestamped_.pose.position.z);
+        INFO("position x = %f", uwb_posestamped.pose.position.x);
+        INFO("position y = %f", uwb_posestamped.pose.position.y);
+        INFO("position z = %f", uwb_posestamped.pose.position.z);
       }
       break;
 
@@ -751,9 +767,9 @@ void UWBCarpo::Debug2String(const Type & type)
         INFO("Current nLos : %f", ros_uwb_status_.data[1].n_los);
         INFO("Current rssi_1 : %f", ros_uwb_status_.data[1].rssi_1);
         INFO("Current rssi_2 : %f", ros_uwb_status_.data[1].rssi_2);
-        INFO("position x = %f", uwb_posestamped_.pose.position.x);
-        INFO("position y = %f", uwb_posestamped_.pose.position.y);
-        INFO("position z = %f", uwb_posestamped_.pose.position.z);
+        INFO("position x = %f", uwb_posestamped.pose.position.x);
+        INFO("position y = %f", uwb_posestamped.pose.position.y);
+        INFO("position z = %f", uwb_posestamped.pose.position.z);
       }
       break;
 
@@ -769,7 +785,8 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
 
   // ros_uwb_status_.data[1] // rear uwb left
   // ros_uwb_status_.data[2] // rear tof right
-
+  geometry_msgs::msg::PoseStamped uwb_posestamped;
+  bool debug_to_string = false;
   Type type = Type::Unknown;
   constexpr double front_back_threshold = 7.0;
   double delta = std::fabs(ros_uwb_status_.data[0].rssi_1 - ros_uwb_status_.data[3].rssi_1);
@@ -783,28 +800,51 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
         ros_uwb_status_.data[0].angle < AoA_F_PMAX)  // NOLINT
       {
         auto pose = FrontPose(ros_uwb_status_.data[0].dist, ros_uwb_status_.data[0].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::HeadUWB;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       } else if (ros_uwb_status_.data[0].angle > AoA_F_PMAX ||  // NOLINT
         helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_PMAX, 0.001))
       {
         // Rear TOF
+        // INFO("Rear TOF: ros_uwb_status_.data[2].angle = %f", ros_uwb_status_.data[2].angle);
         auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::RearTOF;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       } else if (ros_uwb_status_.data[0].angle < AoA_F_NMAX ||  // NOLINT
         helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_NMAX, 0.001))
       {
         // Rear UWB
+        // INFO("Rear UWB: ros_uwb_status_.data[1].angle = %f", ros_uwb_status_.data[1].angle);
         auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::RearUWB;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       }
     } else {
       constexpr double AoA_B_NMAX = -60.0f;
@@ -815,28 +855,50 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
       {
         // Head TOF
         auto pose = BackPose(ros_uwb_status_.data[3].dist, ros_uwb_status_.data[3].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::HeadTOF;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       } else if (ros_uwb_status_.data[3].angle > AoA_B_PMAX ||  // NOLINT
         helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_PMAX, 0.001))    // NOLINT
       {
         // Rear UWB
         auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::RearUWB;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       } else if (ros_uwb_status_.data[3].angle < AoA_B_NMAX ||  // NOLINT
         helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_NMAX, 0.001))    // NOLINT
       {
         // Rear TOF
-        auto pose = RightPose(ros_uwb_status_.data[3].dist, ros_uwb_status_.data[3].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        // INFO("# Rear TOF: ros_uwb_status_.data[2].angle = %f", ros_uwb_status_.data[2].angle);
+        auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::RearTOF;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       }
     }
   } else {
@@ -847,21 +909,38 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
       // rear uwb
       if (ros_uwb_status_.data[1].rssi_1 > ros_uwb_status_.data[2].rssi_1) {
         auto pose = LeftPose(ros_uwb_status_.data[1].dist, ros_uwb_status_.data[1].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::RearUWB;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       } else {
         // rear tof uwb
         auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
-        uwb_posestamped_.pose.position.x = pose[0];
-        uwb_posestamped_.pose.position.y = pose[1];
-        uwb_posestamped_.pose.position.z = 0.0;
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "base_link";
+        uwb_posestamped.pose.position.x = pose[0];
+        uwb_posestamped.pose.position.y = pose[1];
+        uwb_posestamped.pose.position.z = pose[2];
         type = Type::RearTOF;
+        pose_queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
       }
     }
   }
-  Debug2String(type);
+
+  if (debug_to_string) {
+    Debug2String(type, uwb_posestamped);
+  }
 }
 
 }  //  namespace device
