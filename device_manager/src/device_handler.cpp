@@ -50,7 +50,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
 
   touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
   bms_pub_ = node_ptr->create_publisher<protocol::msg::BmsStatus>("bms_status", 10);
-  uwb_pub_ = node_ptr->create_publisher<protocol::msg::UwbRaw>("uwb_tracking_pose", 10);
+  uwb_pub_ = node_ptr->create_publisher<protocol::msg::UwbRaw>("uwb_raw", 10);
 
   node_ptr->declare_parameter("simulator", std::vector<std::string>{});
   node_ptr->get_parameter("simulator", this->simulator_);
