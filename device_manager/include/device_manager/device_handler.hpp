@@ -23,6 +23,7 @@
 #include <condition_variable>
 
 #include "std_msgs/msg/int32.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "device_manager/device_config.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
 
@@ -48,6 +49,7 @@ public:
     protocol::srv::LedExecute_Response::SharedPtr response);
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::BmsStatus msg);
+  void PublishUwbMessage(protocol::msg::UwbRaw msg);
 
 private:
   std::vector<std::string> simulator_;
@@ -58,9 +60,11 @@ private:
   std::shared_ptr<LedBase> led_ptr {nullptr};
   std::shared_ptr<TouchBase> touch_ptr {nullptr};
   std::shared_ptr<BMSBase> bms_ptr_ {nullptr};
+  std::shared_ptr<UWBBase> uwb_ptr_ {nullptr};
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::BmsStatus>::SharedPtr bms_pub_ {nullptr};
+  rclcpp::Publisher<protocol::msg::UwbRaw>::SharedPtr uwb_pub_ {nullptr}; 
 };  // class DeviceHandler
 
 }  // namespace device

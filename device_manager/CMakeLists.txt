@@ -16,6 +16,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(manager_base REQUIRED)
 find_package(protocol REQUIRED)
@@ -24,6 +25,7 @@ find_package(cyberdog_system REQUIRED)
 find_package(cyberdog_common REQUIRED)
 find_package(cyberdog_led REQUIRED)
 find_package(cyberdog_bms REQUIRED)
+find_package(cyberdog_uwb REQUIRED)
 find_package(cyberdog_touch REQUIRED)
 
 include_directories(include)
@@ -36,12 +38,14 @@ add_executable(${PROJECT_NAME}
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   std_msgs
+  geometry_msgs
   protocol
   manager_base
   cyberdog_system
   cyberdog_common
   cyberdog_led
   cyberdog_bms
+  cyberdog_uwb
   cyberdog_touch
   pluginlib
 )

@@ -36,11 +36,11 @@ public:
 
   virtual bool Config() = 0;
   virtual bool Init(
-    std::function<void(geometry_msgs::msg::PoseStamped)>
+    std::function<void(UwbSignleStatusMsg)>
     function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
   virtual bool RegisterTopic(
-    std::function<void(geometry_msgs::msg::PoseStamped)> function_callback) = 0;
+    std::function<void(UwbSignleStatusMsg)> function_callback) = 0;
 
 protected:
   UWBBase() {}

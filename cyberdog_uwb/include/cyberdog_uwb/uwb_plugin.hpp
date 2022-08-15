@@ -111,11 +111,11 @@ public:
   UWBCarpo();
   bool Config() override;
   bool Init(
-    std::function<void(geometry_msgs::msg::PoseStamped)>
+    std::function<void(UwbSignleStatusMsg)>
     function_callback, bool simulation = false) override;
   bool SelfCheck() override;
   bool RegisterTopic(
-    std::function<void(geometry_msgs::msg::PoseStamped)> function_callback) override;
+    std::function<void(UwbSignleStatusMsg)> function_callback) override;
 
   bool Open();
   bool Close();
@@ -171,12 +171,12 @@ private:
     Unknown
   };
 
-
   bool LoadUWBTomlConfig();
   UWBConfig & GetUWBConfig();
 
   void SetData(const Type & type, const UwbSignleStatusMsg & data);
   void Debug2String(const Type & type, const geometry_msgs::msg::PoseStamped & uwb_posestamped);
+  void Debug2String(const UwbSignleStatusMsg & uwb_msg);
   void UwbRawStatusMsg2Ros();
 
   std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
@@ -185,7 +185,7 @@ private:
 
   std::mutex mutex_;
   UwbRawStatusMsg ros_uwb_status_;
-  std::function<void(geometry_msgs::msg::PoseStamped)> status_function_;
+  std::function<void(UwbSignleStatusMsg)> status_function_;
 
   // uwb config parameters
   UWBConfig uwb_config_;
@@ -214,7 +214,8 @@ private:
   bool enable_initialized_finished_ {false};
 
   // geometry_msgs/msg/pose_stamped
-  std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
+  // std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
+  std::deque<UwbSignleStatusMsg> queue_;
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog
