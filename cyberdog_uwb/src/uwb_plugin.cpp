@@ -41,7 +41,7 @@ bool UWBCarpo::Config()
 }
 
 bool UWBCarpo::Init(
-  std::function<void(geometry_msgs::msg::PoseStamped)>
+  std::function<void(UwbSignleStatusMsg)>
   function_callback, bool simulation)
 {
   RegisterTopic(function_callback);
@@ -88,7 +88,7 @@ bool UWBCarpo::SelfCheck()
   return true;
 }
 
-bool UWBCarpo::RegisterTopic(std::function<void(geometry_msgs::msg::PoseStamped)> function_callback)
+bool UWBCarpo::RegisterTopic(std::function<void(UwbSignleStatusMsg)> function_callback)
 {
   status_function_ = function_callback;
   return true;
@@ -329,20 +329,13 @@ void UWBCarpo::HandleCan0Messages(
     if (name == "rear_data_array" || name == "rear_tof_data_array") {
       INFO("Receive rear data or rear tof data");
 
-      // header
-      struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-
       // UWB data
       float dist = data->rear_data_array[0] + (data->rear_data_array[1] << 8);
       short angle = data->rear_data_array[2] + (data->rear_data_array[3] << 8);  // NOLINT
       float nLos = data->rear_data_array[4];
       short rssi_1 = data->rear_data_array[6] + (data->rear_data_array[7] << 8);  // NOLINT
       short rssi_2 = data->rear_data_array[8] + (data->rear_data_array[9] << 8);  // NOLINT
-      ros_uwb_status_.data[1].second = ts.tv_sec;
+
       // ros_uwb_status_.data[1].position = LeftPose(dist, static_cast<float>(angle));
       ros_uwb_status_.data[1].dist = dist;
       ros_uwb_status_.data[1].angle = format_9_7(angle);
@@ -356,7 +349,7 @@ void UWBCarpo::HandleCan0Messages(
       float nLos_tof = data->rear_tof_data_array[4];
       float rssi_1_tof = data->rear_tof_data_array[6] + (data->rear_tof_data_array[7] << 8);  // NOLINT
       short rssi_2_tof = data->rear_tof_data_array[8] + (data->rear_tof_data_array[9] << 8);  // NOLINT
-      ros_uwb_status_.data[2].second = ts.tv_sec;
+
       // ros_uwb_status_.data[2].position = RightPose(dist_tof, angle_tof);
       ros_uwb_status_.data[2].dist = dist_tof;
       ros_uwb_status_.data[2].angle = format_9_7(angle_tof);
@@ -420,20 +413,13 @@ void UWBCarpo::HandleCan1Messages(
     if (name == "head_data_array" || name == "head_tof_data_array") {
       INFO("Receive head data or head tof data.");
 
-      // header
-      struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-      ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-      ros_uwb_status_.header.stamp.sec = ts.tv_sec;
-
       // UWB data
       float dist = data->head_data_array[0] + (data->head_data_array[1] << 8);
       short angle = data->head_data_array[2] + (data->head_data_array[3] << 8);   // NOLINT
       float nLos = data->head_data_array[4];
       short rssi_1 = data->head_data_array[6] + (data->head_data_array[7] << 8);  // NOLINT
       short rssi_2 = data->head_data_array[8] + (data->head_data_array[9] << 8);  // NOLINT
-      ros_uwb_status_.data[0].second = ts.tv_sec;
+
       // ros_uwb_status_.data[0].position = FrontPose(dist, angle);
       ros_uwb_status_.data[0].dist = dist;
       ros_uwb_status_.data[0].angle = format_9_7(angle);
@@ -447,7 +433,7 @@ void UWBCarpo::HandleCan1Messages(
       float nLos_tof = data->head_tof_data_array[4];
       short rssi_1_tof = data->head_tof_data_array[6] + (data->head_tof_data_array[7] << 8);  // NOLINT
       short rssi_2_tof = data->head_tof_data_array[8] + (data->head_tof_data_array[9] << 8);  // NOLINT
-      ros_uwb_status_.data[3].second = ts.tv_sec;
+
       // ros_uwb_status_.data[3].position = BackPose(dist_tof, angle_tof);
       ros_uwb_status_.data[3].dist = dist_tof;
       ros_uwb_status_.data[3].angle = format_9_7(angle_tof);
@@ -480,13 +466,13 @@ void UWBCarpo::RunTask()
     // INFO("UWBCarpo::RunTask ... ");
     UwbRawStatusMsg2Ros();
 
-    if (pose_queue_.empty()) {
+    if (queue_.empty()) {
       continue;
     }
 
     // get msg from queue
-    auto msg = pose_queue_.front();
-    pose_queue_.pop_front();
+    auto msg = queue_.front();
+    queue_.pop_front();
 
     // publish msgs
     status_function_(msg);
@@ -531,9 +517,6 @@ void UWBCarpo::RunSimulation()
         // header
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
-        ros_uwb_status_.header.frame_id = std::string("uwb_sensor");
-        ros_uwb_status_.header.stamp.nanosec = ts.tv_nsec;
-        ros_uwb_status_.header.stamp.sec = ts.tv_sec;
 
         // 1 head
         // 2 head TOF
@@ -542,7 +525,9 @@ void UWBCarpo::RunSimulation()
         constexpr int NumberUWB = 4;
         for (int i = 0; i < NumberUWB; i++) {
           UwbSignleStatusMsg uwb;
-          uwb.second = ts.tv_sec;
+          uwb.header.frame_id = "uwb_sensor";
+          uwb.header.stamp.nanosec = ts.tv_nsec;
+          uwb.header.stamp.sec = ts.tv_sec;
           uwb.dist = GenerateRandomNumber(0, 100);
           uwb.angle = GenerateRandomNumber(0, 100);
           uwb.n_los = GenerateRandomNumber(0, 100);
@@ -779,6 +764,18 @@ void UWBCarpo::Debug2String(
   }
 }
 
+void UWBCarpo::Debug2String(const UwbSignleStatusMsg & uwb_msg)
+{
+  INFO("########################################");
+  INFO("frame id = %s", uwb_msg.header.frame_id);
+  INFO("dist = %f", uwb_msg.dist);
+  INFO("angle = %f", uwb_msg.angle);
+  INFO("n_los = %f", uwb_msg.n_los);
+  INFO("rssi_1 = %f", uwb_msg.rssi_1);
+  INFO("rssi_2 = %f", uwb_msg.rssi_2);
+}
+
+#if 0
 void UWBCarpo::UwbRawStatusMsg2Ros()
 {
   // ros_uwb_status_.data[0] // head uwb front
@@ -943,6 +940,172 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
 
   if (debug_to_string) {
     Debug2String(type, uwb_posestamped);
+  }
+}
+
+#endif
+
+void UWBCarpo::UwbRawStatusMsg2Ros()
+{
+  // ros_uwb_status_.data[0] // head uwb front
+  // ros_uwb_status_.data[3] // head tof back
+
+  // ros_uwb_status_.data[1] // rear uwb left
+  // ros_uwb_status_.data[2] // rear tof right
+  UwbSignleStatusMsg uwb_posestamped;
+  bool debug_to_string = false;
+  constexpr double front_back_threshold = 7.0;
+  constexpr auto eps = std::numeric_limits<float>::epsilon();
+  double delta = std::fabs(ros_uwb_status_.data[0].rssi_1 - ros_uwb_status_.data[3].rssi_1);
+
+  if (delta > front_back_threshold) {
+    constexpr double AoA_F_NMAX = -48.0f;
+    constexpr double AoA_F_PMAX = 60.0f;
+
+    if (ros_uwb_status_.data[0].rssi_1 > ros_uwb_status_.data[3].rssi_1) {
+      // Head UWB
+      if (ros_uwb_status_.data[0].angle > AoA_F_NMAX &&
+        ros_uwb_status_.data[0].angle < AoA_F_PMAX)  // NOLINT
+      {
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "head_uwb";
+        uwb_posestamped.dist = ros_uwb_status_.data[0].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[0].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[0].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[0].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[0].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      } else if (ros_uwb_status_.data[0].angle > AoA_F_PMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_PMAX, eps))
+      {
+        // Rear TOF
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "rear_tof";
+        uwb_posestamped.dist = ros_uwb_status_.data[2].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[2].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[2].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[2].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[2].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      } else if (ros_uwb_status_.data[0].angle < AoA_F_NMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[0].angle, AoA_F_NMAX, eps))
+      {
+        // Rear UWB
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "rear_uwb";
+        uwb_posestamped.dist = ros_uwb_status_.data[1].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[1].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[1].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[1].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[1].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      }
+    } else {
+      constexpr double AoA_B_NMAX = -60.0f;
+      constexpr double AoA_B_PMAX = 60.0f;
+
+      if (ros_uwb_status_.data[3].angle > AoA_B_NMAX &&
+        ros_uwb_status_.data[3].angle < AoA_B_PMAX)
+      {
+        // Head TOF
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "head_tof";
+        uwb_posestamped.dist = ros_uwb_status_.data[3].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[3].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[3].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[3].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[3].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      } else if (ros_uwb_status_.data[3].angle > AoA_B_PMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_PMAX, eps))    // NOLINT
+      {
+        // Rear UWB
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "rear_uwb";
+        uwb_posestamped.dist = ros_uwb_status_.data[1].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[1].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[1].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[1].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[1].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      } else if (ros_uwb_status_.data[3].angle < AoA_B_NMAX ||  // NOLINT
+        helper_functions::rel_eq<double>(ros_uwb_status_.data[3].angle, AoA_B_NMAX, eps))    // NOLINT
+      {
+        // Rear TOF
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "rear_tof";
+        uwb_posestamped.dist = ros_uwb_status_.data[2].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[2].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[2].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[2].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[2].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      }
+    }
+  } else {
+    constexpr double left_right_threshold = 7.0;
+    double delta = std::fabs(ros_uwb_status_.data[1].rssi_1 - ros_uwb_status_.data[2].rssi_1);
+
+    if (delta > left_right_threshold) {
+      // rear uwb
+      if (ros_uwb_status_.data[1].rssi_1 > ros_uwb_status_.data[2].rssi_1) {
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "rear_uwb";
+        uwb_posestamped.dist = ros_uwb_status_.data[1].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[1].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[1].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[1].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[1].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      } else {
+        // rear tof
+        auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
+        struct timespec time_stu;
+        clock_gettime(CLOCK_REALTIME, &time_stu);
+        uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
+        uwb_posestamped.header.stamp.sec = time_stu.tv_sec;
+        uwb_posestamped.header.frame_id = "rear_tof";
+        uwb_posestamped.dist = ros_uwb_status_.data[2].dist;
+        uwb_posestamped.angle = ros_uwb_status_.data[2].angle;
+        uwb_posestamped.n_los = ros_uwb_status_.data[2].n_los;
+        uwb_posestamped.rssi_1 = ros_uwb_status_.data[2].rssi_1;
+        uwb_posestamped.rssi_2 = ros_uwb_status_.data[2].rssi_2;
+        queue_.push_back(uwb_posestamped);
+        debug_to_string = true;
+      }
+    }
+  }
+
+  if (debug_to_string) {
+    Debug2String(uwb_posestamped);
   }
 }
 
