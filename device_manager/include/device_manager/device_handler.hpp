@@ -64,7 +64,7 @@ private:
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::BmsStatus>::SharedPtr bms_pub_ {nullptr};
-  rclcpp::Publisher<protocol::msg::UwbRaw>::SharedPtr uwb_pub_ {nullptr}; 
+  rclcpp::Publisher<protocol::msg::UwbRaw>::SharedPtr uwb_pub_ {nullptr};
 };  // class DeviceHandler
 
 }  // namespace device

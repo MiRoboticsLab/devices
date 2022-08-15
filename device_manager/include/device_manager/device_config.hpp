@@ -43,5 +43,4 @@ inline void GetDeviceNames(std::map<std::string, std::string> & name_map)
 }  // namespace device
 }  // namespace cyberdog
 
-
 #endif  // DEVICE_MANAGER__DEVICE_CONFIG_HPP_
