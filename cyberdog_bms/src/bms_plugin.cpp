@@ -170,7 +170,7 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
     std::lock_guard<std::mutex> lock(test_mutex_);
     can_battery_message_ = *data;
     if (name == "battery_status") {
-      INFO("[BmsProcessor]: Receive battery_status message from can.");
+      // INFO("[BmsProcessor]: Receive battery_status message from can.");
       // link BMSStatus data type
       // battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       std::array<uint8_t, 8> battery_status_data;
