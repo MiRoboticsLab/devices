@@ -40,17 +40,17 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   pluginlib::ClassLoader<cyberdog::device::TouchBase> touch_loader("cyberdog_touch",
     "cyberdog::device::TouchBase");
 
-  pluginlib::ClassLoader<cyberdog::device::UWBBase> uwb_loader("cyberdog_uwb",
-    "cyberdog::device::UWBBase");
+  // pluginlib::ClassLoader<cyberdog::device::UWBBase> uwb_loader("cyberdog_uwb",
+  //   "cyberdog::device::UWBBase");
 
   led_ptr = led_loader.createSharedInstance("cyberdog::device::LedCarpo");
   touch_ptr = touch_loader.createSharedInstance("cyberdog::device::TouchCarpo");
   bms_ptr_ = bms_loader.createSharedInstance("cyberdog::device::BMSCarpo");
-  uwb_ptr_ = uwb_loader.createSharedInstance("cyberdog::device::UWBCarpo");
+  // uwb_ptr_ = uwb_loader.createSharedInstance("cyberdog::device::UWBCarpo");
 
   touch_pub_ = node_ptr->create_publisher<protocol::msg::TouchStatus>("touch_status", 10);
   bms_pub_ = node_ptr->create_publisher<protocol::msg::BmsStatus>("bms_status", 10);
-  uwb_pub_ = node_ptr->create_publisher<protocol::msg::UwbRaw>("uwb_raw", 10);
+  // uwb_pub_ = node_ptr->create_publisher<protocol::msg::UwbRaw>("uwb_raw", 10);
 
   node_ptr->declare_parameter("simulator", std::vector<std::string>{});
   node_ptr->get_parameter("simulator", this->simulator_);
@@ -67,10 +67,10 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
       is_simulator("touch")) &&
     bms_ptr_->Init(
       std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1),
-      is_simulator("bms")) &&
-    uwb_ptr_->Init(
-      std::bind(&DeviceHandler::PublishUwbMessage, this, std::placeholders::_1),
-      is_simulator("uwb"))
+      is_simulator("bms"))
+    // uwb_ptr_->Init(
+    //   std::bind(&DeviceHandler::PublishUwbMessage, this, std::placeholders::_1),
+    //   is_simulator("uwb"))
   );
 }
 
@@ -102,7 +102,7 @@ void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::BmsStatus
 
 void cyberdog::device::DeviceHandler::PublishUwbMessage(protocol::msg::UwbRaw msg)
 {
-  if (uwb_pub_ != nullptr) {
-    uwb_pub_->publish(msg);
-  }
+  // if (uwb_pub_ != nullptr) {
+  //   uwb_pub_->publish(msg);
+  // }
 }
