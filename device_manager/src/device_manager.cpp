@@ -58,6 +58,13 @@ bool cyberdog::device::DeviceManager::Init()
     std::bind(
       &DeviceManager::LedServiceCallback, this,
       std::placeholders::_1, std::placeholders::_2));
+
+  bms_service_ = node_ptr->create_service<protocol::srv::BmsCmd>(
+    "bms_cmd",
+    std::bind(
+      &DeviceManager::BmsControlCallback, this,
+      std::placeholders::_1, std::placeholders::_2));
+
   return true;
 }
 
@@ -112,4 +119,11 @@ void cyberdog::device::DeviceManager::LedServiceCallback(
     return;
   }
   device_handler_->ExecuteLed(request, response);
+}
+
+void cyberdog::device::DeviceManager::BmsControlCallback(
+  const protocol::srv::BmsCmd_Request::SharedPtr request,
+  protocol::srv::BmsCmd_Response::SharedPtr response)
+{
+  device_handler_->ExecuteBmsControl(request, response);
 }

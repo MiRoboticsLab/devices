@@ -86,6 +86,13 @@ void cyberdog::device::DeviceHandler::ExecuteLed(
   led_ptr->Play(request, response);
 }
 
+void cyberdog::device::DeviceHandler::ExecuteBmsControl(
+  const protocol::srv::BmsCmd_Request::SharedPtr request,
+  protocol::srv::BmsCmd_Response::SharedPtr response)
+{
+  bms_ptr_->ServiceCommand(request, response);
+}
+
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
 {
   if (touch_pub_ != nullptr) {

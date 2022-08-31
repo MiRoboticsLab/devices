@@ -11,6 +11,7 @@
 
   <depend>rclcpp</depend>
   <depend>pluginlib</depend>
+  <depend>sensor_msgs</depend>
   <depend>protocol</depend>
   <depend>cyberdog_common</depend> 
   <depend>cyberdog_embed_protocol</depend>

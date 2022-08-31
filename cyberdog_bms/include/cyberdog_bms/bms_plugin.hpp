@@ -22,11 +22,14 @@
 #include <chrono>
 #include <random>
 #include <mutex>
+#include <deque>
 
 #include "cyberdog_bms/bms_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "embed_protocol/embed_protocol.hpp"
+#include "sensor_msgs/msg/battery_state.hpp"
+
 namespace cyberdog
 {
 namespace device
@@ -34,7 +37,7 @@ namespace device
 
 struct BatteryStatus
 {
-  std::array<uint8_t, 8> battery_status;
+  std::array<uint8_t, 16> battery_status;
   // 00 : normal
   // 01 : abnormal
   std::array<uint8_t, 6> normal_status;
@@ -96,9 +99,9 @@ public:
   virtual bool Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation = false);
   virtual bool SelfCheck();
   virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback);
-  virtual void Report(
-    const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
-    std::shared_ptr<protocol::srv::BmsInfo::Response> response);
+  virtual void ServiceCommand(
+    const std::shared_ptr<protocol::srv::BmsCmd::Request> request,
+    std::shared_ptr<protocol::srv::BmsCmd::Response> response);
 
   // Test
   void RunTest();
@@ -124,6 +127,9 @@ private:
 
   // command status for other device
   bool SendCommand(const Command & command);
+
+  // battery state
+  void SetBatteryStatus(const std::array<uint8_t, 16> & data);
 
   // normal data
   void SetNormalStatus(std::array<uint8_t, 6> data);
@@ -151,6 +157,11 @@ private:
   std::mutex test_mutex_;
   std::mutex mutex_battery_;
   BatterySharedPtr battery_status_ptr_ {nullptr};
+
+  // http://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/BatteryState.html
+  // ROS2 interface
+  sensor_msgs::msg::BatteryState battery_state_;
+  std::deque<protocol::msg::BmsStatus> queue_;
 };  //  class BMSCarpo
 }   //  namespace device
 }   //  namespace cyberdog

@@ -29,6 +29,8 @@ namespace device
 
 BMSCarpo::BMSCarpo()
 {
+  constexpr static int kQueueSize = 3;
+  queue_.resize(kQueueSize);
 }
 
 bool BMSCarpo::Config()
@@ -74,29 +76,37 @@ bool BMSCarpo::RegisterTopic(std::function<void(BmsStatusMsg)> function_callback
 void BMSCarpo::RunBmsTask()
 {
   while (true) {
-    // auto message = bms_processor_->bms_message();
+    // if (queue_.empty()) {
+    //   // INFO("Queue is empty.");
+    //   continue;
+    // }
+
+    // // Get bms state from queue
+    // auto msg = queue_.front();
+    // queue_.pop_front();
+
+    // Publish bms state
     status_function_(ros_bms_message_);
-    // INFO("BMSCarpo::RunBmsTask ... ");
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    // Every one second publish
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 }
 
-
-void BMSCarpo::Report(
-  const std::shared_ptr<protocol::srv::BmsInfo::Request>/*request*/,
-  std::shared_ptr<protocol::srv::BmsInfo::Response>/*response*/)
+void BMSCarpo::ServiceCommand(
+  const std::shared_ptr<protocol::srv::BmsCmd::Request> request,
+  std::shared_ptr<protocol::srv::BmsCmd::Response> response)
 {
-  // INFO("[cyberdog_bms]: %s", "BMS report message info");
-  // (void)request;
-  // response->header.frame_id = "Bms";
-  // // response->header.stamp    = rclcpp::Time::now();
-  // response->info.batt_volt  = bms_processor_->bms_message().batt_volt;
-  // response->info.batt_curr  = bms_processor_->bms_message().batt_curr;
-  // response->info.batt_temp  = bms_processor_->bms_message().batt_temp;
-  // response->info.batt_soc   = bms_processor_->bms_message().batt_soc;
-  // response->info.status     = bms_processor_->bms_message().status;
-  // response->info.key_val    = bms_processor_->bms_message().key_val;
-  // response->success         = true;
+  if (request->electric_machine_command ==  // NOLINT
+    request->BATTERY_COMMAND_ELECTRIC_MACHINE_POWER_UP)  // NOLINT
+  { // NOLINT
+    SendCommand(Command::kNormalMode);
+  } else if (request->electric_machine_command ==  // NOLINT
+    request->BATTERY_COMMAND_ELECTRIC_MACHINE_POWER_DOWN)  // NOLINT
+  { // NOLINT
+    SendCommand(Command::kTurnOffMotor);
+  }
+  response->success = true;
 }
 
 void BMSCarpo::RunTest()
@@ -166,26 +176,20 @@ void BMSCarpo::SetTestCase(int test_case)
 
 void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data)
 {
+  INFO("Function BMSCarpo::HandleBatteryStatusMessages() call.");
   {
-    std::lock_guard<std::mutex> lock(test_mutex_);
+    // std::lock_guard<std::mutex> lock(mutex_battery_);
     can_battery_message_ = *data;
-    if (name == "battery_status") {
+    if (name == "battery_status" || name == "normal_status") {
       // INFO("[BmsProcessor]: Receive battery_status message from can.");
       // link BMSStatus data type
       // battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
-      std::array<uint8_t, 8> battery_status_data;
+      std::array<uint8_t, 16> battery_status_data;
       for (size_t i = 0; i < battery_status_data.size(); i++) {
         battery_status_data[i] = data->battery_status[i];
       }
-
-      // Print bms status
-      // if (ros_bms_message_.batt_volt != battery_status_data[0]) {
-      //   DebugString(PrintMessageType::kBatteryStatus);
-      // }
-      // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
-    } else if (name == "normal_status") {
-      INFO("[BmsProcessor]: Receive normal_status message from can.");
-      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
+      // Set value for battery status
+      SetBatteryStatus(battery_status_data);
 
       // normal_status
       std::array<uint8_t, 6> normal_status_data;
@@ -193,87 +197,101 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
         normal_status_data[i] = data->normal_status[i];
       }
       SetNormalStatus(normal_status_data);
-
-      // Print normal_status
-      // DebugString(PrintMessageType::kBatteryTestNormalStatus);
-
-      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->normal_status);
-      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
     }
   }
 
   // Convert can message struct to ROS format
   ros_bms_message_ = ToRos(can_battery_message_);
+  // auto msg = ToRos(can_battery_message_);
+  // queue_.emplace_back(msg);
 }
 
 bool BMSCarpo::SendCommand(const Command & command)
 {
   bool success = false;
-
-  std::lock_guard<std::mutex> lock(test_mutex_);
   switch (command) {
     // 0x01(正常模式）
     case Command::kNormalMode:
-      INFO("[BmsProcessor]: %s", "command type = Command::kNormalMode");
+      INFO("[BmsProcessor]: command type = Command::kNormalMode");
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_normal_mode);
       success = battery_status_ptr_->Operate("cmd_normal_mode", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_normal_mode);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
+      INFO("[BmsProcessor]: ``````");
       break;
 
     // 0x02(关闭电机）
     case Command::kTurnOffMotor:
       INFO("[BmsProcessor]: %s", "command type = Command::kTurnOffMotor");
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_turn_off_motor);
       success = battery_status_ptr_->Operate("cmd_turn_off_motor", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_turn_off_motor);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
       break;
 
     // 0x03(低功耗）
     case Command::kLowPowerConsumption:
       INFO("[BmsProcessor]: %s", "command type = Command::kLowPowerConsumption");
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_low_power_consumption);
       success =
         battery_status_ptr_->Operate("cmd_low_power_consumption", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_low_power_consumption);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
       break;
 
     // 0x04(软关机）
     case Command::kSoftShutdown:
       INFO("[BmsProcessor]: %s", "command type = Command::kSoftShutdown");
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_soft_shutdown);
       success = battery_status_ptr_->Operate("cmd_soft_shutdown", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_turn_off_motor);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
       break;
 
     // 文件传输
     case Command::kFileTransfer:
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       INFO("[BmsProcessor]: %s", "command type = Command::kFileTransfer");
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_file_transfer);
       success = battery_status_ptr_->Operate("cmd_file_transfer", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_file_transfer);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
       break;
 
     // OTA升级
     case Command::kOTAUpgrade:
       INFO("[BmsProcessor]: %s", "command type = Command::kOTAUpgrade");
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_ota_upgrade);
       success = battery_status_ptr_->Operate("cmd_ota_upgrade", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_ota_upgrade);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
       break;
 
     // 测试
     case Command::kTest:
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->normal_status);
+      battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
       INFO("[BmsProcessor]: %s", "command type = Command::kTest");
       battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->cmd_test);
       success = battery_status_ptr_->Operate("cmd_test", std::vector<uint8_t>{0x00});
       battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->cmd_test);
+      battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
       break;
 
     default:
       break;
   }
   return success;
+}
+
+void BMSCarpo::SetBatteryStatus(const std::array<uint8_t, 16> & data)
+{
+  can_battery_message_.battery_status = data;
 }
 
 void BMSCarpo::SetNormalStatus(std::array<uint8_t, 6> data)
@@ -292,6 +310,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.header.stamp.nanosec = time_stu.tv_nsec;
   message.header.stamp.sec = time_stu.tv_sec;
 
+  // v1: 协议
   // data
   // battery[0]   : 电量
   // battery[1]   : 电压
@@ -300,13 +319,39 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   // battery[4-5] : 循环次数
   // battery[6]   : 健康度
   // battery[7]   : 状态
+  // v2: 协议
+  // 协议改动：
+  // 电量%  data[0]
+  // 电压mV data[1-2]
+  // 电流mA data[3-4]
+  // 电池温度（度) data[5]
+  // 适配器温度（度）data[6]
+  // 无线充温度（度) data[7]
+  // 循环次数n data[8-9]
+  // 健康度n data[10]
+  // 电池状态 data[11-12]
+  // 状态 data[13]
+  //  - bit 0  正常模式
+  //  - bit 1 有线正在充电
+  //  - bit 2 充电完成
+  //  - bit 3 电机掉电
+  //  - bit 4  软关机
+  //  - bit 5  无线充在位
+  //  - bit 6 无线充电中
+  //  - bit7 外部供电
+  // 预留 test_data data[14-15]
+
+  // for (int i = 0; i < 16; i++) {
+  //   INFO("bit%d: %02X", i, can_data.battery_status[i]);
+  // }
+
   message.batt_soc = can_data.battery_status[0];
-  message.batt_volt = can_data.battery_status[1];
-  message.batt_curr = can_data.battery_status[2];
-  message.batt_temp = can_data.battery_status[3];
-  message.batt_st = can_data.battery_status[7];
-  message.batt_health = can_data.battery_status[6];
-  message.batt_loop_number = (can_data.battery_status[4] | can_data.battery_status[5] << 8);
+  message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
+  message.batt_curr = (can_data.battery_status[3] | can_data.battery_status[4] << 8);
+  message.batt_temp = can_data.battery_status[5];
+  message.batt_loop_number = (can_data.battery_status[8] | can_data.battery_status[9] << 8);
+  message.batt_health = can_data.battery_status[10];
+  message.batt_st = can_data.battery_status[13];
   return message;
 }
 
@@ -321,6 +366,7 @@ void BMSCarpo::InitializeBmsProtocol()
 
   // link BMSStatus data type
   battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
+  // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->normal_status);
 
   battery_status_ptr_->SetDataCallback(
     std::bind(
