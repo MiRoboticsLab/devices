@@ -81,22 +81,20 @@ void BMSCarpo::RunBmsTask()
   }
 }
 
-
-void BMSCarpo::Report(
-  const std::shared_ptr<protocol::srv::BmsInfo::Request>/*request*/,
-  std::shared_ptr<protocol::srv::BmsInfo::Response>/*response*/)
+void BMSCarpo::ServiceCommand(
+  const std::shared_ptr<protocol::srv::BmsCmd::Request> request,
+  std::shared_ptr<protocol::srv::BmsCmd::Response> response)
 {
-  // INFO("[cyberdog_bms]: %s", "BMS report message info");
-  // (void)request;
-  // response->header.frame_id = "Bms";
-  // // response->header.stamp    = rclcpp::Time::now();
-  // response->info.batt_volt  = bms_processor_->bms_message().batt_volt;
-  // response->info.batt_curr  = bms_processor_->bms_message().batt_curr;
-  // response->info.batt_temp  = bms_processor_->bms_message().batt_temp;
-  // response->info.batt_soc   = bms_processor_->bms_message().batt_soc;
-  // response->info.status     = bms_processor_->bms_message().status;
-  // response->info.key_val    = bms_processor_->bms_message().key_val;
-  // response->success         = true;
+  if (request->electric_machine_command ==  // NOLINT
+    request->BATTERY_COMMAND_ELECTRIC_MACHINE_POWER_UP)  // NOLINT
+  { // NOLINT
+    SendCommand(Command::kNormalMode);
+  } else if (request->electric_machine_command ==  // NOLINT
+    request->BATTERY_COMMAND_ELECTRIC_MACHINE_POWER_DOWN)  // NOLINT
+  { // NOLINT
+    SendCommand(Command::kTurnOffMotor);
+  }
+  response->success = true;
 }
 
 void BMSCarpo::RunTest()
@@ -173,10 +171,13 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       // INFO("[BmsProcessor]: Receive battery_status message from can.");
       // link BMSStatus data type
       // battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
-      std::array<uint8_t, 8> battery_status_data;
+      std::array<uint8_t, 16> battery_status_data;
       for (size_t i = 0; i < battery_status_data.size(); i++) {
         battery_status_data[i] = data->battery_status[i];
       }
+
+      // Set value for battery status
+      SetBatteryStatus(battery_status_data);
 
       // Print bms status
       // if (ros_bms_message_.batt_volt != battery_status_data[0]) {
@@ -276,6 +277,11 @@ bool BMSCarpo::SendCommand(const Command & command)
   return success;
 }
 
+void BMSCarpo::SetBatteryStatus(const std::array<uint8_t, 16> & data)
+{
+  can_battery_message_.battery_status = data;
+}
+
 void BMSCarpo::SetNormalStatus(std::array<uint8_t, 6> data)
 {
   can_battery_message_.normal_status = data;
@@ -292,6 +298,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.header.stamp.nanosec = time_stu.tv_nsec;
   message.header.stamp.sec = time_stu.tv_sec;
 
+  // v1: 协议
   // data
   // battery[0]   : 电量
   // battery[1]   : 电压
@@ -300,13 +307,35 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   // battery[4-5] : 循环次数
   // battery[6]   : 健康度
   // battery[7]   : 状态
+  // v2: 协议
+  // 协议改动：
+  // 电量%  data[0]
+  // 电压mV data[1-2]
+  // 电流mA data[3-4]
+  // 电池温度（度) data[5]
+  // 适配器温度（度）data[6]
+  // 无线充温度（度) data[7]
+  // 循环次数n data[8-9]
+  // 健康度n data[10]
+  // 电池状态 data[11-12]
+  // 状态 data[13]
+  //  - bit 0  正常模式
+  //  - bit 1 有线正在充电
+  //  - bit 2 充电完成
+  //  - bit 3 电机掉电
+  //  - bit 4  软关机
+  //  - bit 5  无线充在位
+  //  - bit 6 无线充电中
+  //  - bit7 外部供电
+  // 预留 test_data data[14-15]
+
   message.batt_soc = can_data.battery_status[0];
-  message.batt_volt = can_data.battery_status[1];
-  message.batt_curr = can_data.battery_status[2];
-  message.batt_temp = can_data.battery_status[3];
-  message.batt_st = can_data.battery_status[7];
-  message.batt_health = can_data.battery_status[6];
-  message.batt_loop_number = (can_data.battery_status[4] | can_data.battery_status[5] << 8);
+  message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
+  message.batt_curr = (can_data.battery_status[3] | can_data.battery_status[4] << 4);
+  message.batt_temp = can_data.battery_status[5];
+  message.batt_st = can_data.battery_status[13];
+  message.batt_health = can_data.battery_status[10];
+  message.batt_loop_number = (can_data.battery_status[8] | can_data.battery_status[9] << 8);
   return message;
 }
 

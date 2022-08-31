@@ -19,6 +19,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_embed_protocol REQUIRED)
@@ -38,6 +39,7 @@ ament_target_dependencies(
   ${PROJECT_NAME}
   pluginlib
   protocol
+  sensor_msgs
   cyberdog_embed_protocol
   cyberdog_system
   cyberdog_common

@@ -24,6 +24,7 @@
 #include "cyberdog_uwb/uwb_base.hpp"
 #include "cyberdog_touch/touch_base.hpp"
 #include "protocol/srv/led_execute.hpp"
+#include "protocol/srv/bms_cmd.hpp"
 #include "protocol/msg/touch_status.hpp"
 #include "protocol/msg/bms_status.hpp"
 #include "protocol/msg/uwb_raw.hpp"

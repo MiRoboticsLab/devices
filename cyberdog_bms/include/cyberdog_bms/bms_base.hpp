@@ -20,7 +20,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "protocol/srv/led_execute.hpp"
 #include "protocol/msg/bms_status.hpp"
-#include "protocol/srv/bms_info.hpp"
+#include "protocol/srv/bms_cmd.hpp"
 
 namespace cyberdog
 {
@@ -38,9 +38,9 @@ public:
     bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
   virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
-  virtual void Report(
-    const std::shared_ptr<protocol::srv::BmsInfo::Request> request,
-    std::shared_ptr<protocol::srv::BmsInfo::Response> response) = 0;
+  virtual void ServiceCommand(
+    const std::shared_ptr<protocol::srv::BmsCmd::Request> request,
+    std::shared_ptr<protocol::srv::BmsCmd::Response> response) = 0;
 
 protected:
   BMSBase() {}

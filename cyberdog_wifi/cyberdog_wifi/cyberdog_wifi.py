@@ -202,8 +202,6 @@ class CyberdogWifi(Node):
             msg.strength = 0
         self.pub_rssi.publish(msg)
 
-
-
     def updateConnectionList(self):
         self.connection_list.clear()
         raw_str = runCommand('nmcli connection show | grep wifi')

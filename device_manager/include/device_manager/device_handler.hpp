@@ -47,6 +47,11 @@ public:
   void ExecuteLed(
     const protocol::srv::LedExecute_Request::SharedPtr request,
     protocol::srv::LedExecute_Response::SharedPtr response);
+
+  void ExecuteBmsControl(
+    const protocol::srv::BmsCmd_Request::SharedPtr request,
+    protocol::srv::BmsCmd_Response::SharedPtr response);
+
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::BmsStatus msg);
   void PublishUwbMessage(protocol::msg::UwbRaw msg);
