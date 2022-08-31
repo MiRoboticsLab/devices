@@ -22,6 +22,7 @@
 #include <chrono>
 #include <random>
 #include <mutex>
+#include <deque>
 
 #include "cyberdog_bms/bms_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
@@ -160,6 +161,7 @@ private:
   // http://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/BatteryState.html
   // ROS2 interface
   sensor_msgs::msg::BatteryState battery_state_;
+  std::deque<protocol::msg::BmsStatus> queue_;
 };  //  class BMSCarpo
 }   //  namespace device
 }   //  namespace cyberdog
