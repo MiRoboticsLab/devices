@@ -176,7 +176,7 @@ void BMSCarpo::SetTestCase(int test_case)
 
 void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data)
 {
-  INFO("Function BMSCarpo::HandleBatteryStatusMessages() call.");
+  // INFO("Function BMSCarpo::HandleBatteryStatusMessages() call.");
   {
     // std::lock_guard<std::mutex> lock(mutex_battery_);
     can_battery_message_ = *data;

@@ -39,6 +39,7 @@ bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback, boo
   initialized_finished_ = RegisterTopic(function_callback);
   simulation_ = simulation;
 
+  initialized_finished_ = touch_handler_->getFd() < 0 ? false : true;
   if (!initialized_finished_) {
     WARN("[TouchCarpo]: %s", "Function Init() error.");
     return initialized_finished_;

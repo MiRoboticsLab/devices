@@ -177,12 +177,13 @@ int TouchSensorHandler::openInput(void)
     // printf("get file(%s)\n", filename);
     fd = open(devname, O_RDWR);
     if (fd >= 0) {
-      INFO("get input device(%s)\n", devname);
+      INFO("get input device(%s)", devname);
       char name[80];
       if (ioctl(fd, EVIOCGNAME(sizeof(name) - 1), &name) < 1) {
         name[0] = '\0';
       }
-      // INFO("name = %s\n", name);
+
+      INFO("touch device name = %s\n", name);
       if (!strcmp(name, "synaptics_dsx")) {
         // printf("get wanted input device(%s)\n", devname);
         INFO("get wanted input device(%s)", devname);
