@@ -337,8 +337,8 @@ void UWBCarpo::HandleCan0Messages(
       short rssi_2 = data->rear_data_array[8] + (data->rear_data_array[9] << 8);  // NOLINT
 
       // ros_uwb_status_.data[1].position = LeftPose(dist, static_cast<float>(angle));
-      ros_uwb_status_.data[1].dist = dist;
-      ros_uwb_status_.data[1].angle = format_9_7(angle);
+      ros_uwb_status_.data[1].dist = dist / 100;
+      ros_uwb_status_.data[1].angle = DegToRad(format_9_7(angle));
       ros_uwb_status_.data[1].n_los = nLos;
       ros_uwb_status_.data[1].rssi_1 = format_8_8(rssi_1);
       ros_uwb_status_.data[1].rssi_2 = format_8_8(rssi_2);
@@ -351,8 +351,8 @@ void UWBCarpo::HandleCan0Messages(
       short rssi_2_tof = data->rear_tof_data_array[8] + (data->rear_tof_data_array[9] << 8);  // NOLINT
 
       // ros_uwb_status_.data[2].position = RightPose(dist_tof, angle_tof);
-      ros_uwb_status_.data[2].dist = dist_tof;
-      ros_uwb_status_.data[2].angle = format_9_7(angle_tof);
+      ros_uwb_status_.data[2].dist = dist_tof / 100;
+      ros_uwb_status_.data[2].angle = DegToRad(format_9_7(angle_tof));
       ros_uwb_status_.data[2].n_los = nLos_tof;
       ros_uwb_status_.data[2].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[2].rssi_2 = format_8_8(rssi_2_tof);
@@ -421,8 +421,8 @@ void UWBCarpo::HandleCan1Messages(
       short rssi_2 = data->head_data_array[8] + (data->head_data_array[9] << 8);  // NOLINT
 
       // ros_uwb_status_.data[0].position = FrontPose(dist, angle);
-      ros_uwb_status_.data[0].dist = dist;
-      ros_uwb_status_.data[0].angle = format_9_7(angle);
+      ros_uwb_status_.data[0].dist = dist / 100;
+      ros_uwb_status_.data[0].angle = DegToRad(format_9_7(angle));
       ros_uwb_status_.data[0].n_los = nLos;
       ros_uwb_status_.data[0].rssi_1 = format_8_8(rssi_1);
       ros_uwb_status_.data[0].rssi_2 = format_8_8(rssi_2);
@@ -435,8 +435,8 @@ void UWBCarpo::HandleCan1Messages(
       short rssi_2_tof = data->head_tof_data_array[8] + (data->head_tof_data_array[9] << 8);  // NOLINT
 
       // ros_uwb_status_.data[3].position = BackPose(dist_tof, angle_tof);
-      ros_uwb_status_.data[3].dist = dist_tof;
-      ros_uwb_status_.data[3].angle = format_9_7(angle_tof);
+      ros_uwb_status_.data[3].dist = dist_tof / 100;
+      ros_uwb_status_.data[3].angle = DegToRad(format_9_7(angle_tof));
       ros_uwb_status_.data[3].n_los = nLos_tof;
       ros_uwb_status_.data[3].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[3].rssi_2 = format_8_8(rssi_2_tof);
@@ -1087,7 +1087,6 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
         debug_to_string = true;
       } else {
         // rear tof
-        auto pose = RightPose(ros_uwb_status_.data[2].dist, ros_uwb_status_.data[2].angle);
         struct timespec time_stu;
         clock_gettime(CLOCK_REALTIME, &time_stu);
         uwb_posestamped.header.stamp.nanosec = time_stu.tv_nsec;
