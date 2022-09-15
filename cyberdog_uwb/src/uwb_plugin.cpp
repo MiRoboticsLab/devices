@@ -44,6 +44,13 @@ bool UWBCarpo::Init(
   std::function<void(UwbSignleStatusMsg)>
   function_callback, bool simulation)
 {
+  if (use_uwb_) {
+    INFO("Current uwb device available.");
+  } else {
+    WARN("Current uwb device unavailable, please set enable in toml file.");
+    return true;
+  }
+
   RegisterTopic(function_callback);
   uwb_thread_ = std::make_shared<std::thread>(std::bind(&UWBCarpo::RunTask, this));
   uwb_thread_->detach();
@@ -633,6 +640,9 @@ bool UWBCarpo::LoadUWBTomlConfig()
 
   uwb_config_.front_back_threshold = toml::find<double>(params_toml_, "front_back_threshold");
   uwb_config_.left_right_threshold = toml::find<double>(params_toml_, "left_right_threshold");
+
+  // enable
+  use_uwb_ = toml::find<bool>(params_toml_, "enable");
 
   // HeadUWB
   uwb_config_.AoA_F_NMAX = toml::find<double>(params_toml_, "HeadUWB", "AoA_F_NMAX");

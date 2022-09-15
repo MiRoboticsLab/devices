@@ -212,6 +212,7 @@ private:
   bool simulation_ {false};
   bool initialized_finished_ {false};
   bool enable_initialized_finished_ {false};
+  bool use_uwb_ {false};
 
   // geometry_msgs/msg/pose_stamped
   // std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
