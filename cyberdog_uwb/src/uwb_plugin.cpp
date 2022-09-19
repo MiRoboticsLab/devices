@@ -29,6 +29,7 @@ namespace device
 
 UWBCarpo::UWBCarpo()
 {
+  queue_.resize(5);
   ros_uwb_status_.data.resize(4);
   if (!LoadUWBTomlConfig()) {
     ERROR("Load UWB parameters error.");
@@ -474,14 +475,19 @@ void UWBCarpo::RunTask()
     UwbRawStatusMsg2Ros();
 
     if (queue_.empty()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
     }
 
+    while (queue_.size() > 5) {
+      queue_.pop_front();
+    }
+
     // get msg from queue
-    auto msg = queue_.front();
-    queue_.pop_front();
+    auto msg = queue_.back();
 
     // publish msgs
+    INFO("Publish uwb raw mags.");
     status_function_(msg);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }

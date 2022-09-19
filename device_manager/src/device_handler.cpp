@@ -109,7 +109,7 @@ void cyberdog::device::DeviceHandler::PublishBmsMessage(protocol::msg::BmsStatus
 
 void cyberdog::device::DeviceHandler::PublishUwbMessage(protocol::msg::UwbRaw msg)
 {
-  // if (uwb_pub_ != nullptr) {
-  //   uwb_pub_->publish(msg);
-  // }
+  if (uwb_pub_ != nullptr) {
+    uwb_pub_->publish(msg);
+  }
 }
