@@ -1,5 +1,0 @@
-<library path="cyberdog_photo">
-  <class type="cyberdog::device::PhotoCarpo" base_class_type="cyberdog::device::PhotoBase">
-    <description>This is a photo plugin which provides a service to take pictures from the camera.</description>
-  </class>
-</library>
