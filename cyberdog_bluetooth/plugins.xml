@@ -1,6 +1,0 @@
-<library path="cyberdog_bluetooth">
-  <class type="cyberdog::device::BluetoothCarpo" base_class_type="cyberdog::device::BluetoothBase">
-    <description>This is a bluetooth plugin.</description>
-  </class>
-
-</library>
