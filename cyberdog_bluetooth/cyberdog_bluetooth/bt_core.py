@@ -48,7 +48,7 @@ class BluetoothCore:
         self.__connected = False
         self.__peripheral_name = ''
 
-    def Scan(self, sec=5.0):
+    def Scan(self, sec=5.0) -> list:
         self.__peripheral_list.clear()
         devices = self.__scanner.scan(sec)
         for dev in devices:
@@ -121,7 +121,7 @@ class BluetoothCore:
                 descriptor_handle_for_notification = descriptor.handle
                 break
         if descriptor_handle_for_notification is None:
-            print('Not found ccn')
+            print('Not found Client Characteristic Configuration')
             return None
         if enable:
             self.__peripheral.writeCharacteristic(
