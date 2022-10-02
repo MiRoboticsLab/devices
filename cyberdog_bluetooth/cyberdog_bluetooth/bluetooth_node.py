@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import threading
+
 from bluepy.btle import DefaultDelegate
 import bt_core
 from protocol.srv import BLEConnect, BLEScan, GetUWBMacSessionID
@@ -28,6 +30,9 @@ class BluetoothNode(Node, DefaultDelegate):
         Node.__init__(node_name)
         DefaultDelegate.__init__()
         self.__bt_central = bt_core.BluetoothCore()
+        self.__map_mutex = threading.Lock()
+        self.__character_handle_dic = {}
+        self.__bt_central.SetNotificationDelegate(self)
         self.__battery_service_uuid = 0x180F
         self.__battery_level_characteristic_uuid = 0x2A19
         self.__UART_service_uuid = 0x0001
@@ -36,7 +41,6 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__remote_service_uuid = 0x0101
         self.__remote_x_characteristic_uuid = 0x0102
         self.__remote_y_characteristic_uuid = 0x0103
-        self.__character_handle_dic = {}
         self.peripheral_type = 0  # 0 disconnected, 1 band, 2 dock
         self.__callback_group = ReentrantCallbackGroup()
         self.__scan_server = self.create_service(
@@ -60,7 +64,9 @@ class BluetoothNode(Node, DefaultDelegate):
             else:
                 # disconnect UWB at first
                 self.__bt_central.Disconnect()
+                self.__map_mutex.acquire()
                 self.__character_handle_dic.clear()
+                self.__map_mutex.release()
                 self.peripheral_type = 0
                 res.result = 0
         else:
@@ -85,10 +91,15 @@ class BluetoothNode(Node, DefaultDelegate):
         return res
 
     def __registNotificationCallback(self, handle, callback):
+        self.__map_mutex.acquire()
         self.__character_handle_dic[handle] = callback
+        self.__map_mutex.release()
 
     def handleNotification(self, cHandle, data):
-        self.__character_handle_dic[cHandle](data)
+        self.__map_mutex.acquire()
+        if cHandle in self.__character_handle_dic:
+            self.__character_handle_dic[cHandle](data)
+        self.__map_mutex.release()
 
     def __publishBatteryLevel(self, data):
         print('battery level is', data)
