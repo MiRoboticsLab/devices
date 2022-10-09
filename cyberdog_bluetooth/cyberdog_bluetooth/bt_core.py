@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bluepy.btle import BTLEDisconnectError, DefaultDelegate, Peripheral, ScanEntry, Scanner
+from bluepy.btle import BTLEDisconnectError, BTLEGattError, DefaultDelegate, \
+    Peripheral, ScanEntry, Scanner, UUID
 
 
 class ScanDelegate(DefaultDelegate):
@@ -31,10 +32,11 @@ class ScanDelegate(DefaultDelegate):
 
 class PeripheralDiviceInfo:
 
-    def __init__(self, mac, name, addrType='random'):
+    def __init__(self, mac, name, addrType='random', device_type=16):
         self.mac = mac
         self.name = name
         self.addrType = addrType
+        self.device_type = device_type  # 16 band, 17 dock
 
 
 class BluetoothCore:
@@ -47,15 +49,21 @@ class BluetoothCore:
         self.__peripheral_list = []
         self.__connected = False
         self.__peripheral_name = ''
+        self.__connected_device_type = 0  # 0 disconnected, 16 band, 17 dock
+
+    def __del__(self):
+        self.Disconnect()
 
     def Scan(self, sec=5.0) -> list:
         self.__peripheral_list.clear()
         devices = self.__scanner.scan(sec)
         for dev in devices:
             print('Device %s (%s), RSSI=%d dB' % (dev.addr, dev.addrType, dev.rssi))
-        if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None:
+        if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None and \
+                dev.getValueText(ScanEntry.MANUFACTURER) is not None:
             self.__peripheral_list.append(PeripheralDiviceInfo(
-                dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME), dev.addrType))
+                dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME),
+                dev.addrType, int(dev.getValueText(ScanEntry.MANUFACTURER))))
         return self.__peripheral_list
 
     def ConnectToBLEDeviceByName(self, name):
@@ -64,11 +72,10 @@ class BluetoothCore:
                 return True
             else:
                 self.Disconnect()
-            for peripheral_info in self.__peripheral_list:
-                if peripheral_info.name == name:
-                    if not self.__connect(peripheral_info):
-                        return False
-                    break
+        for peripheral_info in self.__peripheral_list:
+            if peripheral_info.name == name:
+                self.__connect(peripheral_info)
+                break
         return self.__connected
 
     def ConnectToBLEDeviceByMac(self, mac):
@@ -77,11 +84,10 @@ class BluetoothCore:
                 return True
             else:
                 self.Disconnect()
-            for peripheral_info in self.__peripheral_list:
-                if peripheral_info.mac == mac:
-                    if not self.__connect(peripheral_info):
-                        return False
-                    break
+        for peripheral_info in self.__peripheral_list:
+            if peripheral_info.mac == mac:
+                self.__connect(peripheral_info)
+                break
         return self.__connected
 
     def IsConnected(self):
@@ -90,9 +96,14 @@ class BluetoothCore:
     def Disconnect(self):
         self.__peripheral.disconnect()
         self.__connected = False
+        self.__peripheral_name = ''
+        self.__connected_device_type = 0
 
     def GetService(self, uuid):
-        return self.__peripheral.getServiceByUUID(uuid)
+        try:
+            return self.__peripheral.getServiceByUUID(uuid)
+        except BTLEGattError:
+            return None
 
     def GetCharacteristic(self, service, uuid):
         try:
@@ -100,23 +111,23 @@ class BluetoothCore:
         except IndexError:
             return None
 
-    def GetCharacteristicWithoutService(self, uuid):
-        try:
-            return self.__peripheral.getCharacteristics(uuid=uuid)[0]
-        except IndexError:
+    def GetCharacteristicByUUID(self, srv_uuid, char_uuid):
+        service = self.GetService(srv_uuid)
+        if service is None:
             return None
+        return self.GetCharacteristic(service, char_uuid)
 
     def SetNotificationDelegate(self, notification):
         """Set a callback for notifications."""
         self.__peripheral.setDelegate(notification)
 
-    def setNotification(self, service, characteristic, enable):
+    def SetNotification(self, service, characteristic, enable=True):
         characteristic_handle = characteristic.getHandle()
         print('characteristic_handle:', characteristic_handle)
         descriptor_list = self.__peripheral.getDescriptors(characteristic_handle, service.hndEnd)
         descriptor_handle_for_notification = None
         for descriptor in descriptor_list:
-            if (descriptor.uuid == 0x2902):
+            if descriptor.uuid == UUID(0x2902):
                 print('found descriptor for notification')
                 descriptor_handle_for_notification = descriptor.handle
                 break
@@ -132,13 +143,48 @@ class BluetoothCore:
         print('setNotification done')
         return characteristic_handle
 
-    def WriteCharacteristic(self, characteristic, value):
-        characteristic.write(value)
+    def SetNotificationByUUID(self, srv_uuid, char_uuid, enable):
+        service = self.GetService(srv_uuid)
+        if service is None:
+            return None
+        characteristic = self.GetCharacteristic(service, char_uuid)
+        if characteristic is None:
+            return None
+        return self.SetNotification(service, characteristic, enable)
+
+    def WriteCharacteristic(self, characteristic, value, withResponse=False):
+        characteristic.write(value, withResponse)
 
     def ReadCharacteristic(self, characteristic):
         return characteristic.read()
 
-    def __connect(self, peripheral_info):
+    def SetMTU(self, size):
+        self.__peripheral.setMTU(size)
+
+    def Write(self, service_uuid, characteristic_uuid, value: bytes, withResponse=False):
+        if not self.__connect:
+            return False
+        srv = self.GetService(service_uuid)
+        if srv is not None:
+            characteristic = self.GetCharacteristic(srv, characteristic_uuid)
+            if characteristic is not None:
+                self.WriteCharacteristic(characteristic, value, withResponse)
+                return True
+        return False
+
+    def WriteCharacteristicByHandle(self, char_handel, value, withResponse=False):
+        if self.__connected:
+            self.__peripheral.writeCharacteristic(char_handel, value, withResponse)
+
+    def ReadCharacteristicByHandle(self, char_handel):
+        if self.__connected:
+            return self.__peripheral.readCharacteristic(char_handel)
+        return None
+
+    def GetConnectedDiveceType(self):
+        return self.__connected_device_type
+
+    def __connect(self, peripheral_info: PeripheralDiviceInfo):
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
         except BTLEDisconnectError:
@@ -146,4 +192,5 @@ class BluetoothCore:
             return False
         self.__connected = True
         self.__peripheral_name = peripheral_info.name
+        self.__connected_device_type = peripheral_info.device_type
         return True
