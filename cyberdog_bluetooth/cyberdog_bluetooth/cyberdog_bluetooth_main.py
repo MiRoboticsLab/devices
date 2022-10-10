@@ -14,8 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def main():
+import bluetooth_node
+import rclpy
+from rclpy.executors import MultiThreadedExecutor
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    bt_node = bluetooth_node.BluetoothNode('cyberdog_bluetooth')
     print('Hi from cyberdog_bluetooth.')
+    executor = MultiThreadedExecutor()
+    executor.add_node(bt_node)
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        bt_node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
