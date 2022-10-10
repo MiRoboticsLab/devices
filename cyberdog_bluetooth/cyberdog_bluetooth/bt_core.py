@@ -32,11 +32,10 @@ class ScanDelegate(DefaultDelegate):
 
 class PeripheralDiviceInfo:
 
-    def __init__(self, mac, name, addrType='random', device_type=16):
+    def __init__(self, mac, name, addrType='random'):
         self.mac = mac
         self.name = name
         self.addrType = addrType
-        self.device_type = device_type  # 16 band, 17 dock
 
 
 class BluetoothCore:
@@ -49,7 +48,6 @@ class BluetoothCore:
         self.__peripheral_list = []
         self.__connected = False
         self.__peripheral_name = ''
-        self.__connected_device_type = 0  # 0 disconnected, 16 band, 17 dock
 
     def __del__(self):
         self.Disconnect()
@@ -63,7 +61,7 @@ class BluetoothCore:
                 dev.getValueText(ScanEntry.MANUFACTURER) is not None:
             self.__peripheral_list.append(PeripheralDiviceInfo(
                 dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME),
-                dev.addrType, int(dev.getValueText(ScanEntry.MANUFACTURER))))
+                dev.addrType))
         return self.__peripheral_list
 
     def ConnectToBLEDeviceByName(self, name):
@@ -97,7 +95,6 @@ class BluetoothCore:
         self.__peripheral.disconnect()
         self.__connected = False
         self.__peripheral_name = ''
-        self.__connected_device_type = 0
 
     def GetService(self, uuid):
         try:
@@ -181,9 +178,6 @@ class BluetoothCore:
             return self.__peripheral.readCharacteristic(char_handel)
         return None
 
-    def GetConnectedDiveceType(self):
-        return self.__connected_device_type
-
     def __connect(self, peripheral_info: PeripheralDiviceInfo):
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
@@ -192,5 +186,4 @@ class BluetoothCore:
             return False
         self.__connected = True
         self.__peripheral_name = peripheral_info.name
-        self.__connected_device_type = peripheral_info.device_type
         return True
