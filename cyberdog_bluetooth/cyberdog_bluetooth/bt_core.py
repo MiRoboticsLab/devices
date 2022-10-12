@@ -56,12 +56,12 @@ class BluetoothCore:
         self.__peripheral_list.clear()
         devices = self.__scanner.scan(sec)
         for dev in devices:
-            print('Device %s (%s), RSSI=%d dB' % (dev.addr, dev.addrType, dev.rssi))
-        if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None and \
-                dev.getValueText(ScanEntry.MANUFACTURER) is not None:
-            self.__peripheral_list.append(PeripheralDiviceInfo(
-                dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME),
-                dev.addrType))
+            print('Device %s (%s), RSSI=%d dB' % (
+                dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME), dev.rssi))
+            if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None:
+                self.__peripheral_list.append(PeripheralDiviceInfo(
+                    dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME),
+                    dev.addrType))
         return self.__peripheral_list
 
     def ConnectToBLEDeviceByName(self, name):
@@ -140,7 +140,7 @@ class BluetoothCore:
         print('setNotification done')
         return characteristic_handle
 
-    def SetNotificationByUUID(self, srv_uuid, char_uuid, enable):
+    def SetNotificationByUUID(self, srv_uuid, char_uuid, enable: bool):
         service = self.GetService(srv_uuid)
         if service is None:
             return None
@@ -165,7 +165,20 @@ class BluetoothCore:
         if srv is not None:
             characteristic = self.GetCharacteristic(srv, characteristic_uuid)
             if characteristic is not None:
-                self.WriteCharacteristic(characteristic, value, withResponse)
+                if len(value) <= 20:
+                    self.WriteCharacteristic(characteristic, value, withResponse)
+                else:
+                    packs = int(len(value) / 20)
+                    for i in range(1, packs):
+                        self.WriteCharacteristic(
+                            characteristic,
+                            value[i * 20: (i + 1) * 20],
+                            withResponse)
+                    if len(value) % 20 != 0:
+                        self.WriteCharacteristic(
+                            characteristic,
+                            value[(packs + 1) * 20:],
+                            withResponse)
                 return True
         return False
 
