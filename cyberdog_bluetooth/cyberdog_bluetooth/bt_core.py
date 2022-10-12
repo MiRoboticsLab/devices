@@ -88,6 +88,20 @@ class BluetoothCore:
                 break
         return self.__connected
 
+    def ConnectToBLE(self, mac, name, add_type):
+        if self.__connected:
+            if mac == self.__peripheral.addr:
+                return True
+            else:
+                self.Disconnect()
+        peripheral_inf = PeripheralDiviceInfo(mac, name, add_type)
+        return self.__connect(peripheral_inf)
+
+    def GetPeripheralInfo(self):
+        if self.__connected:
+            return (self.__peripheral.addr, self.__peripheral_name, self.__peripheral.addrType)
+        return None
+
     def IsConnected(self):
         return self.__connected
 
@@ -95,6 +109,7 @@ class BluetoothCore:
         self.__peripheral.disconnect()
         self.__connected = False
         self.__peripheral_name = ''
+        print('bluetooth peripheral disconnected')
 
     def GetService(self, uuid):
         try:
@@ -164,21 +179,25 @@ class BluetoothCore:
         srv = self.GetService(service_uuid)
         if srv is not None:
             characteristic = self.GetCharacteristic(srv, characteristic_uuid)
+            print('Start to write charicteristic')
             if characteristic is not None:
                 if len(value) <= 20:
                     self.WriteCharacteristic(characteristic, value, withResponse)
                 else:
                     packs = int(len(value) / 20)
-                    for i in range(1, packs):
+                    for i in range(0, packs):
+                        print('Writing pack', i)
                         self.WriteCharacteristic(
                             characteristic,
                             value[i * 20: (i + 1) * 20],
                             withResponse)
                     if len(value) % 20 != 0:
+                        print('Writing last pack')
                         self.WriteCharacteristic(
                             characteristic,
-                            value[(packs + 1) * 20:],
+                            value[packs * 20:],
                             withResponse)
+                print('Writing complete')
                 return True
         return False
 
@@ -190,6 +209,9 @@ class BluetoothCore:
         if self.__connected:
             return self.__peripheral.readCharacteristic(char_handel)
         return None
+
+    def WaitForNotifications(self, sec):
+        return self.__peripheral.waitForNotifications(sec)
 
     def __connect(self, peripheral_info: PeripheralDiviceInfo):
         try:
