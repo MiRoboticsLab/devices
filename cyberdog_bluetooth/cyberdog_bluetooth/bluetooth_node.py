@@ -18,6 +18,7 @@ import struct
 import threading
 
 from bluepy.btle import DefaultDelegate, UUID
+from protocol.msg import BLEInfo
 from protocol.srv import BLEConnect, BLEScan, GetUWBMacSessionID
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
@@ -25,6 +26,7 @@ from sensor_msgs.msg import BatteryState
 from sensor_msgs.msg import Joy
 
 from . import bt_core
+from . import yaml_parser
 
 
 class BluetoothNode(Node, DefaultDelegate):
@@ -76,14 +78,31 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joystick_y = 0.0
         self.__joystick_mutex = threading.Lock()
         self.__joystick_update = False
+        self.__history_ble_list_file = '/home/mi/known_bles.yaml'
 
     def __scan_callback(self, req, res):
-        for dev_info in self.__bt_central.Scan(req.scan_seconds):
-            res.device_name_list.append(dev_info.name)
+        if abs(req.scan_seconds) < 0.001:  # get history device info
+            history_info_list = self.__getHistoryConnectionInfo()
+            if history_info_list is None:
+                return res
+            for dev_info in history_info_list:
+                info = BLEInfo()
+                info.mac = dev_info['mac']
+                info.name = dev_info['name']
+                info.addr_type = dev_info['addr_type']
+                info.device_type = dev_info['device_type']
+                res.device_info_list.append(info)
+        else:  # scan device info
+            for dev_info in self.__bt_central.Scan(req.scan_seconds):
+                info = BLEInfo()
+                info.mac = dev_info.mac
+                info.name = dev_info.name
+                info.addr_type = dev_info.addr_type
+                res.device_info_list.append(info)
         return res
 
     def __connect_callback(self, req, res):
-        if req.device_name == '' or req.device_name is None:  # disconnect
+        if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
             if not self.__bt_central.IsConnected():
                 res.result = 3
             else:
@@ -96,7 +115,10 @@ class BluetoothNode(Node, DefaultDelegate):
                 res.result = 0
         else:  # connect to device
             self.__bt_central.SetNotificationDelegate(self)
-            if self.__bt_central.ConnectToBLEDeviceByName(req.device_name):
+            if self.__bt_central.ConnectToBLE(
+                    req.selected_device.mac,
+                    req.selected_device.name,
+                    req.selected_device.addr_type):
                 self.__getTagType()
                 if self.__connected_tag_type == 0:
                     print(req.device_name, 'is not a cyberdog device!')
@@ -154,6 +176,12 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__disconnectPeripheral()
                 else:
                     self.__notification_timer.reset()
+                    new_connection = {
+                        'mac': req.selected_device.mac,
+                        'name': req.selected_device.name,
+                        'addr_type': req.selected_device.addr_type,
+                        'device_type': self.__connected_tag_type}
+                    self.__updateHistoryFile(new_connection)
             else:
                 res.result = 1
         return res
@@ -303,3 +331,13 @@ class BluetoothNode(Node, DefaultDelegate):
                             got_uwb_response = True
                 self.__uart_data_mutex.release()
         return result
+
+    def __getHistoryConnectionInfo(self):
+        return yaml_parser.YamlParser.GenerateYamlDoc(self.__history_ble_list_file)
+
+    def __updateHistoryFile(self, new_ble_info):
+        history_list = yaml_parser.YamlParser.GenerateYamlDoc(self.__history_ble_list_file)
+        if history_list is None:
+            history_list = []
+        history_list.append(new_ble_info)
+        return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
