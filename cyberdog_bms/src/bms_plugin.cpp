@@ -89,7 +89,7 @@ void BMSCarpo::RunBmsTask()
     status_function_(ros_bms_message_);
 
     // Every one second publish
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 }
 
