@@ -211,13 +211,29 @@ class BluetoothCore:
         return None
 
     def WaitForNotifications(self, sec):
-        return self.__peripheral.waitForNotifications(sec)
+        result = 0
+        try:
+            if self.__peripheral.waitForNotifications(sec):
+                result = 0
+            else:
+                result = 1
+        except BTLEDisconnectError as e:
+            result = 3
+            self.__connected = False
+            self.__peripheral_name = ''
+            print(e, 'BLE device is disconnected unexpected!')
+        except AttributeError as e:
+            result = 3
+            self.__connected = False
+            self.__peripheral_name = ''
+            print(e, 'BLE device is disconnected unexpected!')
+        return result
 
     def __connect(self, peripheral_info: PeripheralDiviceInfo):
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
-        except BTLEDisconnectError:
-            print('unable to connect to device', peripheral_info.mac)
+        except BTLEDisconnectError as e:
+            print(e, peripheral_info.mac)
             return False
         self.__connected = True
         self.__peripheral_name = peripheral_info.name
