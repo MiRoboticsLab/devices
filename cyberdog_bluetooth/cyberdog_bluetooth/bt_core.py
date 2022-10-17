@@ -229,6 +229,9 @@ class BluetoothCore:
             print(e, 'BLE device is disconnected unexpected!')
         return result
 
+    def GetPeripheralList(self):
+        return self.__peripheral_list
+
     def __connect(self, peripheral_info: PeripheralDiviceInfo):
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
