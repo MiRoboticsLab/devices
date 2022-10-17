@@ -22,6 +22,7 @@
 
 #include "protocol/msg/uwb_raw.hpp"
 #include "protocol/msg/uwb_array.hpp"
+#include "protocol/srv/get_uwb_mac_session_id.hpp"
 
 namespace cyberdog
 {
@@ -41,6 +42,9 @@ public:
   virtual bool SelfCheck() = 0;
   virtual bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) = 0;
+  virtual void Play(
+     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
+     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) = 0;
 
 protected:
   UWBBase() {}

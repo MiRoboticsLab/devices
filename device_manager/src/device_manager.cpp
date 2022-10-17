@@ -65,6 +65,12 @@ bool cyberdog::device::DeviceManager::Init()
       &DeviceManager::BmsControlCallback, this,
       std::placeholders::_1, std::placeholders::_2));
 
+  uwb_service_ = node_ptr->create_service<protocol::srv::GetUWBMacSessionID>(
+    "get_uwb_mac_session_id",
+    std::bind(
+      &DeviceManager::UwbServiceCallback, this,
+      std::placeholders::_1, std::placeholders::_2));
+
   return true;
 }
 
@@ -126,4 +132,11 @@ void cyberdog::device::DeviceManager::BmsControlCallback(
   protocol::srv::BmsCmd_Response::SharedPtr response)
 {
   device_handler_->ExecuteBmsControl(request, response);
+}
+
+void cyberdog::device::DeviceManager::UwbServiceCallback(
+  const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
+  protocol::srv::GetUWBMacSessionID_Response::SharedPtr response)
+{
+  device_handler_->ExecuteUwb(request, response);
 }

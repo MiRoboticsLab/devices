@@ -52,6 +52,10 @@ public:
     const protocol::srv::BmsCmd_Request::SharedPtr request,
     protocol::srv::BmsCmd_Response::SharedPtr response);
 
+  void ExecuteUwb(
+    const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
+    protocol::srv::GetUWBMacSessionID_Response::SharedPtr response); 
+
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::BmsStatus msg);
   void PublishUwbMessage(protocol::msg::UwbRaw msg);

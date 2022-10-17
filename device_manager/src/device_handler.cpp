@@ -93,6 +93,13 @@ void cyberdog::device::DeviceHandler::ExecuteBmsControl(
   bms_ptr_->ServiceCommand(request, response);
 }
 
+void cyberdog::device::DeviceHandler::ExecuteUwb(
+  const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
+  protocol::srv::GetUWBMacSessionID_Response::SharedPtr response)
+{
+  uwb_ptr_->Play(request, response);
+}
+
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
 {
   if (touch_pub_ != nullptr) {
