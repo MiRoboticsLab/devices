@@ -43,8 +43,8 @@ public:
   virtual bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) = 0;
   virtual void Play(
-     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
-     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) = 0;
+    const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
+    std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) = 0;
 
 protected:
   UWBBase() {}

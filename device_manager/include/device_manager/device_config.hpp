@@ -32,7 +32,6 @@
 #include "protocol/msg/uwb_array.hpp"
 
 
-
 namespace cyberdog
 {
 namespace device

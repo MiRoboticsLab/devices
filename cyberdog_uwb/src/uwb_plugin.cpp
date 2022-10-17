@@ -104,8 +104,9 @@ bool UWBCarpo::RegisterTopic(std::function<void(UwbSignleStatusMsg)> function_ca
   return true;
 }
 
-void UWBCarpo::Play(const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
-          std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) 
+void UWBCarpo::Play(
+  const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
+  std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response)
 {
   info_response->session_id = uwb_connect_info_.session_id;
   info_response->master = uwb_connect_info_.controller_mac;
@@ -246,23 +247,20 @@ bool UWBCarpo::Close()
 
 bool UWBCarpo::Initialize()
 {
-  uint8_t buf[8] ={0};
+  uint8_t buf[8] = {0};
   uint32_t index = 0;
 
   INFO("NOW UWBCarpo::Initialize");
   // get random UWBConnectInfo
-  if(use_static_mac_)
-  {
+  if (use_static_mac_) {
     uwb_connect_info_.session_id = uwb_config_.session_id;
     uwb_connect_info_.controller_mac = uwb_config_.controller_mac;
     uwb_connect_info_.head_tof_mac = uwb_config_.head_tof_mac;
     uwb_connect_info_.head_uwb_mac = uwb_config_.head_uwb_mac;
     uwb_connect_info_.rear_tof_mac = uwb_config_.rear_tof_mac;
     uwb_connect_info_.rear_uwb_mac = uwb_config_.rear_uwb_mac;
-  }
-  else
-  {
-    uwb_connect_info_.session_id  = GenerateRandomNumber(0xFF, 0x7FFFFF00);
+  } else {
+    uwb_connect_info_.session_id = GenerateRandomNumber(0xFF, 0x7FFFFF00);
     uwb_connect_info_.controller_mac = GenerateRandomNumber(0x00FF, 0x3F00);
     uwb_connect_info_.head_tof_mac = GenerateRandomNumber(0x3F01, 0x6F00);
     uwb_connect_info_.head_uwb_mac = GenerateRandomNumber(0x6F01, 0x9F00);
@@ -270,21 +268,21 @@ bool UWBCarpo::Initialize()
     uwb_connect_info_.rear_uwb_mac = GenerateRandomNumber(0xCF01, 0xFF00);
   }
 
-  INFO("session_id=%04x mac=%02x, %02x, %02x, %02x, %02x",uwb_connect_info_.session_id,
-                                                          uwb_connect_info_.controller_mac,
-                                                          uwb_connect_info_.head_tof_mac,
-                                                          uwb_connect_info_.head_uwb_mac,
-                                                          uwb_connect_info_.rear_tof_mac,
-                                                          uwb_connect_info_.rear_uwb_mac);
+  INFO(
+    "session_id=%04x mac=%02x, %02x, %02x, %02x, %02x", uwb_connect_info_.session_id,
+    uwb_connect_info_.controller_mac,
+    uwb_connect_info_.head_tof_mac,
+    uwb_connect_info_.head_uwb_mac,
+    uwb_connect_info_.rear_tof_mac,
+    uwb_connect_info_.rear_uwb_mac);
   // head UWB
-  memcpy(&buf[0],&uwb_connect_info_.session_id, sizeof(uwb_connect_info_.session_id));
-  memcpy(&buf[4],&uwb_connect_info_.controller_mac, sizeof(uwb_connect_info_.controller_mac));
+  memcpy(&buf[0], &uwb_connect_info_.session_id, sizeof(uwb_connect_info_.session_id));
+  memcpy(&buf[4], &uwb_connect_info_.controller_mac, sizeof(uwb_connect_info_.controller_mac));
 
   auto head_uwb_init_data = std::vector<uint8_t>();
-  memcpy(&buf[6],&uwb_connect_info_.head_uwb_mac, sizeof(uwb_connect_info_.head_uwb_mac));
+  memcpy(&buf[6], &uwb_connect_info_.head_uwb_mac, sizeof(uwb_connect_info_.head_uwb_mac));
 
-  for(int i=0; i< 8; i++)
-  {
+  for (int i = 0; i < 8; i++) {
     head_uwb_init_data.push_back(buf[i]);
   }
   head_can_ptr_->Operate("head_enable_initial", head_uwb_init_data);
@@ -301,10 +299,9 @@ bool UWBCarpo::Initialize()
 
   // head TOF UWB
   auto head_tof_init_data = std::vector<uint8_t>();
-  memcpy(&buf[6],&uwb_connect_info_.head_tof_mac, sizeof(uwb_connect_info_.head_tof_mac));
+  memcpy(&buf[6], &uwb_connect_info_.head_tof_mac, sizeof(uwb_connect_info_.head_tof_mac));
 
-  for(int i=0; i< 8; i++)
-  {
+  for (int i = 0; i < 8; i++) {
     head_tof_init_data.push_back(buf[i]);
   }
   head_can_ptr_->Operate("head_tof_enable_initial", head_tof_init_data);
@@ -321,10 +318,9 @@ bool UWBCarpo::Initialize()
 
   // rear UWB
   auto rear_uwb_init_data = std::vector<uint8_t>();
-  memcpy(&buf[6],&uwb_connect_info_.rear_uwb_mac, sizeof(uwb_connect_info_.rear_uwb_mac));
+  memcpy(&buf[6], &uwb_connect_info_.rear_uwb_mac, sizeof(uwb_connect_info_.rear_uwb_mac));
 
-  for(int i=0; i< 8; i++)
-  {
+  for (int i = 0; i < 8; i++) {
     rear_uwb_init_data.push_back(buf[i]);
   }
   rear_can_ptr_->Operate("rear_enable_initial", rear_uwb_init_data);
@@ -341,10 +337,9 @@ bool UWBCarpo::Initialize()
 
   // rear TOF UWB
   auto rear_tof_init_data = std::vector<uint8_t>();
-  memcpy(&buf[6],&uwb_connect_info_.rear_tof_mac, sizeof(uwb_connect_info_.rear_tof_mac));
+  memcpy(&buf[6], &uwb_connect_info_.rear_tof_mac, sizeof(uwb_connect_info_.rear_tof_mac));
 
-  for(int i=0; i< 8; i++)
-  {
+  for (int i = 0; i < 8; i++) {
     rear_tof_init_data.push_back(buf[i]);
   }
   rear_can_ptr_->Operate("rear_tof_enable_initial", rear_tof_init_data);
@@ -612,8 +607,8 @@ void UWBCarpo::RunSimulation()
         clock_gettime(CLOCK_REALTIME, &ts);
 
         // p1
-        // 1 head 2 rear 3 rear TOF  4 head TOF 
-        // p2 
+        // 1 head 2 rear 3 rear TOF  4 head TOF
+        // p2
         // 1 head TOF  2 rear 3 rear TOF  head
 
         constexpr int NumberUWB = 4;
@@ -745,11 +740,17 @@ bool UWBCarpo::LoadUWBTomlConfig()
   // uwb connect info
   use_static_mac_ = toml::find<bool>(params_toml_, "use_static_mac");
   uwb_config_.session_id = toml::find<uint32_t>(params_toml_, "UWBConnectionInfo", "session_id");
-  uwb_config_.controller_mac = toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "controller_mac");
-  uwb_config_.head_tof_mac = toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "head_tof_mac");
-  uwb_config_.head_uwb_mac = toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "head_uwb_mac");
-  uwb_config_.rear_tof_mac = toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "rear_tof_mac");
-  uwb_config_.rear_uwb_mac = toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "rear_uwb_mac");
+  uwb_config_.controller_mac = toml::find<uint16_t>(
+    params_toml_, "UWBConnectionInfo",
+    "controller_mac");
+  uwb_config_.head_tof_mac =
+    toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "head_tof_mac");
+  uwb_config_.head_uwb_mac =
+    toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "head_uwb_mac");
+  uwb_config_.rear_tof_mac =
+    toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "rear_tof_mac");
+  uwb_config_.rear_uwb_mac =
+    toml::find<uint16_t>(params_toml_, "UWBConnectionInfo", "rear_uwb_mac");
 
   INFO("get uwb_config.toml end");
 
@@ -829,8 +830,7 @@ void UWBCarpo::Debug2String(
       flag = 1;
       break;
   }
-  if(flag == 0)
-  {
+  if (flag == 0) {
     INFO("Current dist : %f", ros_uwb_status_.data[static_cast<int>(type)].dist);
     INFO("Current angle : %f", ros_uwb_status_.data[static_cast<int>(type)].angle);
     INFO("Current nLos : %f", ros_uwb_status_.data[static_cast<int>(type)].n_los);
@@ -1036,10 +1036,10 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
   constexpr double front_back_threshold = 7.0;
   constexpr auto eps = std::numeric_limits<float>::epsilon();
 
-  auto& ros_uwb_status_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
-  auto& ros_uwb_status_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
-  auto& ros_uwb_status_left = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
-  auto& ros_uwb_status_right = ros_uwb_status_.data[static_cast<int>(Type::RearTOF)];
+  auto & ros_uwb_status_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
+  auto & ros_uwb_status_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
+  auto & ros_uwb_status_left = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
+  auto & ros_uwb_status_right = ros_uwb_status_.data[static_cast<int>(Type::RearTOF)];
 
 
   double delta = std::fabs(ros_uwb_status_front.rssi_1 - ros_uwb_status_back.rssi_1);
@@ -1051,7 +1051,7 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
     if (ros_uwb_status_front.rssi_1 > ros_uwb_status_back.rssi_1) {
       // Head UWB
       if (ros_uwb_status_front.angle > AoA_F_NMAX &&
-       ros_uwb_status_front.angle < AoA_F_PMAX)  // NOLINT
+        ros_uwb_status_front.angle < AoA_F_PMAX) // NOLINT
       {
         struct timespec time_stu;
         clock_gettime(CLOCK_REALTIME, &time_stu);

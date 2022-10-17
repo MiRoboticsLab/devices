@@ -104,7 +104,8 @@ struct UWBConfig
   uint16_t rear_uwb_mac;
 };
 
-struct UWBConnectionInfo{
+struct UWBConnectionInfo
+{
   uint32_t session_id;
   uint16_t controller_mac;
   uint16_t head_tof_mac;
@@ -131,8 +132,8 @@ public:
     function_callback, bool simulation = false) override;
   bool SelfCheck() override;
   void Play(
-     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
-     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override; 
+    const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
+    std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override;
   bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) override;
 
@@ -233,7 +234,7 @@ private:
   bool enable_initialized_finished_ {false};
   bool use_uwb_ {false};
   bool use_static_mac_ {false};
-  UWBConnectionInfo uwb_connect_info_ {0x00000100,0x0000,0x0001,0x0002,0x0003,0x0004};
+  UWBConnectionInfo uwb_connect_info_ {0x00000100, 0x0000, 0x0001, 0x0002, 0x0003, 0x0004};
 
   // geometry_msgs/msg/pose_stamped
   // std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
