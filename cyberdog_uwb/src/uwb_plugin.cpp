@@ -437,21 +437,21 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
 
-      INFO("--------------------[UWB]----------------------");
-      INFO("%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
-      INFO("Current dist : %f", dist);
-      INFO("Current angle : %f", format_9_7(angle));
-      INFO("Current nLos : %f", nLos);
-      INFO("Current rssi_1 : %f", format_8_8(rssi_1));
-      INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+      INFO_MILLSECONDS(3000, "--------------------[UWB]----------------------");
+      INFO_MILLSECONDS(3000, "%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
+      INFO_MILLSECONDS(3000, "Current dist : %f", dist);
+      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle));
+      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos);
+      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2));
 
-      INFO("--------------------[TOF]----------------------");
-      INFO("%02X, %02X", data->rear_tof_data_array[0], data->rear_tof_data_array[1]);
-      INFO("Current dist : %f", dist_tof);
-      INFO("Current angle : %f", format_9_7(angle_tof));
-      INFO("Current nLos : %f", nLos_tof);
-      INFO("Current rssi_1 : %f", format_8_8(rssi_1_tof));
-      INFO("Current rssi_2 : %f", format_8_8(rssi_2_tof));
+      INFO_MILLSECONDS(3000, "--------------------[TOF]----------------------");
+      INFO_MILLSECONDS(3000, "%02X, %02X", data->rear_tof_data_array[0], data->rear_tof_data_array[1]);
+      INFO_MILLSECONDS(3000, "Current dist : %f", dist_tof);
+      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle_tof));
+      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos_tof);
+      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1_tof));
+      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2_tof));
     }
   }
 }
@@ -523,21 +523,21 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
 
-      INFO("--------------------[UWB]----------------------");
-      INFO("%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
-      INFO("Current dist : %f", dist);
-      INFO("Current angle : %f", format_9_7(angle));
-      INFO("Current nLos : %f", nLos);
-      INFO("Current rssi_1 : %f", format_8_8(rssi_1));
-      INFO("Current rssi_2 : %f", format_8_8(rssi_2));
+      INFO_MILLSECONDS(3000, "--------------------[UWB]----------------------");
+      INFO_MILLSECONDS(3000, "%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
+      INFO_MILLSECONDS(3000, "Current dist : %f", dist);
+      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle));
+      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos);
+      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2));
 
-      INFO("--------------------[TOF]----------------------");
-      INFO("%02X, %02X", data->head_tof_data_array[0], data->head_tof_data_array[1]);
-      INFO("Current dist : %f", dist_tof);
-      INFO("Current angle : %f", format_9_7(angle_tof));
-      INFO("Current nLos : %f", nLos_tof);
-      INFO("Current rssi_1 : %f", format_8_8(rssi_1_tof));
-      INFO("Current rssi_2 : %f", format_8_8(rssi_2_tof));
+      INFO_MILLSECONDS(3000, "--------------------[TOF]----------------------");
+      INFO_MILLSECONDS(3000, "%02X, %02X", data->head_tof_data_array[0], data->head_tof_data_array[1]);
+      INFO_MILLSECONDS(3000, "Current dist : %f", dist_tof);
+      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle_tof));
+      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos_tof);
+      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1_tof));
+      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2_tof));
     }
   }
 }
@@ -844,13 +844,13 @@ void UWBCarpo::Debug2String(
 
 void UWBCarpo::Debug2String(const UwbSignleStatusMsg & uwb_msg)
 {
-  INFO("########################################");
-  INFO("frame id = %s", uwb_msg.header.frame_id.c_str());
-  INFO("dist = %f", uwb_msg.dist);
-  INFO("angle = %f", uwb_msg.angle);
-  INFO("n_los = %f", uwb_msg.n_los);
-  INFO("rssi_1 = %f", uwb_msg.rssi_1);
-  INFO("rssi_2 = %f", uwb_msg.rssi_2);
+  INFO_MILLSECONDS(3000, "########################################");
+  INFO_MILLSECONDS(3000, "frame id = %s", uwb_msg.header.frame_id.c_str());
+  INFO_MILLSECONDS(3000, "dist = %f", uwb_msg.dist);
+  INFO_MILLSECONDS(3000, "angle = %f", uwb_msg.angle);
+  INFO_MILLSECONDS(3000, "n_los = %f", uwb_msg.n_los);
+  INFO_MILLSECONDS(3000, "rssi_1 = %f", uwb_msg.rssi_1);
+  INFO_MILLSECONDS(3000, "rssi_2 = %f", uwb_msg.rssi_2);
 }
 
 #if 0
