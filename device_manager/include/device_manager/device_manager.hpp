@@ -54,12 +54,17 @@ private:
     const protocol::srv::BmsCmd_Request::SharedPtr request,
     protocol::srv::BmsCmd_Response::SharedPtr response);
 
+  void UwbServiceCallback(
+    const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
+    protocol::srv::GetUWBMacSessionID_Response::SharedPtr response);
+
 private:
   std::string name_;
   std::shared_ptr<DeviceHandler> device_handler_ {nullptr};
   rclcpp::Node::SharedPtr node_ptr {nullptr};
   rclcpp::Service<protocol::srv::LedExecute>::SharedPtr led_service_ {nullptr};
   rclcpp::Service<protocol::srv::BmsCmd>::SharedPtr bms_service_ {nullptr};
+  rclcpp::Service<protocol::srv::GetUWBMacSessionID>::SharedPtr uwb_service_ {nullptr};
 };  // class DeviceManager
 }  // namespace device
 }  // namespace cyberdog
