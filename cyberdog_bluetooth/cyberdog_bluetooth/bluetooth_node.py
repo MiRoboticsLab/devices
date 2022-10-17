@@ -56,8 +56,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__multithread_callback_group = ReentrantCallbackGroup()
         self.__siglethread_callback_group = MutuallyExclusiveCallbackGroup()
         self.__scan_server = self.create_service(
-            BLEScan, 'scan_bluetooth_device', self.__scan_callback,
-            callback_group=self.__siglethread_callback_group)
+            BLEScan, 'scan_bluetooth_devices', self.__scan_callback)
         self.__connect_server = self.create_service(
             BLEConnect, 'connect_bluetooth_device', self.__connect_callback,
             callback_group=self.__siglethread_callback_group)
@@ -81,9 +80,12 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__history_ble_list_file = '/home/mi/known_bles.yaml'
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
+        self.__current_connections_server = self.create_service(
+            BLEScan, 'get_connected_bluetooth_info', self.__currentConnectionsCB)
 
     def __scan_callback(self, req, res):
-        if abs(req.scan_seconds) < 0.001:  # get history device info
+        if abs(req.scan_seconds) < 0.001 or\
+                self.__bt_central.IsConnected():  # get history device info
             history_info_list = self.__getHistoryConnectionInfo()
             if history_info_list is None:
                 return res
@@ -108,10 +110,12 @@ class BluetoothNode(Node, DefaultDelegate):
             if not self.__bt_central.IsConnected():
                 res.result = 3
             else:
+                self.__notification_timer.cancel()
                 self.__uwb_disconnect_accepted = 3
                 self.__connectUWB(False)
                 res.result = self.__waitForUWBResponse(False)
                 if res.result != 0:
+                    self.__notification_timer.reset()
                     return res
                 self.__disconnectPeripheral()
                 res.result = 0
@@ -362,3 +366,13 @@ class BluetoothNode(Node, DefaultDelegate):
                 return True
         history_list.append(new_ble_info)
         return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
+
+    def __currentConnectionsCB(self, req, res):
+        connection_info = self.__bt_central.GetPeripheralInfo()
+        if connection_info is None:
+            return res
+        info = BLEInfo()
+        info.mac, info.name, info.addr_type = connection_info
+        info.device_type = self.__connected_tag_type
+        res.device_info_list.append(info)
+        return res
