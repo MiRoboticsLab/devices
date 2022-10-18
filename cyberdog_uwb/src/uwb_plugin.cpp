@@ -446,7 +446,9 @@ void UWBCarpo::HandleCan0Messages(
       INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2));
 
       INFO_MILLSECONDS(3000, "--------------------[TOF]----------------------");
-      INFO_MILLSECONDS(3000, "%02X, %02X", data->rear_tof_data_array[0], data->rear_tof_data_array[1]);
+      INFO_MILLSECONDS(
+        3000, "%02X, %02X", data->rear_tof_data_array[0],
+        data->rear_tof_data_array[1]);
       INFO_MILLSECONDS(3000, "Current dist : %f", dist_tof);
       INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle_tof));
       INFO_MILLSECONDS(3000, "Current nLos : %f", nLos_tof);
@@ -532,7 +534,9 @@ void UWBCarpo::HandleCan1Messages(
       INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2));
 
       INFO_MILLSECONDS(3000, "--------------------[TOF]----------------------");
-      INFO_MILLSECONDS(3000, "%02X, %02X", data->head_tof_data_array[0], data->head_tof_data_array[1]);
+      INFO_MILLSECONDS(
+        3000, "%02X, %02X", data->head_tof_data_array[0],
+        data->head_tof_data_array[1]);
       INFO_MILLSECONDS(3000, "Current dist : %f", dist_tof);
       INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle_tof));
       INFO_MILLSECONDS(3000, "Current nLos : %f", nLos_tof);
