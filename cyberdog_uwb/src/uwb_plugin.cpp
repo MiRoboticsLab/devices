@@ -55,8 +55,6 @@ bool UWBCarpo::Init(
   }
 
   RegisterTopic(function_callback);
-  uwb_thread_ = std::make_shared<std::thread>(std::bind(&UWBCarpo::RunTask, this));
-  uwb_thread_->detach();
 
   simulation_ = simulation;
   if (simulation_) {
@@ -88,6 +86,8 @@ bool UWBCarpo::Init(
       return initialized_finished_;
     }
   }
+  uwb_thread_ = std::make_shared<std::thread>(std::bind(&UWBCarpo::RunTask, this));
+  uwb_thread_->detach();
 
   INFO("[UWBCarpo]: %s", "UWBCarpo initialize success.");
   return initialized_finished_;
