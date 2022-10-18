@@ -59,7 +59,7 @@ class BluetoothNode(Node, DefaultDelegate):
             BLEScan, 'scan_bluetooth_devices', self.__scan_callback)
         self.__connect_server = self.create_service(
             BLEConnect, 'connect_bluetooth_device', self.__connect_callback,
-            callback_group=self.__siglethread_callback_group)
+            callback_group=self.__multithread_callback_group)
         self.__uwb_mac_session_id_client = self.create_client(
             GetUWBMacSessionID, 'get_uwb_mac_session_id',
             callback_group=self.__multithread_callback_group)
@@ -82,6 +82,7 @@ class BluetoothNode(Node, DefaultDelegate):
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
             BLEScan, 'get_connected_bluetooth_info', self.__currentConnectionsCB)
+        self.__connecting = False
 
     def __scan_callback(self, req, res):
         if abs(req.scan_seconds) < 0.001:  # get history device info
@@ -112,6 +113,12 @@ class BluetoothNode(Node, DefaultDelegate):
         return res
 
     def __connect_callback(self, req, res):
+        print('__connect_callback')
+        if self.__connecting:
+            print('is connecting!')
+            res.result = 1
+            return
+        self.__connecting = True
         if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
             if not self.__bt_central.IsConnected():
                 res.result = 3
@@ -122,10 +129,19 @@ class BluetoothNode(Node, DefaultDelegate):
                 res.result = self.__waitForUWBResponse(False)
                 if res.result != 0 and self.__bt_central.IsConnected():
                     self.__notification_timer.reset()
+                    self.__connecting = False
                     return res
                 self.__disconnectPeripheral()
                 res.result = 0
         else:  # connect to device
+            if self.__bt_central.IsConnected():
+                connection_info = self.__bt_central.GetPeripheralInfo()
+                if connection_info is not None:
+                    mac, name, addr_type = connection_info
+                    if mac == req.selected_device.mac:
+                        res.result = 0
+                        self.__connecting = False
+                        return res
             self.__bt_central.SetNotificationDelegate(self)
             if self.__bt_central.ConnectToBLE(
                     req.selected_device.mac,
@@ -137,6 +153,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     print(req.selected_device.device_name, 'is not a cyberdog device!')
                     res.result = 1
                     self.__disconnectPeripheral()
+                    self.__connecting = False
                     return res
                 tx_handle = self.__bt_central.SetNotificationByUUID(  # TX char
                     self.__UART_service_uuid,
@@ -197,6 +214,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__updateHistoryFile(new_connection)
             else:
                 res.result = 1
+        self.__connecting = False
         return res
 
     def __registNotificationCallback(self, handle, callback):
