@@ -118,8 +118,8 @@ void UWBCarpo::Play(
 
 bool UWBCarpo::Open()
 {
-  head_can_ptr_->Operate("head_enable_on", std::vector<uint8_t>{});
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
+  head_can_ptr_->Operate("head_enable_on", std::vector<uint8_t>{});
 
   time_t now = time(nullptr);
   while (head_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -130,8 +130,9 @@ bool UWBCarpo::Open()
     INFO("head turn on success.");
   }
 
-  head_can_ptr_->Operate("head_tof_enable_on", std::vector<uint8_t>{});
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
+  head_can_ptr_->Operate("head_tof_enable_on", std::vector<uint8_t>{});
+
 
   now = time(nullptr);
   while (head_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -142,8 +143,9 @@ bool UWBCarpo::Open()
     INFO("head tof turn on success.");
   }
 
-  rear_can_ptr_->Operate("rear_enable_on", std::vector<uint8_t>{});
   rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
+  rear_can_ptr_->Operate("rear_enable_on", std::vector<uint8_t>{});
+
 
   now = time(nullptr);
   while (rear_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -153,9 +155,9 @@ bool UWBCarpo::Open()
   if (rear_turn_on_) {
     INFO("rear turn on success.");
   }
-
-  rear_can_ptr_->Operate("rear_tof_enable_on", std::vector<uint8_t>{});
   rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
+  rear_can_ptr_->Operate("rear_tof_enable_on", std::vector<uint8_t>{});
+
 
   now = time(nullptr);
   while (rear_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -183,8 +185,8 @@ bool UWBCarpo::Open()
 bool UWBCarpo::Close()
 {
   // head UWB
-  head_can_ptr_->Operate("head_enable_off", std::vector<uint8_t>{});
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_off_ack);
+  head_can_ptr_->Operate("head_enable_off", std::vector<uint8_t>{});
 
   time_t now = time(nullptr);
   while (head_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -196,8 +198,8 @@ bool UWBCarpo::Close()
   }
 
   // head TOF UWB
-  head_can_ptr_->Operate("head_tof_enable_off", std::vector<uint8_t>{});
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_off_ack);
+  head_can_ptr_->Operate("head_tof_enable_off", std::vector<uint8_t>{});
 
   now = time(nullptr);
   while (head_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -209,8 +211,8 @@ bool UWBCarpo::Close()
   }
 
   // rear UWB
-  rear_can_ptr_->Operate("head_tof_enable_off", std::vector<uint8_t>{});
   rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_off_ack);
+  rear_can_ptr_->Operate("head_tof_enable_off", std::vector<uint8_t>{});
 
   now = time(nullptr);
   while (rear_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -222,8 +224,8 @@ bool UWBCarpo::Close()
   }
 
   // rear TOF UWB
-  rear_can_ptr_->Operate("rear_tof_enable_off", std::vector<uint8_t>{});
   rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_off_ack);
+  rear_can_ptr_->Operate("rear_tof_enable_off", std::vector<uint8_t>{});
 
   now = time(nullptr);
   while (rear_tof_turn_on_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -285,9 +287,8 @@ bool UWBCarpo::Initialize()
   for (int i = 0; i < 8; i++) {
     head_uwb_init_data.push_back(buf[i]);
   }
-  head_can_ptr_->Operate("head_enable_initial", head_uwb_init_data);
-
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_enable_initial_ack);
+  head_can_ptr_->Operate("head_enable_initial", head_uwb_init_data);
 
   time_t now = time(nullptr);
   while (head_enable_initial_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -304,8 +305,9 @@ bool UWBCarpo::Initialize()
   for (int i = 0; i < 8; i++) {
     head_tof_init_data.push_back(buf[i]);
   }
-  head_can_ptr_->Operate("head_tof_enable_initial", head_tof_init_data);
   head_can_ptr_->LINK_VAR(head_can_ptr_->GetData()->head_tof_enable_initial_ack);
+  head_can_ptr_->Operate("head_tof_enable_initial", head_tof_init_data);
+
 
   now = time(nullptr);
   while (head_tof_enable_initial_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -323,8 +325,9 @@ bool UWBCarpo::Initialize()
   for (int i = 0; i < 8; i++) {
     rear_uwb_init_data.push_back(buf[i]);
   }
-  rear_can_ptr_->Operate("rear_enable_initial", rear_uwb_init_data);
   rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_enable_initial_ack);
+  rear_can_ptr_->Operate("rear_enable_initial", rear_uwb_init_data);
+
 
   now = time(nullptr);
   while (rear_enable_initial_ == false && difftime(time(nullptr), now) < 4.0f) {
@@ -342,8 +345,9 @@ bool UWBCarpo::Initialize()
   for (int i = 0; i < 8; i++) {
     rear_tof_init_data.push_back(buf[i]);
   }
-  rear_can_ptr_->Operate("rear_tof_enable_initial", rear_tof_init_data);
   rear_can_ptr_->LINK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_initial_ack);
+  rear_can_ptr_->Operate("rear_tof_enable_initial", rear_tof_init_data);
+
 
   now = time(nullptr);
   while (rear_tof_enable_initial_ == false && difftime(time(nullptr), now) < 4.0f) {
