@@ -84,8 +84,7 @@ class BluetoothNode(Node, DefaultDelegate):
             BLEScan, 'get_connected_bluetooth_info', self.__currentConnectionsCB)
 
     def __scan_callback(self, req, res):
-        if abs(req.scan_seconds) < 0.001 or\
-                self.__bt_central.IsConnected():  # get history device info
+        if abs(req.scan_seconds) < 0.001:  # get history device info
             history_info_list = self.__getHistoryConnectionInfo()
             if history_info_list is None:
                 return res
@@ -96,8 +95,15 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.addr_type = dev_info['addr_type']
                 info.device_type = dev_info['device_type']
                 res.device_info_list.append(info)
-        else:  # scan device info
+        elif not self.__bt_central.IsConnected():  # scan device info
             for dev_info in self.__bt_central.Scan(req.scan_seconds):
+                info = BLEInfo()
+                info.mac = dev_info.mac
+                info.name = dev_info.name
+                info.addr_type = dev_info.addrType
+                res.device_info_list.append(info)
+        else:
+            for dev_info in self.__bt_central.GetPeripheralList():
                 info = BLEInfo()
                 info.mac = dev_info.mac
                 info.name = dev_info.name
@@ -114,7 +120,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__uwb_disconnect_accepted = 3
                 self.__connectUWB(False)
                 res.result = self.__waitForUWBResponse(False)
-                if res.result != 0:
+                if res.result != 0 and self.__bt_central.IsConnected():
                     self.__notification_timer.reset()
                     return res
                 self.__disconnectPeripheral()
