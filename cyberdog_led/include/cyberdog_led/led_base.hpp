@@ -29,6 +29,7 @@ protected:
   LedBase() {}
 
 public:
+  virtual void shutdown() = 0;
   virtual bool Config() = 0;
   virtual bool Init() = 0;
   virtual bool SelfCheck() = 0;

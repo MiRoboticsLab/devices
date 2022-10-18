@@ -34,75 +34,63 @@ namespace cyberdog
 {
 namespace device
 {
-  const uint8_t HEAD_LED = 0;
-  const uint8_t TAIL_LED = 1;
-  const uint8_t MINI_LED = 2;
-  // "tail_led", "head_led","mini_led"
-struct led_request
+using LedExecuteRequest = protocol::srv::LedExecute::Request;
+using LedExecuteResponse = protocol::srv::LedExecute::Response;
+struct Request_Attribute
 {
-  uint8_t mode;         // 模式取值 见协议中常量定义
-  uint8_t client;       // "bms";"bluetooth";"audio" ..;
-  uint8_t target;       // "tail_led", "head_led","mini_led" ...
-  uint8_t priority;     // response priority(逻辑暂缺)
-  uint64_t runtime;     // 灯效执行时间，单位ms
-  uint8_t effect;       // 灯效 见协议中常量定义
-  uint8_t brightness;   // 亮度 0~255
-  int32_t code;         // mcu灯效执行结果
-  led_request()
+  std::string priority;
+  bool occupation;
+  bool isoff;
+  std::string client;
+  uint8_t target;
+  uint8_t mode;
+  uint8_t effect;
+  uint8_t r_value;
+  uint8_t g_value;
+  uint8_t b_value;
+  Request_Attribute()
   {
-    int32_t code = 0;
+    occupation = false;
+    isoff = true;
   }
 };
 // toml映射
-struct HeadLed
-{
-  uint8_t enable_on;
-  uint8_t enable_on_ack;
-};
-
-struct TailLed
-{
-  uint8_t enable_on;
-  uint8_t enable_on_ack;
-};
-
-struct MiniLed
+struct LedToml
 {
   uint8_t enable_on_ack;
-  uint8_t enable_off_ack;
-  uint8_t PIC_1_ACK;
-  uint8_t PIC_2_ACK;
-  uint8_t PIC_ANIMATION_ACK;
 };
-
-struct LedController
-{
-  std::condition_variable led_waitcv;
-  std::mutex led_mutex;
-  std::thread led_thread;
-  bool led_workable = false;
-  uint8_t alwayson_id; //always on effect
-};
-
 class LedCarpo : public cyberdog::device::LedBase
 {
 private:
   /* data */
-  led_request new_request;
   bool ready = false;
-  // led controller
-  LedController head_led_controller;
-  LedController tail_led_controller;
-  LedController mini_led_controller;
-  void head_led_thread();
-  void tail_led_thread();
-  void mini_led_thread();
-  bool request_legal();
+  std::shared_ptr<cyberdog::embed::Protocol<LedToml>> head_can_;
+  std::shared_ptr<cyberdog::embed::Protocol<LedToml>> tail_can_;
+  std::shared_ptr<cyberdog::embed::Protocol<LedToml>> mini_can_;
+  std::map<uint8_t, std::vector<Request_Attribute>> led_map;
+  std::vector<Request_Attribute> headled_attrs;
+  std::vector<Request_Attribute> tailled_attrs;
+  std::vector<Request_Attribute> miniled_attrs;
+  Request_Attribute operatecmd;
+  std::vector<uint8_t> red;
+  std::vector<uint8_t> yellow;
+  std::vector<uint8_t> blue;
+  bool operate_result = false;
+  void rgb_led_cmd(std::vector<uint8_t> & temp_vector);
+  void mini_led_cmd(std::vector<uint8_t> & temp_vector);
+  void find_cmd(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
+  int32_t request_legal(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
+  int32_t play_by_priority(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
   bool request_priority();
-  void head_led_callback(std::string & name, std::shared_ptr<cyberdog::device::HeadLed> data);
-
+  bool request_load_priority(
+    const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
+  void head_led_callback(std::string & name, std::shared_ptr<cyberdog::device::LedToml> data);
+  void tail_led_callback(std::string & name, std::shared_ptr<cyberdog::device::LedToml> data);
+  void mini_led_callback(std::string & name, std::shared_ptr<cyberdog::device::LedToml> data);
   LOGGER_MINOR_INSTANCE("cyberdog_led");
+
 public:
+  void shutdown() override;
   bool Config() override;
   bool Init() override;
   bool SelfCheck() override;
