@@ -19,11 +19,12 @@ import threading
 
 from bluepy.btle import DefaultDelegate, UUID
 from protocol.msg import BLEInfo
-from protocol.srv import BLEConnect, BLEScan, GetUWBMacSessionID
+from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState, Joy
 from std_msgs.msg import Bool
+from std_srvs.srv import Trigger
 
 from . import bt_core
 from . import yaml_parser
@@ -40,6 +41,8 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__character_handle_dic = {}
         self.__battery_service_uuid = UUID(0x180F)
         self.__battery_level_characteristic_uuid = UUID(0x2A19)
+        self.__GATT_service_uuid = UUID(0x180A)
+        self.__software_version_characteristic_uuid = UUID(0x2A28)
         self.__tag_info_service_uuid = UUID('6e400201-b5a3-f393-e0a9-e50e24dcca9e')
         self.__tag_type_characteristic_uuid = UUID('6e400202-b5a3-f393-e0a9-e50e24dcca9e')
         self.__UART_service_uuid = UUID('6e400001-b5a3-f393-e0a9-e50e24dcca9e')
@@ -49,6 +52,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__remote_x_characteristic_uuid = UUID('6e400102-b5a3-f393-e0a9-e50e24dcca9e')
         self.__remote_y_characteristic_uuid = UUID('6e400103-b5a3-f393-e0a9-e50e24dcca9e')
         self.__connected_tag_type = 0  # 0 disconnected, 16 band, 17 dock
+        self.__firmware_version = ''
         self.__uart_data_mutex = threading.Lock()
         self.__uart_received = False
         self.__uwb_connect_accepted = 3  # 3 default, 0 accepted, 1 rejected
@@ -69,6 +73,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__timeout_mutex = threading.Lock()
         self.__timeout = False
         self.__battery_volume_pub = self.create_publisher(BatteryState, 'band_battery', 2)
+        self.__battery_level_float = 0.0
+        self.__battery_srv = self.create_service(
+            GetBLEBatteryLevel, 'ble_device_battery_level', self.__batteryLevelServerCB,
+            callback_group=self.__multithread_callback_group)
         self.__joystick_pub = self.create_publisher(Joy, 'bluetooth_joystick', 100)
         self.__notification_timer = self.create_timer(
             0.05, self.__notificationTimerCB, callback_group=self.__siglethread_callback_group)
@@ -81,11 +89,16 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
-            BLEScan, 'get_connected_bluetooth_info', self.__currentConnectionsCB)
+            BLEScan, 'get_connected_bluetooth_info', self.__currentConnectionsCB,
+            callback_group=self.__multithread_callback_group)
+        self.__firmware_version_server = self.create_service(
+            Trigger, 'ble_device_firmware_version', self.__firmwareVersionServerCB,
+            callback_group=self.__multithread_callback_group)
         self.__connecting = False
         self.__connect_timeout_timer = self.create_timer(
             5.0, self.__connectTimeoutCB, callback_group=self.__multithread_callback_group)
         self.__connect_timeout_timer.cancel()
+        self.__firmware_version
 
     def __scan_callback(self, req, res):
         if abs(req.scan_seconds) < 0.001:  # get history device info
@@ -152,6 +165,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     req.selected_device.name,
                     req.selected_device.addr_type):
                 self.__getTagType()
+                self.__getTagFirmwareVersion()
                 print('dev type', self.__connected_tag_type)
                 if self.__connected_tag_type == 0:
                     print(req.selected_device.device_name, 'is not a cyberdog device!')
@@ -191,6 +205,10 @@ class BluetoothNode(Node, DefaultDelegate):
                         print('registering joyy')
                         self.__registNotificationCallback(
                             joy_y_handle, self.__joystickYCB)
+                elif self.__connected_tag_type == 17:  # dock
+                    self.__battery_level_float = 1.0
+                    self.__joystick_x = 0.0
+                    self.__joystick_y = 0.0
                 if self.__uwb_mac_session_id_client.wait_for_service(timeout_sec=3.0):
                     response = self.__uwb_mac_session_id_client.call(
                         GetUWBMacSessionID.Request())
@@ -234,10 +252,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__map_mutex.release()
 
     def __publishBatteryLevel(self, data):
-        battery_level_float = int.from_bytes(data, 'little') / 100.0
-        print('battery level is', battery_level_float)
+        self.__battery_level_float = int.from_bytes(data, 'little') / 100.0
+        print('battery level is', self.__battery_level_float)
         battery_msg = BatteryState()
-        battery_msg.percentage = battery_level_float
+        battery_msg.percentage = self.__battery_level_float
         battery_msg.present = True
         self.__battery_volume_pub.publish(battery_msg)
 
@@ -285,6 +303,20 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__bt_central.ReadCharacteristic(tag_type_char), 'little')
         return self.__connected_tag_type
 
+    def __getTagFirmwareVersion(self):
+        gatt_service = self.__bt_central.GetService(self.__GATT_service_uuid)
+        if gatt_service is None:
+            print('This device has no GATT service!')
+            return ''
+        software_version_char = self.__bt_central.GetCharacteristic(
+            gatt_service, self.__software_version_characteristic_uuid)
+        if software_version_char is None:
+            print('Cannot get firmware version!')
+            return ''
+        self.__firmware_version = self.__bt_central.ReadCharacteristic(
+            software_version_char).decode('UTF-8')
+        return self.__firmware_version
+
     def __uartCB(self, data):
         print('receive uart data:', data)
         self.__uart_data_mutex.acquire()
@@ -314,15 +346,19 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__notification_timer.cancel()
         self.__bt_central.Disconnect()
         self.__connected_tag_type = 0
+        self.__firmware_version = ''
         self.__map_mutex.acquire()
         self.__character_handle_dic.clear()
         self.__map_mutex.release()
 
     def __notificationTimerCB(self):
+        if self.__connecting:
+            return
         notified = self.__bt_central.WaitForNotifications(0.1)
         if notified == 3:
             self.__notification_timer.cancel()
             self.__connected_tag_type = 0
+            self.__firmware_version = ''
             self.__map_mutex.acquire()
             self.__character_handle_dic.clear()
             self.__map_mutex.release()
@@ -410,3 +446,17 @@ class BluetoothNode(Node, DefaultDelegate):
             print('timeout and device is not able to connected')
             self.__bt_central.Disconnect()
         self.__connect_timeout_timer.cancel()
+
+    def __batteryLevelServerCB(self, req, res):
+        res.connected = self.__bt_central.IsConnected()
+        if not res.connected:
+            return res
+        res.persentage = self.__battery_level_float
+        return res
+
+    def __firmwareVersionServerCB(self, req, res):
+        res.success = self.__bt_central.IsConnected()
+        if not res.success:
+            return res
+        res.message = self.__firmware_version
+        return res
