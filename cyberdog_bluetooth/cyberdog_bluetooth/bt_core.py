@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bluepy.btle import BTLEDisconnectError, BTLEGattError, DefaultDelegate, \
-    Peripheral, ScanEntry, Scanner, UUID
+from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError, \
+    DefaultDelegate, Peripheral, ScanEntry, Scanner, UUID
 
 
 class ScanDelegate(DefaultDelegate):
@@ -52,7 +52,7 @@ class BluetoothCore:
     def __del__(self):
         self.Disconnect()
 
-    def Scan(self, sec=5.0) -> list:
+    def Scan(self, sec=5) -> list:
         self.__peripheral_list.clear()
         devices = self.__scanner.scan(sec)
         for dev in devices:
@@ -106,9 +106,15 @@ class BluetoothCore:
         return self.__connected
 
     def Disconnect(self):
-        self.__peripheral.disconnect()
-        self.__connected = False
-        self.__peripheral_name = ''
+        try:
+            self.__peripheral.disconnect()
+        except BTLEDisconnectError as e:
+            print('BTLEDisconnectError:', e, 'Exeption while disconnecting')
+        except AttributeError as e:
+            print('AttributeError:', e, 'Exeption while disconnecting')
+        finally:
+            self.__connected = False
+            self.__peripheral_name = ''
         print('bluetooth peripheral disconnected')
 
     def GetService(self, uuid):
@@ -181,23 +187,34 @@ class BluetoothCore:
             characteristic = self.GetCharacteristic(srv, characteristic_uuid)
             print('Start to write charicteristic')
             if characteristic is not None:
-                if len(value) <= 20:
-                    self.WriteCharacteristic(characteristic, value, withResponse)
-                else:
-                    packs = int(len(value) / 20)
-                    for i in range(0, packs):
-                        print('Writing pack', i)
-                        self.WriteCharacteristic(
-                            characteristic,
-                            value[i * 20: (i + 1) * 20],
-                            withResponse)
-                    if len(value) % 20 != 0:
-                        print('Writing last pack')
-                        self.WriteCharacteristic(
-                            characteristic,
-                            value[packs * 20:],
-                            withResponse)
-                print('Writing complete')
+                try:
+                    if len(value) <= 20:
+                        self.WriteCharacteristic(characteristic, value, withResponse)
+                    else:
+                        packs = int(len(value) / 20)
+                        for i in range(0, packs):
+                            print('Writing pack', i)
+                            self.WriteCharacteristic(
+                                characteristic,
+                                value[i * 20: (i + 1) * 20],
+                                withResponse)
+                        if len(value) % 20 != 0:
+                            print('Writing last pack')
+                            self.WriteCharacteristic(
+                                characteristic,
+                                value[packs * 20:],
+                                withResponse)
+                    print('Writing complete')
+                except BTLEDisconnectError as e:
+                    self.__connected = False
+                    self.__peripheral_name = ''
+                    print('BTLEDisconnectError:', e, 'Disconnected unexpected while writing!')
+                    return False
+                except AttributeError as e:
+                    self.__connected = False
+                    self.__peripheral_name = ''
+                    print('AttributeError:', e, 'Disconnected unexpected while writing!')
+                    return False
                 return True
         return False
 
@@ -221,12 +238,12 @@ class BluetoothCore:
             result = 3
             self.__connected = False
             self.__peripheral_name = ''
-            print(e, 'BLE device is disconnected unexpected!')
+            print('BTLEDisconnectError:', e, 'BLE device is disconnected unexpected!')
         except AttributeError as e:
             result = 3
             self.__connected = False
             self.__peripheral_name = ''
-            print(e, 'BLE device is disconnected unexpected!')
+            print('AttributeError:', e, 'BLE device is disconnected unexpected!')
         return result
 
     def GetPeripheralList(self):
@@ -236,7 +253,13 @@ class BluetoothCore:
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
         except BTLEDisconnectError as e:
-            print(e, peripheral_info.mac)
+            print('BTLEDisconnectError:', e, peripheral_info.mac)
+            return False
+        except ValueError as e:
+            print('ValueError:', e, peripheral_info.mac)
+            return False
+        except BTLEInternalError as e:
+            print('BTLEInternalError:', e, peripheral_info.mac)
             return False
         self.__connected = True
         self.__peripheral_name = peripheral_info.name

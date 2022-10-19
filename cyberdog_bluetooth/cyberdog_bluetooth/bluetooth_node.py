@@ -83,6 +83,9 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__current_connections_server = self.create_service(
             BLEScan, 'get_connected_bluetooth_info', self.__currentConnectionsCB)
         self.__connecting = False
+        self.__connect_timeout_timer = self.create_timer(
+            5.0, self.__connectTimeoutCB, callback_group=self.__multithread_callback_group)
+        self.__connect_timeout_timer.cancel()
 
     def __scan_callback(self, req, res):
         if abs(req.scan_seconds) < 0.001:  # get history device info
@@ -143,6 +146,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__connecting = False
                         return res
             self.__bt_central.SetNotificationDelegate(self)
+            self.__connect_timeout_timer.reset()
             if self.__bt_central.ConnectToBLE(
                     req.selected_device.mac,
                     req.selected_device.name,
@@ -400,3 +404,9 @@ class BluetoothNode(Node, DefaultDelegate):
         info.device_type = self.__connected_tag_type
         res.device_info_list.append(info)
         return res
+
+    def __connectTimeoutCB(self):
+        if not self.__bt_central.IsConnected():
+            print('timeout and device is not able to connected')
+            self.__bt_central.Disconnect()
+        self.__connect_timeout_timer.cancel()
