@@ -18,6 +18,7 @@ import struct
 import threading
 
 from bluepy.btle import DefaultDelegate, UUID
+from nav2_msgs.srv import SaveMap
 from protocol.msg import BLEInfo
 from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
@@ -45,6 +46,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__software_version_characteristic_uuid = UUID(0x2A28)
         self.__tag_info_service_uuid = UUID('17b90201-3f76-7dba-4ad8-2f37edb7510b')
         self.__tag_type_characteristic_uuid = UUID('17b90202-3f76-7dba-4ad8-2f37edb7510b')
+        self.__device_name_characteristic_uuid = UUID('17b90203-3f76-7dba-4ad8-2f37edb7510b')
         self.__UART_service_uuid = UUID('17b90001-3f76-7dba-4ad8-2f37edb7510b')
         self.__RX_characteristic_uuid = UUID('17b90002-3f76-7dba-4ad8-2f37edb7510b')
         self.__TX_characteristic_uuid = UUID('17b90003-3f76-7dba-4ad8-2f37edb7510b')
@@ -98,7 +100,9 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__connect_timeout_timer = self.create_timer(
             5.0, self.__connectTimeoutCB, callback_group=self.__multithread_callback_group)
         self.__connect_timeout_timer.cancel()
-        self.__firmware_version
+        self.__change_name_server = self.create_service(
+            SaveMap, 'change_ble_device_name', self.__changeBLEDeviceName,
+            callback_group=self.__siglethread_callback_group)
 
     def __scan_callback(self, req, res):
         if abs(req.scan_seconds) < 0.001:  # get history device info
@@ -166,7 +170,9 @@ class BluetoothNode(Node, DefaultDelegate):
                     req.selected_device.addr_type):
                 self.__getTagType()
                 self.__getTagFirmwareVersion()
-                print('dev type', self.__connected_tag_type)
+                print(
+                    'device type', self.__connected_tag_type,
+                    'firmware version', self.__firmware_version)
                 if self.__connected_tag_type == 0:
                     print(req.selected_device.device_name, 'is not a cyberdog device!')
                     res.result = 1
@@ -459,4 +465,13 @@ class BluetoothNode(Node, DefaultDelegate):
         if not res.success:
             return res
         res.message = self.__firmware_version
+        return res
+
+    def __changeBLEDeviceName(self, req, res):
+        if self.__bt_central.Write(
+                self.__tag_info_service_uuid, self.__device_name_characteristic_uuid,
+                bytes(req.map_url, encoding='utf-8'), True):
+            res.result = True
+        else:
+            res.result = False
         return res
