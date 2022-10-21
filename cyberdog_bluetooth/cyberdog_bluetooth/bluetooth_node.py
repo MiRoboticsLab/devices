@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import struct
 import threading
 
@@ -108,6 +109,8 @@ class BluetoothNode(Node, DefaultDelegate):
             SaveMap, 'change_ble_device_name', self.__changeBLEDeviceName,
             callback_group=self.__siglethread_callback_group)
         self.__poll_mutex = threading.Lock()
+        self.__delete_history_server = self.create_service(
+            SaveMap, 'delete_ble_devices_history', self.__deleteHistoryCB)
 
     def __scan_callback(self, req, res):
         if abs(req.scan_seconds) < 0.001:  # get history device info
@@ -120,6 +123,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.name = dev_info['name']
                 info.addr_type = dev_info['addr_type']
                 info.device_type = dev_info['device_type']
+                info.firmware_version = dev_info['firmware_version']
+                info.battery_level = 0.0
                 res.device_info_list.append(info)
         elif not self.__bt_central.IsConnected():  # scan device info
             for dev_info in self.__bt_central.Scan(req.scan_seconds):
@@ -127,6 +132,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.mac = dev_info.mac
                 info.name = dev_info.name
                 info.addr_type = dev_info.addrType
+                info.firmware_version = ''
+                info.battery_level = 0.0
                 res.device_info_list.append(info)
         else:
             for dev_info in self.__bt_central.GetPeripheralList():
@@ -134,6 +141,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.mac = dev_info.mac
                 info.name = dev_info.name
                 info.addr_type = dev_info.addrType
+                info.firmware_version = self.__firmware_version
+                info.battery_level = self.__battery_level_float
                 res.device_info_list.append(info)
         return res
 
@@ -266,7 +275,8 @@ class BluetoothNode(Node, DefaultDelegate):
                         'mac': req.selected_device.mac,
                         'name': req.selected_device.name,
                         'addr_type': req.selected_device.addr_type,
-                        'device_type': self.__connected_tag_type}
+                        'device_type': self.__connected_tag_type,
+                        'firmware_version': self.__firmware_version}
                     self.__updateHistoryFile(new_connection)
             else:
                 res.result = 1
@@ -494,9 +504,15 @@ class BluetoothNode(Node, DefaultDelegate):
         history_list = yaml_parser.YamlParser.GetYamlData(self.__history_ble_list_file)
         if history_list is None:
             history_list = []
+        i = 0
+        found = False
         for info in history_list:
             if new_ble_info['mac'] == info['mac']:
-                return True
+                found = True
+                break
+            i += 1
+        if found:
+            del history_list[i]
         history_list.append(new_ble_info)
         return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
 
@@ -553,3 +569,27 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __joyPollingY(self, handel):
         self.__joyPollingCB(handel, False)
+
+    def __deleteHistory(self, mac):
+        history_info_list = self.__getHistoryConnectionInfo()
+        if history_info_list is None:
+            return False
+        if mac == '':
+            os.remove(self.__history_ble_list_file)
+            return True
+        i = 0
+        found = False
+        for dev_info in history_info_list:
+            if dev_info['mac'] == mac:
+                found = True
+                break
+            i += 1
+        if found:
+            del history_info_list[i]
+            return yaml_parser.YamlParser.GenerateYamlDoc(
+                history_info_list, self.__history_ble_list_file)
+        return False
+
+    def __deleteHistoryCB(self, req, res):
+        res.result = self.__deleteHistory(req.map_url)
+        return res
