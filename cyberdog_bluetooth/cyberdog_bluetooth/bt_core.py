@@ -238,12 +238,16 @@ class BluetoothCore:
             result = 3
             self.__connected = False
             self.__peripheral_name = ''
-            print('BTLEDisconnectError:', e, 'BLE device is disconnected unexpected!')
+            print(
+                'BTLEDisconnectError:', e,
+                'BLE device is disconnected unexpected while waiting for notification')
         except AttributeError as e:
             result = 3
             self.__connected = False
             self.__peripheral_name = ''
-            print('AttributeError:', e, 'BLE device is disconnected unexpected!')
+            print(
+                'AttributeError:', e,
+                'BLE device is disconnected unexpected while waiting for notification')
         return result
 
     def GetPeripheralList(self):
@@ -253,14 +257,21 @@ class BluetoothCore:
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
         except BTLEDisconnectError as e:
-            print('BTLEDisconnectError:', e, peripheral_info.mac)
+            print(
+                'BTLEDisconnectError:', e,
+                'BLE device is disconnected unexpected while connecting')
             return False
         except ValueError as e:
-            print('ValueError:', e, peripheral_info.mac)
+            print(
+                'ValueError:', e,
+                'BLE device is disconnected unexpected while connecting')
             return False
         except BTLEInternalError as e:
-            print('BTLEInternalError:', e, peripheral_info.mac)
+            print(
+                'BTLEInternalError:', e,
+                'BLE device is disconnected unexpected while connecting')
             return False
+        # self.__peripheral.setMTU(512)  # set buffer size
         self.__connected = True
         self.__peripheral_name = peripheral_info.name
         return True
