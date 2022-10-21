@@ -120,6 +120,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.name = dev_info['name']
                 info.addr_type = dev_info['addr_type']
                 info.device_type = dev_info['device_type']
+                info.firmware_version = ''
+                info.battery_level = 0.0
                 res.device_info_list.append(info)
         elif not self.__bt_central.IsConnected():  # scan device info
             for dev_info in self.__bt_central.Scan(req.scan_seconds):
@@ -127,6 +129,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.mac = dev_info.mac
                 info.name = dev_info.name
                 info.addr_type = dev_info.addrType
+                info.firmware_version = ''
+                info.battery_level = 0.0
                 res.device_info_list.append(info)
         else:
             for dev_info in self.__bt_central.GetPeripheralList():
@@ -134,6 +138,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.mac = dev_info.mac
                 info.name = dev_info.name
                 info.addr_type = dev_info.addrType
+                info.firmware_version = self.__firmware_version
+                info.battery_level = self.__battery_level_float
                 res.device_info_list.append(info)
         return res
 
