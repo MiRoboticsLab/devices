@@ -108,6 +108,8 @@ class BluetoothNode(Node, DefaultDelegate):
             SaveMap, 'change_ble_device_name', self.__changeBLEDeviceName,
             callback_group=self.__siglethread_callback_group)
         self.__poll_mutex = threading.Lock()
+        self.__delete_history_server = self.create_service(
+            SaveMap, 'delete_ble_devices_history', self.__deleteHistoryCB)
 
     def __scan_callback(self, req, res):
         if abs(req.scan_seconds) < 0.001:  # get history device info
@@ -559,3 +561,24 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __joyPollingY(self, handel):
         self.__joyPollingCB(handel, False)
+
+    def __deleteHistory(self, mac):
+        history_info_list = self.__getHistoryConnectionInfo()
+        if history_info_list is None:
+            return False
+        i = 0
+        found = False
+        for dev_info in history_info_list:
+            if dev_info['mac'] == mac:
+                found = True
+                break
+            i += 1
+        if found:
+            del history_info_list[i]
+            return yaml_parser.YamlParser.GenerateYamlDoc(
+                history_info_list, self.__history_ble_list_file)
+        return False
+
+    def __deleteHistoryCB(self, req, res):
+        res.result = self.__deleteHistory(req.map_url)
+        return res
