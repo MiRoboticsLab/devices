@@ -167,12 +167,12 @@ class BluetoothNode(Node, DefaultDelegate):
                         res.result = 0
                         self.__connecting = False
                         return res
-            self.__bt_central.SetNotificationDelegate(self)
             self.__connect_timeout_timer.reset()
             if self.__bt_central.ConnectToBLE(
                     req.selected_device.mac,
                     req.selected_device.name,
                     req.selected_device.addr_type):
+                self.__bt_central.SetNotificationDelegate(self)
                 try:
                     self.__getTagType()
                     self.__getTagFirmwareVersion()
