@@ -176,6 +176,12 @@ class BluetoothNode(Node, DefaultDelegate):
                         res.result = 0
                         self.__connecting = False
                         return res
+                    else:
+                        self.__notification_timer.cancel()
+                        self.__uwb_disconnect_accepted = 3
+                        self.__connectUWB(False)
+                        res.result = self.__waitForUWBResponse(False)
+                        self.__disconnectPeripheral()
             self.__connect_timeout_timer.reset()
             if self.__bt_central.ConnectToBLE(
                     req.selected_device.mac,
@@ -398,12 +404,15 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__bt_central.Disconnect()
         self.__connected_tag_type = 0
         self.__firmware_version = ''
+        self.__tryToReleaseMutex(self.__notification_map_mutex)
         self.__notification_map_mutex.acquire()
         self.__character_handle_dic.clear()
         self.__notification_map_mutex.release()
+        self.__tryToReleaseMutex(self.__polling_map_mutex)
         self.__polling_map_mutex.acquire()
         self.__timer_polling_handle_dic.clear()
         self.__polling_map_mutex.release()
+        self.__tryToReleaseMutex(self.__poll_mutex)
 
     def __notificationTimerCB(self):
         if self.__connecting or not self.__bt_central.IsConnected():
@@ -417,20 +426,20 @@ class BluetoothNode(Node, DefaultDelegate):
             print(
                 'BTLEDisconnectError:', e,
                 'BLE device is disconnected unexpected while timer polling')
-            self.__polling_map_mutex.release()
             self.__disconnectUnexpectedly()
+            return
         except ValueError as e:
             print(
                 'ValueError:', e,
                 'BLE device is disconnected unexpected while timer polling')
-            self.__polling_map_mutex.release()
             self.__disconnectUnexpectedly()
+            return
         except BTLEInternalError as e:
             print(
                 'BTLEInternalError:', e,
                 'BLE device is disconnected unexpected while timer polling')
-            self.__polling_map_mutex.release()
             self.__disconnectUnexpectedly()
+            return
         self.__joystick_mutex.acquire()
         if self.__joystick_update:
             joy_msg = Joy()
@@ -593,3 +602,7 @@ class BluetoothNode(Node, DefaultDelegate):
     def __deleteHistoryCB(self, req, res):
         res.result = self.__deleteHistory(req.map_url)
         return res
+
+    def __tryToReleaseMutex(self, mutex):
+        mutex.acquire(blocking=False)
+        mutex.release()
