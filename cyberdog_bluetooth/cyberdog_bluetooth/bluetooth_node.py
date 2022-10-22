@@ -138,6 +138,7 @@ class BluetoothNode(Node, DefaultDelegate):
             res.device_info_list = self.__getLatestScanResult()
         else:  # get latest scan result
             res.device_info_list = self.__getLatestScanResult()
+        self.__removeCurrentConnectionFromList(res.device_info_list)
         return res
 
     def __getLatestScanResult(self):
@@ -520,14 +521,20 @@ class BluetoothNode(Node, DefaultDelegate):
         if history_list is None:
             history_list = []
         i = 0
-        found = False
+        found = 0
         for info in history_list:
             if new_ble_info['mac'] == info['mac']:
-                found = True
+                if new_ble_info['name'] == info['name'] and\
+                        new_ble_info['firmware_version'] == info['firmware_version']:
+                    found = 2
+                else:
+                    found = 1
                 break
             i += 1
-        if found:
+        if found == 1:
             del history_list[i]
+        elif found == 2:
+            return True
         history_list.append(new_ble_info)
         return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
 
@@ -614,3 +621,20 @@ class BluetoothNode(Node, DefaultDelegate):
     def __tryToReleaseMutex(self, mutex):
         mutex.acquire(blocking=False)
         mutex.release()
+
+    def __removeCurrentConnectionFromList(self, info_list):
+        if not self.__bt_central.IsConnected():
+            return
+        connection_info = self.__bt_central.GetPeripheralInfo()
+        if connection_info is None:
+            return
+        mac, name, addr_type = connection_info
+        i = 0
+        found = False
+        for info in info_list:
+            if info.mac == mac:
+                found = True
+                break
+            i += 1
+        if found:
+            del info_list[i]
