@@ -18,7 +18,8 @@ import os
 import struct
 import threading
 
-from bluepy.btle import BTLEDisconnectError, BTLEInternalError, DefaultDelegate, UUID
+from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
+    DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
 from protocol.msg import BLEInfo
 from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
@@ -270,6 +271,9 @@ class BluetoothNode(Node, DefaultDelegate):
                 except ValueError as e:
                     print('ValueError:', e, 'Disconnected unexpected while registering!')
                     res.result = 1
+                except BTLEGattError as e:
+                    print('BTLEGattError:', e, 'Disconnected unexpected while registering!')
+                    res.result = 1
                 if res.result == 1:
                     self.__disconnectPeripheral()
                     self.__tryToReleaseMutex(self.__scan_mutex)
@@ -452,6 +456,12 @@ class BluetoothNode(Node, DefaultDelegate):
         except BTLEInternalError as e:
             print(
                 'BTLEInternalError:', e,
+                'BLE device is disconnected unexpected while timer polling')
+            self.__disconnectUnexpectedly()
+            return
+        except BTLEGattError as e:
+            print(
+                'BTLEGattError:', e,
                 'BLE device is disconnected unexpected while timer polling')
             self.__disconnectUnexpectedly()
             return
