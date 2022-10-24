@@ -80,7 +80,6 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__timeout_timer = self.create_timer(
             10.0, self.__timeoutCB, callback_group=self.__multithread_callback_group)
         self.__timeout_timer.cancel()
-        self.__timeout_mutex = threading.Lock()
         self.__timeout = False
         self.__battery_volume_pub = self.create_publisher(BatteryState, 'band_battery', 2)
         self.__battery_level_float = 0.0
@@ -135,10 +134,10 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__bt_central.Scan(req.scan_seconds)
                 self.__getLatestScanResult()
                 self.__removeHistoryFromList(self.__local_scan_result_list)
-                self.__scan_mutex.release()
-            else:  # got scan request when scanning
+                self.__tryToReleaseMutex(self.__scan_mutex)
+            else:  # got scan request while scanning
                 self.__scan_mutex.acquire()
-                self.__scan_mutex.release()
+                self.__tryToReleaseMutex(self.__scan_mutex)
             res.device_info_list = self.__local_scan_result_list
         else:  # get latest scan result
             self.__getLatestScanResult()
@@ -165,6 +164,7 @@ class BluetoothNode(Node, DefaultDelegate):
             res.result = 1
             return
         self.__connecting = True
+        self.__scan_mutex.acquire()
         if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
             if not self.__bt_central.IsConnected():
                 res.result = 3
@@ -175,6 +175,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 res.result = self.__waitForUWBResponse(False)
                 if res.result != 0 and self.__bt_central.IsConnected():
                     self.__notification_timer.reset()
+                    self.__tryToReleaseMutex(self.__scan_mutex)
                     self.__connecting = False
                     return res
                 self.__disconnectPeripheral()
@@ -186,6 +187,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     mac, name, addr_type = connection_info
                     if mac == req.selected_device.mac:
                         res.result = 0
+                        self.__tryToReleaseMutex(self.__scan_mutex)
                         self.__connecting = False
                         return res
                     else:
@@ -210,6 +212,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         print(req.selected_device.device_name, 'is not a cyberdog device!')
                         res.result = 1
                         self.__disconnectPeripheral()
+                        self.__tryToReleaseMutex(self.__scan_mutex)
                         self.__connecting = False
                         return res
                     tx_handle = self.__bt_central.SetNotificationByUUID(  # TX char
@@ -231,6 +234,7 @@ class BluetoothNode(Node, DefaultDelegate):
                             if battery_first_time_reading is None:
                                 res.result = 1
                                 self.__disconnectPeripheral()
+                                self.__tryToReleaseMutex(self.__scan_mutex)
                                 self.__connecting = False
                                 return res
                             self.__publishBatteryLevel(battery_first_time_reading)
@@ -268,6 +272,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     res.result = 1
                 if res.result == 1:
                     self.__disconnectPeripheral()
+                    self.__tryToReleaseMutex(self.__scan_mutex)
                     self.__connecting = False
                     return res
                 if self.__uwb_mac_session_id_client.wait_for_service(timeout_sec=3.0):
@@ -298,25 +303,26 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__updateHistoryFile(new_connection)
             else:
                 res.result = 1
+        self.__tryToReleaseMutex(self.__scan_mutex)
         self.__connecting = False
         return res
 
     def __registNotificationCallback(self, handle, callback):
         self.__notification_map_mutex.acquire()
         self.__character_handle_dic[handle] = callback
-        self.__notification_map_mutex.release()
+        self.__tryToReleaseMutex(self.__notification_map_mutex)
 
     def __registTimerPollingCallback(self, handle, callback):
         self.__polling_map_mutex.acquire()
         self.__timer_polling_handle_dic[handle] = callback
-        self.__polling_map_mutex.release()
+        self.__tryToReleaseMutex(self.__polling_map_mutex)
 
     def handleNotification(self, cHandle, data):
         print('receive data from characteristic', cHandle)
         self.__notification_map_mutex.acquire()
         if cHandle in self.__character_handle_dic:
             self.__character_handle_dic[cHandle](data)
-        self.__notification_map_mutex.release()
+        self.__tryToReleaseMutex(self.__notification_map_mutex)
 
     def __publishBatteryLevel(self, data):
         if data is None:
@@ -394,7 +400,7 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__uwb_connect_accepted = data[9]
         elif data[7] == 0x02:  # disconnect uwb response
             self.__uwb_disconnect_accepted = data[9]
-        self.__uart_data_mutex.release()
+        self.__tryToReleaseMutex(self.__uart_data_mutex)
 
     def __joystickXCB(self, data):
         self.__joystickCB(True, data)
@@ -409,22 +415,19 @@ class BluetoothNode(Node, DefaultDelegate):
         else:
             self.__joystick_y = struct.unpack('f', data)[0]
         self.__joystick_update = True
-        self.__joystick_mutex.release()
+        self.__tryToReleaseMutex(self.__joystick_mutex)
 
     def __disconnectPeripheral(self):
         self.__notification_timer.cancel()
+        self.__notification_map_mutex.acquire()
+        self.__character_handle_dic.clear()
+        self.__tryToReleaseMutex(self.__notification_map_mutex)
+        self.__polling_map_mutex.acquire()
+        self.__timer_polling_handle_dic.clear()
+        self.__tryToReleaseMutex(self.__polling_map_mutex)
         self.__bt_central.Disconnect()
         self.__connected_tag_type = 0
         self.__firmware_version = ''
-        self.__tryToReleaseMutex(self.__notification_map_mutex)
-        self.__notification_map_mutex.acquire()
-        self.__character_handle_dic.clear()
-        self.__notification_map_mutex.release()
-        self.__tryToReleaseMutex(self.__poll_mutex)
-        self.__tryToReleaseMutex(self.__polling_map_mutex)
-        self.__polling_map_mutex.acquire()
-        self.__timer_polling_handle_dic.clear()
-        self.__polling_map_mutex.release()
 
     def __notificationTimerCB(self):
         if self.__connecting or not self.__bt_central.IsConnected():
@@ -433,7 +436,7 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__polling_map_mutex.acquire()
             for key, fun in self.__timer_polling_handle_dic.items():
                 fun(key)
-            self.__polling_map_mutex.release()
+            self.__tryToReleaseMutex(self.__polling_map_mutex)
         except BTLEDisconnectError as e:
             print(
                 'BTLEDisconnectError:', e,
@@ -459,10 +462,10 @@ class BluetoothNode(Node, DefaultDelegate):
             joy_msg.axes.append(self.__joystick_y)
             self.__joystick_pub.publish(joy_msg)
             self.__joystick_update = False
-        self.__joystick_mutex.release()
+        self.__tryToReleaseMutex(self.__joystick_mutex)
         self.__poll_mutex.acquire()
         notified = self.__bt_central.WaitForNotifications(0.02)
-        self.__poll_mutex.release()
+        self.__tryToReleaseMutex(self.__poll_mutex)
         if notified == 3:
             self.__disconnectUnexpectedly()
             return
@@ -470,15 +473,15 @@ class BluetoothNode(Node, DefaultDelegate):
             return
 
     def __disconnectUnexpectedly(self):
+        self.__tryToReleaseMutex(self.__poll_mutex)
+        self.__tryToReleaseMutex(self.__polling_map_mutex)
         self.__disconnectPeripheral()
         disconnect_msg = Bool()
         disconnect_msg.data = True
         self.__disconnect_unexpectedly_pub.publish(disconnect_msg)
 
     def __timeoutCB(self):
-        self.__timeout_mutex.acquire()
         self.__timeout = True
-        self.__timeout_mutex.release()
         self.__timeout_timer.cancel()
 
     def __waitForUWBResponse(self, connect: bool):
@@ -487,12 +490,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__timeout_timer.reset()
         result = 2
         while not got_uwb_response:
-            self.__timeout_mutex.acquire()
             got_uwb_response = self.__timeout
-            self.__timeout_mutex.release()
             self.__poll_mutex.acquire()
             wait_status = self.__bt_central.WaitForNotifications(0.05)
-            self.__poll_mutex.release()
+            self.__tryToReleaseMutex(self.__poll_mutex)
             if wait_status == 0:
                 self.__uart_data_mutex.acquire()
                 if self.__uart_received:
@@ -513,7 +514,7 @@ class BluetoothNode(Node, DefaultDelegate):
                                 result = 2
                             self.__uwb_disconnect_accepted = 3
                             got_uwb_response = True
-                self.__uart_data_mutex.release()
+                self.__tryToReleaseMutex(self.__uart_data_mutex)
             elif wait_status == 3:
                 break
         return result
@@ -587,7 +588,7 @@ class BluetoothNode(Node, DefaultDelegate):
     def __joyPollingCB(self, handel, x_or_y):
         self.__poll_mutex.acquire()
         data = self.__bt_central.ReadCharacteristicByHandle(handel)
-        self.__poll_mutex.release()
+        self.__tryToReleaseMutex(self.__poll_mutex)
         if x_or_y:
             self.__joystickXCB(data)
         else:
