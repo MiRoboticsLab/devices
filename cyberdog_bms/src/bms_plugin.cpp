@@ -347,7 +347,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
 
   message.batt_soc = can_data.battery_status[0];
   message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
-  message.batt_curr = (can_data.battery_status[3] | can_data.battery_status[4] << 8);
+  message.batt_curr = (can_data.battery_status[4] | can_data.battery_status[3] << 8);
   message.batt_temp = can_data.battery_status[5];
   message.batt_loop_number = (can_data.battery_status[8] | can_data.battery_status[9] << 8);
   message.batt_health = can_data.battery_status[10];
