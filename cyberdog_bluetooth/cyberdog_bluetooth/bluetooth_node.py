@@ -70,6 +70,7 @@ class BluetoothNode(Node, DefaultDelegate):
             BLEScan, 'scan_bluetooth_devices', self.__scan_callback,
             callback_group=self.__multithread_callback_group)
         self.__scan_mutex = threading.Lock()
+        self.__local_scan_result_list = []
         self.__connect_server = self.create_service(
             BLEConnect, 'connect_bluetooth_device', self.__connect_callback,
             callback_group=self.__multithread_callback_group)
@@ -128,21 +129,25 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.firmware_version = dev_info['firmware_version']
                 info.battery_level = 0.0
                 res.device_info_list.append(info)
+            self.__removeCurrentConnectionFromList(res.device_info_list)
         elif not self.__bt_central.IsConnected():  # scan device info
             if self.__scan_mutex.acquire(blocking=False):
                 self.__bt_central.Scan(req.scan_seconds)
+                self.__getLatestScanResult()
+                self.__removeHistoryFromList(self.__local_scan_result_list)
                 self.__scan_mutex.release()
-            else:
+            else:  # got scan request when scanning
                 self.__scan_mutex.acquire()
                 self.__scan_mutex.release()
-            res.device_info_list = self.__getLatestScanResult()
+            res.device_info_list = self.__local_scan_result_list
         else:  # get latest scan result
-            res.device_info_list = self.__getLatestScanResult()
-        self.__removeCurrentConnectionFromList(res.device_info_list)
+            self.__getLatestScanResult()
+            self.__removeHistoryFromList(self.__local_scan_result_list)
+            res.device_info_list = self.__local_scan_result_list
         return res
 
     def __getLatestScanResult(self):
-        info_list = []
+        self.__local_scan_result_list.clear()
         for dev_info in self.__bt_central.GetPeripheralList():
             info = BLEInfo()
             info.mac = dev_info.mac
@@ -150,8 +155,8 @@ class BluetoothNode(Node, DefaultDelegate):
             info.addr_type = dev_info.addrType
             info.firmware_version = ''
             info.battery_level = 0.0
-            info_list.append(info)
-        return info_list
+            self.__local_scan_result_list.append(info)
+        return self.__local_scan_result_list
 
     def __connect_callback(self, req, res):
         print('__connect_callback')
@@ -415,11 +420,11 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__notification_map_mutex.acquire()
         self.__character_handle_dic.clear()
         self.__notification_map_mutex.release()
+        self.__tryToReleaseMutex(self.__poll_mutex)
         self.__tryToReleaseMutex(self.__polling_map_mutex)
         self.__polling_map_mutex.acquire()
         self.__timer_polling_handle_dic.clear()
         self.__polling_map_mutex.release()
-        self.__tryToReleaseMutex(self.__poll_mutex)
 
     def __notificationTimerCB(self):
         if self.__connecting or not self.__bt_central.IsConnected():
@@ -456,7 +461,7 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__joystick_update = False
         self.__joystick_mutex.release()
         self.__poll_mutex.acquire()
-        notified = self.__bt_central.WaitForNotifications(0.04)
+        notified = self.__bt_central.WaitForNotifications(0.02)
         self.__poll_mutex.release()
         if notified == 3:
             self.__disconnectUnexpectedly()
@@ -619,8 +624,10 @@ class BluetoothNode(Node, DefaultDelegate):
         return res
 
     def __tryToReleaseMutex(self, mutex):
-        mutex.acquire(blocking=False)
-        mutex.release()
+        try:
+            mutex.release()
+        except RuntimeError as re:
+            print('RuntimeError:', re)
 
     def __removeCurrentConnectionFromList(self, info_list):
         if not self.__bt_central.IsConnected():
@@ -638,3 +645,21 @@ class BluetoothNode(Node, DefaultDelegate):
             i += 1
         if found:
             del info_list[i]
+
+    def __removeHistoryFromList(self, info_list):
+        history_list = self.__getHistoryConnectionInfo()
+        if not history_list:
+            return
+        i = 0
+        found = []
+        for info in info_list:
+            for info_h in history_list:
+                if info.mac == info_h['mac']:
+                    found.append(i)
+                    break
+            i += 1
+        j = 0
+        if found:
+            for numb in found:
+                del info_list[numb - j]
+                j += 1
