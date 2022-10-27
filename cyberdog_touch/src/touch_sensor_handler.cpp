@@ -158,6 +158,7 @@ int TouchSensorHandler::openInput(void)
   struct dirent * de;
   dir = opendir(dirname);
   if (dir == NULL) {
+    INFO("[device:touch]: opendir error code: %d,%s", errno, strerror(errno));
     return -1;
   }
 
@@ -194,6 +195,7 @@ int TouchSensorHandler::openInput(void)
       }
     } else {
       // printf(" input device open failed(%s)(%d)\n", devname, fd);
+      INFO("[device:touch]: opendir error code: %d,%s", errno, strerror(errno));
       INFO(" input device open failed(%s)(%d)", devname, fd);
     }
   }
