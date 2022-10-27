@@ -47,7 +47,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__battery_service_uuid = UUID(0x180F)
         self.__battery_level_characteristic_uuid = UUID(0x2A19)
         self.__GATT_service_uuid = UUID(0x180A)
-        self.__software_version_characteristic_uuid = UUID(0x2A28)
+        self.__software_version_characteristic_uuid = UUID(0x2A26)
         self.__tag_info_service_uuid = UUID('17b90201-3f76-7dba-4ad8-2f37edb7510b')
         self.__tag_type_characteristic_uuid = UUID('17b90202-3f76-7dba-4ad8-2f37edb7510b')
         self.__device_name_characteristic_uuid = UUID('17b90203-3f76-7dba-4ad8-2f37edb7510b')
