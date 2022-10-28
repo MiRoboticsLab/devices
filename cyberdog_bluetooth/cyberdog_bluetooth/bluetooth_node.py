@@ -95,7 +95,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joystick_y = 0.0
         self.__joystick_mutex = threading.Lock()
         self.__joystick_update = False
-        self.__history_ble_list_file = '/home/mi/known_bles.yaml'
+        self.__history_ble_list_file = '/home/mi/.cyberdog/known_bles.yaml'
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
