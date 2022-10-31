@@ -260,6 +260,13 @@ class BluetoothCore:
             print(
                 'BTLEGattError:', e,
                 'BLE device is disconnected unexpected while waiting for notification')
+        except BTLEInternalError as e:
+            result = 3
+            self.__connected = False
+            self.__peripheral_name = ''
+            print(
+                'BTLEInternalError:', e,
+                'BLE device is disconnected unexpected while waiting for notification')
         return result
 
     def GetPeripheralList(self):
