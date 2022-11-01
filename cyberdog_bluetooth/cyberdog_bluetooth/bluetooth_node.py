@@ -659,19 +659,23 @@ class BluetoothNode(Node, DefaultDelegate):
             servo_cmd = MotionServoCmd()
             servo_cmd.motion_id = self.__motion_id
             servo_cmd.cmd_type = 1
-            servo_cmd.step_height[0] = 0.05
-            servo_cmd.step_height[1] = 0.05
+            servo_cmd.step_height.append(0.05)
+            servo_cmd.step_height.append(0.05)
+            servo_cmd.vel_des = [0.0, 0.0, 0.0]
             if servo_cmd.motion_id == 303:  # slow
                 if abs(self.__joystick_y) > 5:
                     servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * 0.5
                     self.__remote_moving = True
                 if abs(self.__joystick_x) > 5:
-                    servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * 0.7
+                    servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * 1.0
                     self.__remote_moving = True
                 elif abs(self.__joystick_y) <= 5 and self.__remote_moving:
-                    self.__remote_moving = False
                     servo_cmd.cmd_type = 2
                     servo_cmd.step_height[0] = 0.0
                     servo_cmd.step_height[1] = 0.0
+            if self.__remote_moving:
+                self.__motion_servo_cmd_pub.publish(servo_cmd)
+            if servo_cmd.cmd_type == 2:
+                self.__remote_moving = False
             self.__joystick_update = False
         self.__tryToReleaseMutex(self.__joystick_mutex)
