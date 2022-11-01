@@ -22,7 +22,7 @@ from time import sleep
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
     DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
-from protocol.msg import BLEInfo
+from protocol.msg import BLEInfo, MotionServoCmd
 from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
@@ -93,6 +93,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joystick_y = 0.0
         self.__joystick_mutex = threading.Lock()
         self.__joystick_update = False
+        self.__motion_servo_cmd_pub = self.create_publisher(
+            MotionServoCmd, 'motion_servo_cmd', 100)
+        self.__motion_id = 303
+        self.__remote_moving = False
         self.__history_ble_list_file = '/home/mi/.cyberdog/known_bles.yaml'
         history_dir = self.__history_ble_list_file[0: self.__history_ble_list_file.find(
             self.__history_ble_list_file.split('/')[-1])]
@@ -118,7 +122,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__delete_history_server = self.create_service(
             SaveMap, 'delete_ble_devices_history', self.__deleteHistoryCB)
         self.__joy_pub_timer = self.create_timer(
-            0.05, self.__joyPubTimerCB, callback_group=self.__multithread_callback_group)
+            0.05, self.__joyPubTimerCB, callback_group=self.__siglethread_callback_group)
         self.__joy_pub_timer.cancel()
         self.__notification_thread.start()
 
@@ -652,5 +656,22 @@ class BluetoothNode(Node, DefaultDelegate):
             joy_msg.axes.append(self.__joystick_x)
             joy_msg.axes.append(self.__joystick_y)
             self.__joystick_pub.publish(joy_msg)
+            servo_cmd = MotionServoCmd()
+            servo_cmd.motion_id = self.__motion_id
+            servo_cmd.cmd_type = 1
+            servo_cmd.step_height[0] = 0.05
+            servo_cmd.step_height[1] = 0.05
+            if servo_cmd.motion_id == 303:  # slow
+                if abs(self.__joystick_y) > 5:
+                    servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * 0.5
+                    self.__remote_moving = True
+                if abs(self.__joystick_x) > 5:
+                    servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * 0.7
+                    self.__remote_moving = True
+                elif abs(self.__joystick_y) <= 5 and self.__remote_moving:
+                    self.__remote_moving = False
+                    servo_cmd.cmd_type = 2
+                    servo_cmd.step_height[0] = 0.0
+                    servo_cmd.step_height[1] = 0.0
             self.__joystick_update = False
         self.__tryToReleaseMutex(self.__joystick_mutex)
