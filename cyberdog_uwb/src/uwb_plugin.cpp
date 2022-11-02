@@ -98,6 +98,11 @@ bool UWBCarpo::SelfCheck()
   return true;
 }
 
+bool UWBCarpo::LowPower()
+{
+  return true;
+}
+
 bool UWBCarpo::RegisterTopic(std::function<void(UwbSignleStatusMsg)> function_callback)
 {
   status_function_ = function_callback;

@@ -131,6 +131,7 @@ public:
     std::function<void(UwbSignleStatusMsg)>
     function_callback, bool simulation = false) override;
   bool SelfCheck() override;
+  bool LowPower() override;
   void Play(
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override;
