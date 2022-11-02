@@ -36,6 +36,7 @@ public:
   virtual bool Init(std::function<void(TouchStatusMsg)> f, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
   virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> f) = 0;
+  virtual bool LowPower() = 0;
 };  //  class TouchBasecd
 
 }  //  namespace device

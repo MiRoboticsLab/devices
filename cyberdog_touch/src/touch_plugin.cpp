@@ -52,8 +52,16 @@ bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback, boo
   return initialized_finished_;
 }
 
+bool TouchCarpo::LowPower()
+{
+  return true;
+}
+
 bool TouchCarpo::SelfCheck()
 {
+  if (touch_handler_->openInput() < 0) {
+    return false;
+  }
   return true;
 }
 
