@@ -17,13 +17,16 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "device_manager/device_manager.hpp"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 
 cyberdog::device::DeviceManager::DeviceManager(const std::string & name)
-: manager::ManagerBase(name),
+: cyberdog::machine::MachineActuator(name),
   name_(name)
 {
   node_ptr = rclcpp::Node::make_shared(name_);
+  executor.add_node(node_ptr);
   device_handler_ = std::make_shared<cyberdog::device::DeviceHandler>();
+  heart_beats_ptr_ = std::make_unique<cyberdog::machine::HeartBeatsActuator>("device");
 }
 
 cyberdog::device::DeviceManager::~DeviceManager()
@@ -37,22 +40,67 @@ void cyberdog::device::DeviceManager::Config()
 
 bool cyberdog::device::DeviceManager::Init()
 {
-  if (!device_handler_->Init(node_ptr)) {
-    // error msg
+  auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
+  auto path = local_share_dir + std::string("/toml_config/manager/state_machine_config.toml");
+  if (!this->MachineActuatorInit(
+      path,
+      node_ptr))
+  {
+    ERROR("Init failed, actuator init error.");
     return false;
   }
-  if (!RegisterStateHandler(node_ptr)) {
-    return false;
-  } else {
-    if (!RegisterInitHandler(node_ptr)) {
-      return false;
-    } else {
-      if (!RegisterHeartbeats(node_ptr)) {
-        return false;
-      }
-    }
-  }
+  this->RegisterStateCallback(SetUp_V, std::bind(&DeviceManager::OnSetUp, this));
+  this->RegisterStateCallback(TearDown_V, std::bind(&DeviceManager::ONTearDown, this));
+  this->RegisterStateCallback(SelfCheck_V, std::bind(&DeviceManager::SelfCheck, this));
+  this->RegisterStateCallback(Active_V, std::bind(&DeviceManager::OnActive, this));
+  this->RegisterStateCallback(DeActive_V, std::bind(&DeviceManager::OnDeActive, this));
+  this->RegisterStateCallback(Protected_V, std::bind(&DeviceManager::OnProtected, this));
+  this->RegisterStateCallback(LowPower_V, std::bind(&DeviceManager::OnLowPower, this));
+  this->RegisterStateCallback(OTA_V, std::bind(&DeviceManager::OnOTA, this));
+  this->RegisterStateCallback(Error_V, std::bind(&DeviceManager::OnError, this));
+  heart_beats_ptr_->HeartBeatRun();
+  INFO("-------------------------------init:heart run and state actuator start");
+  return this->ActuatorStart();
+}
 
+int32_t cyberdog::device::DeviceManager::SelfCheck()
+{
+  return device_handler_->SelfCheck() ? 0 : -1;
+}
+
+void cyberdog::device::DeviceManager::Run()
+{
+  executor.spin();
+  rclcpp::shutdown();
+}
+
+int32_t cyberdog::device::DeviceManager::OnError()
+{
+  ERROR("device on error");
+  return 0;
+}
+
+int32_t cyberdog::device::DeviceManager::OnLowPower()
+{
+  ERROR("device on lowpower");
+  return 0;
+}
+
+int32_t cyberdog::device::DeviceManager::OnSuspend()
+{
+  ERROR("device on suspend");
+  return 0;
+}
+
+int32_t cyberdog::device::DeviceManager::OnProtected()
+{
+  ERROR("on protect");
+  return 0;
+}
+
+int32_t cyberdog::device::DeviceManager::OnActive()
+{
+  INFO("device on active");
   led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
     "led_execute",
     std::bind(
@@ -70,44 +118,35 @@ bool cyberdog::device::DeviceManager::Init()
     std::bind(
       &DeviceManager::UwbServiceCallback, this,
       std::placeholders::_1, std::placeholders::_2));
-
-  return true;
+  return 0;
 }
 
-bool cyberdog::device::DeviceManager::SelfCheck()
+int32_t cyberdog::device::DeviceManager::OnDeActive()
 {
-  return device_handler_->SelfCheck();
+  ERROR("device on deactive");
+  return 0;
 }
 
-void cyberdog::device::DeviceManager::Run()
+int32_t cyberdog::device::DeviceManager::OnSetUp()
 {
-  rclcpp::spin(node_ptr);
-  rclcpp::shutdown();
+  INFO("device on setup");
+  if (!device_handler_->Init(node_ptr)) {
+    // error msg
+    return false;
+  }
+  return 0;
 }
 
-void cyberdog::device::DeviceManager::OnError()
+int32_t cyberdog::device::DeviceManager::ONTearDown()
 {
-  ERROR("on error");
+  ERROR("device on teardown");
+  return 0;
 }
 
-void cyberdog::device::DeviceManager::OnLowPower()
+int32_t cyberdog::device::DeviceManager::OnOTA()
 {
-  ERROR("on lowpower");
-}
-
-void cyberdog::device::DeviceManager::OnSuspend()
-{
-  ERROR("on suspend");
-}
-
-void cyberdog::device::DeviceManager::OnProtected()
-{
-  ERROR("on protect");
-}
-
-void cyberdog::device::DeviceManager::OnActive()
-{
-  ERROR("on active");
+  ERROR("device on ota");
+  return 0;
 }
 
 bool cyberdog::device::DeviceManager::IsStateInvalid()
