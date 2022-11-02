@@ -102,6 +102,7 @@ public:
   virtual void ServiceCommand(
     const std::shared_ptr<protocol::srv::BmsCmd::Request> request,
     std::shared_ptr<protocol::srv::BmsCmd::Response> response);
+  bool LowPower() override;
 
   // Test
   void RunTest();
