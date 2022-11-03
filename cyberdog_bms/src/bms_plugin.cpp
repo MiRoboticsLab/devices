@@ -345,9 +345,14 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   //   INFO("bit%d: %02X", i, can_data.battery_status[i]);
   // }
 
+  INFO_MILLSECONDS(4000, "battery_status[1] = %d", can_data.battery_status[1]);
+  INFO_MILLSECONDS(4000, "battery_status[2] = %d", can_data.battery_status[2]);
+  INFO_MILLSECONDS(4000, "battery_status[3] = %d", can_data.battery_status[3]);
+  INFO_MILLSECONDS(4000, "battery_status[4] = %d", can_data.battery_status[4]);
+
   message.batt_soc = can_data.battery_status[0];
   message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
-  message.batt_curr = (can_data.battery_status[4] | can_data.battery_status[3] << 8);
+  message.batt_curr = (can_data.battery_status[3] | can_data.battery_status[4] << 8);
   message.batt_temp = can_data.battery_status[5];
   message.batt_loop_number = (can_data.battery_status[8] | can_data.battery_status[9] << 8);
   message.batt_health = can_data.battery_status[10];
