@@ -27,6 +27,8 @@ cyberdog::device::DeviceManager::DeviceManager(const std::string & name)
   executor.add_node(node_ptr);
   device_handler_ = std::make_shared<cyberdog::device::DeviceHandler>();
   heart_beats_ptr_ = std::make_unique<cyberdog::machine::HeartBeatsActuator>("device");
+  code_ptr_ = std::make_shared<cyberdog::system::CyberdogCode<DeviceErrorCode>>(
+    cyberdog::system::ModuleCode::kDeviceManager);
 }
 
 cyberdog::device::DeviceManager::~DeviceManager()
@@ -65,7 +67,9 @@ bool cyberdog::device::DeviceManager::Init()
 
 int32_t cyberdog::device::DeviceManager::SelfCheck()
 {
-  return device_handler_->SelfCheck() ? 0 : -1;
+  return device_handler_->SelfCheck() ?
+         code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK) :
+         code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kSelfCheckFailed);
 }
 
 void cyberdog::device::DeviceManager::Run()
@@ -132,9 +136,11 @@ int32_t cyberdog::device::DeviceManager::OnSetUp()
   INFO("device on setup");
   if (!device_handler_->Init(node_ptr)) {
     // error msg
-    return false;
+    ERROR("device setup fail.");
+    return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kFailed);
   }
-  return 0;
+  INFO("device setup success");
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::ONTearDown()

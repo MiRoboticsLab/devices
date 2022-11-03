@@ -26,6 +26,13 @@ namespace cyberdog
 {
 namespace device
 {
+enum class DeviceErrorCode : int32_t
+{
+  kDemoError1 = 21,
+  kDemoError2 = 22,
+  kDemoError3 = 23
+};
+
 class DeviceManager : public cyberdog::machine::MachineActuator
 {
 public:
@@ -72,6 +79,7 @@ private:
   rclcpp::Service<protocol::srv::BmsCmd>::SharedPtr bms_service_ {nullptr};
   rclcpp::Service<protocol::srv::GetUWBMacSessionID>::SharedPtr uwb_service_ {nullptr};
   std::unique_ptr<cyberdog::machine::HeartBeatsActuator> heart_beats_ptr_ {nullptr};
+  std::shared_ptr<cyberdog::system::CyberdogCode<DeviceErrorCode>> code_ptr_ {nullptr};
   rclcpp::executors::MultiThreadedExecutor executor;
 
 private:
