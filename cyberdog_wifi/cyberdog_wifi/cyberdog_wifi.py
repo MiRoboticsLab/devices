@@ -64,18 +64,18 @@ def rescanWifi():
     runCommand('sudo nmcli device wifi rescan')
 
 # do a new wlan connect
-def nmcliConnectWifi(ssid, pwd):
-    runCommand("sudo nmcli device disconnect wlan0")
-    sleep(1.0)
-    cmd = "sudo nmcli device wifi connect '"
+def nmcliConnectWifi(ssid, pwd, timeout=18):
+    cmd = "sudo nmcli --wait " + str(timeout) + " device wifi connect '"
     cmd += ssid
     cmd += "' password '"
     cmd += pwd
     cmd += "'"
+    print(cmd)
     return runCommand(cmd)
 
 def reconnect(ssid):
     cmd = 'sudo nmcli connection up "' + ssid + '"'
+    print(cmd)
     return runCommand(cmd)
 
 
@@ -109,7 +109,7 @@ class CyberdogWifi(Node):
         self.switchMode(init_msg)
 
     def get_connected_ssid(self):
-        """获取wifi名称"""
+        """get wifi ssid"""
         res = subprocess.Popen('nmcli device status | grep wlan0',
             shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result = bytes.decode(res.stdout.read()).strip()
@@ -126,7 +126,7 @@ class CyberdogWifi(Node):
         return res.stdout.read()
 
     def get_wifi_rssi(self):
-        """获取信号强度"""
+        """get signal strength"""
         res = subprocess.Popen('nmcli device wifi | grep "*"',
             shell=True,
             stdout=subprocess.PIPE,
@@ -163,31 +163,44 @@ class CyberdogWifi(Node):
         return rssi
 
     def wifi_connect(self, request, response):
-        """连接wifi的服务处理"""
+        """connect wifi callback"""
+        print('request ssid:', request.ssid, 'request pwd', request.pwd)
         if self.connected_ssid == request.ssid:
             response.result = RESULT_SUCCESS
+            print('ssid is the same!')
         else:
             response.result = RESULT_NO_SSID
             self.updateConnectionList()
             if request.ssid in self.connection_list:
-                if 'successfully' in runCommand(reconnect(request.ssid)):
-                    response.result = RESULT_SUCCESS
-                    return response
-                else:
-                    runCommand('sudo nmcli connection delete "' + request.ssid + '"')
+                print('ssid is in history list')
+                runCommand('sudo nmcli connection delete "' + request.ssid + '"')
             trial_times = 0
             while response.result != RESULT_SUCCESS and trial_times < 3:
+                sleep(1.0)
+                print('Try to connect', request.ssid, 'trial times:', trial_times)
+                timeout = 16 - trial_times
+                connect_res = nmcliConnectWifi(request.ssid, request.pwd, timeout)
+                print(connect_res)
                 response.result = return_connect_status(
-                    nmcliConnectWifi(request.ssid, request.pwd))
+                    connect_res)
+                if response.result == RESULT_ERR_PWD:
+                    print('pass word is error, stop connecting')
+                    break
+                elif response.result == RESULT_NO_SSID and trial_times == 0:
+                    print('Rescan wifi list')
+                    rescanWifi()
+                    sleep(2.0)
+                elif response.result == RESULT_OTHER or response.result == RESULT_INTERRUPT:
+                    print('Not able to connect to ssid', request.ssid, 'now')
+                    break
                 trial_times += 1
+            print('finish tries', trial_times)
             if response.result == RESULT_SUCCESS:
                 self.connected_ssid = request.ssid
-            elif len(self.connected_ssid) != 0:
-                reconnect(self.connected_ssid)
         return response
     
     def timer_callback(self):
-        """定期发布wifi状态"""
+        """publish wifi status periodically"""
         msg = WifiStatus()
         msg.ip = getIP('wlan0')
         if msg.ip != '0.0.0.0':
