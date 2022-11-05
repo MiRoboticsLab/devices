@@ -109,6 +109,11 @@ void BMSCarpo::ServiceCommand(
   response->success = true;
 }
 
+bool BMSCarpo::LowPower()
+{
+  return true;
+}
+
 void BMSCarpo::RunTest()
 {
   // kTest

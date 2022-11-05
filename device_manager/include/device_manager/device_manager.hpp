@@ -19,28 +19,41 @@
 
 #include "manager_base/manager_base.hpp"
 #include "device_manager/device_handler.hpp"
+#include "cyberdog_machine/cyberdog_fs_machine.hpp"
+#include "cyberdog_machine/cyberdog_heartbeats.hpp"
 
 namespace cyberdog
 {
 namespace device
 {
-class DeviceManager : public manager::ManagerBase
+enum class DeviceErrorCode : int32_t
+{
+  kDemoError1 = 21,
+  kDemoError2 = 22,
+  kDemoError3 = 23
+};
+
+class DeviceManager : public cyberdog::machine::MachineActuator
 {
 public:
   explicit DeviceManager(const std::string & name);
   ~DeviceManager();
 
-  void Config() override;
-  bool Init() override;
-  void Run() override;
-  bool SelfCheck() override;
+  void Config();
+  bool Init();
+  void Run();
+  int32_t SelfCheck();
 
 public:
-  void OnError() override;
-  void OnLowPower() override;
-  void OnSuspend() override;
-  void OnProtected() override;
-  void OnActive() override;
+  int32_t OnError();
+  int32_t OnLowPower();
+  int32_t OnSuspend();
+  int32_t OnProtected();
+  int32_t OnActive();
+  int32_t OnDeActive();
+  int32_t OnSetUp();
+  int32_t ONTearDown();
+  int32_t OnOTA();
 
 private:
   bool IsStateInvalid();
@@ -65,6 +78,21 @@ private:
   rclcpp::Service<protocol::srv::LedExecute>::SharedPtr led_service_ {nullptr};
   rclcpp::Service<protocol::srv::BmsCmd>::SharedPtr bms_service_ {nullptr};
   rclcpp::Service<protocol::srv::GetUWBMacSessionID>::SharedPtr uwb_service_ {nullptr};
+  std::unique_ptr<cyberdog::machine::HeartBeatsActuator> heart_beats_ptr_ {nullptr};
+  std::shared_ptr<cyberdog::system::CyberdogCode<DeviceErrorCode>> code_ptr_ {nullptr};
+  rclcpp::executors::MultiThreadedExecutor executor;
+
+private:
+  const std::string Uninitialized_V = std::string("Uninitialized");
+  const std::string SetUp_V = std::string("SetUp");
+  const std::string TearDown_V = std::string("TearDown");
+  const std::string SelfCheck_V = std::string("SelfCheck");
+  const std::string Active_V = std::string("Active");
+  const std::string DeActive_V = std::string("DeActive");
+  const std::string Protected_V = std::string("Protected");
+  const std::string LowPower_V = std::string("LowPower");
+  const std::string OTA_V = std::string("OTA");
+  const std::string Error_V = std::string("Error");
 };  // class DeviceManager
 }  // namespace device
 }  // namespace cyberdog

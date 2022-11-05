@@ -121,6 +121,10 @@ public:
   {
     return true;
   }
+  bool LowPower() override
+  {
+    return true;
+  }
   // 接受client发来的指令；设置线程条件变量
   void Play(
     const std::shared_ptr<protocol::srv::LedExecute::Request> info_request,

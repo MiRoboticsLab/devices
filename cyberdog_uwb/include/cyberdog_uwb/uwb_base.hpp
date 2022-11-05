@@ -40,6 +40,7 @@ public:
     std::function<void(UwbSignleStatusMsg)>
     function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
+  virtual bool LowPower() = 0;
   virtual bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) = 0;
   virtual void Play(

@@ -98,6 +98,11 @@ bool UWBCarpo::SelfCheck()
   return true;
 }
 
+bool UWBCarpo::LowPower()
+{
+  return true;
+}
+
 bool UWBCarpo::RegisterTopic(std::function<void(UwbSignleStatusMsg)> function_callback)
 {
   status_function_ = function_callback;
@@ -378,8 +383,8 @@ void UWBCarpo::HandleCan0Messages(
   std::string & name,
   std::shared_ptr<cyberdog::device::UWBRearData> data)
 {
-  INFO_STREAM("~~~~ can0 uwb callback ~~~~~ ");
-  INFO_STREAM("    name ==   " << name);
+  INFO_STREAM_MILLSECONDS(5000, "~~~~ can0 uwb callback ~~~~~ ");
+  INFO_STREAM_MILLSECONDS(5000, "    name ==   " << name);
 
   if (name == "rear_enable_initial_ack") {
     rear_enable_initial_ = true;
@@ -409,7 +414,7 @@ void UWBCarpo::HandleCan0Messages(
 
   if (rear_tof_turn_on_ && head_turn_on_) {
     if (name == "rear_data_array" || name == "rear_tof_data_array") {
-      INFO("Receive rear data or rear tof data");
+      INFO_MILLSECONDS(5000, "Receive rear data or rear tof data");
 
       // UWB data
       float dist = data->rear_data_array[0] + (data->rear_data_array[1] << 8);
@@ -441,23 +446,23 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
 
-      INFO_MILLSECONDS(3000, "--------------------[UWB]----------------------");
-      INFO_MILLSECONDS(3000, "%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
-      INFO_MILLSECONDS(3000, "Current dist : %f", dist);
-      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle));
-      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos);
-      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1));
-      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2));
+      INFO_MILLSECONDS(5000, "--------------------[UWB]----------------------");
+      INFO_MILLSECONDS(5000, "%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
+      INFO_MILLSECONDS(5000, "Current dist : %f", dist);
+      INFO_MILLSECONDS(5000, "Current angle : %f", format_9_7(angle));
+      INFO_MILLSECONDS(5000, "Current nLos : %f", nLos);
+      INFO_MILLSECONDS(5000, "Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO_MILLSECONDS(5000, "Current rssi_2 : %f", format_8_8(rssi_2));
 
-      INFO_MILLSECONDS(3000, "--------------------[TOF]----------------------");
+      INFO_MILLSECONDS(5000, "--------------------[TOF]----------------------");
       INFO_MILLSECONDS(
-        3000, "%02X, %02X", data->rear_tof_data_array[0],
+        5000, "%02X, %02X", data->rear_tof_data_array[0],
         data->rear_tof_data_array[1]);
-      INFO_MILLSECONDS(3000, "Current dist : %f", dist_tof);
-      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle_tof));
-      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos_tof);
-      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1_tof));
-      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2_tof));
+      INFO_MILLSECONDS(5000, "Current dist : %f", dist_tof);
+      INFO_MILLSECONDS(5000, "Current angle : %f", format_9_7(angle_tof));
+      INFO_MILLSECONDS(5000, "Current nLos : %f", nLos_tof);
+      INFO_MILLSECONDS(5000, "Current rssi_1 : %f", format_8_8(rssi_1_tof));
+      INFO_MILLSECONDS(5000, "Current rssi_2 : %f", format_8_8(rssi_2_tof));
     }
   }
 }
@@ -466,8 +471,8 @@ void UWBCarpo::HandleCan1Messages(
   std::string & name,
   std::shared_ptr<cyberdog::device::UWBHeadData> data)
 {
-  INFO_STREAM("~~~~ can1 uwb callback ~~~~~ ");
-  INFO_STREAM("    name ==   " << name);
+  INFO_STREAM_MILLSECONDS(5000, "~~~~ can1 uwb callback ~~~~~ ");
+  INFO_STREAM_MILLSECONDS(5000, "    name ==   " << name);
 
   if (name == "head_enable_initial_ack") {
     head_enable_initial_ = true;
@@ -497,7 +502,7 @@ void UWBCarpo::HandleCan1Messages(
 
   if (head_tof_turn_on_ && head_turn_on_) {
     if (name == "head_data_array" || name == "head_tof_data_array") {
-      INFO("Receive head data or head tof data.");
+      INFO_MILLSECONDS(5000, "Receive head data or head tof data.");
 
       // UWB data
       float dist = data->head_data_array[0] + (data->head_data_array[1] << 8);
@@ -529,23 +534,23 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
 
-      INFO_MILLSECONDS(3000, "--------------------[UWB]----------------------");
-      INFO_MILLSECONDS(3000, "%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
-      INFO_MILLSECONDS(3000, "Current dist : %f", dist);
-      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle));
-      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos);
-      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1));
-      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2));
+      INFO_MILLSECONDS(5000, "--------------------[UWB]----------------------");
+      INFO_MILLSECONDS(5000, "%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
+      INFO_MILLSECONDS(5000, "Current dist : %f", dist);
+      INFO_MILLSECONDS(5000, "Current angle : %f", format_9_7(angle));
+      INFO_MILLSECONDS(5000, "Current nLos : %f", nLos);
+      INFO_MILLSECONDS(5000, "Current rssi_1 : %f", format_8_8(rssi_1));
+      INFO_MILLSECONDS(5000, "Current rssi_2 : %f", format_8_8(rssi_2));
 
-      INFO_MILLSECONDS(3000, "--------------------[TOF]----------------------");
+      INFO_MILLSECONDS(5000, "--------------------[TOF]----------------------");
       INFO_MILLSECONDS(
         3000, "%02X, %02X", data->head_tof_data_array[0],
         data->head_tof_data_array[1]);
-      INFO_MILLSECONDS(3000, "Current dist : %f", dist_tof);
-      INFO_MILLSECONDS(3000, "Current angle : %f", format_9_7(angle_tof));
-      INFO_MILLSECONDS(3000, "Current nLos : %f", nLos_tof);
-      INFO_MILLSECONDS(3000, "Current rssi_1 : %f", format_8_8(rssi_1_tof));
-      INFO_MILLSECONDS(3000, "Current rssi_2 : %f", format_8_8(rssi_2_tof));
+      INFO_MILLSECONDS(5000, "Current dist : %f", dist_tof);
+      INFO_MILLSECONDS(5000, "Current angle : %f", format_9_7(angle_tof));
+      INFO_MILLSECONDS(5000, "Current nLos : %f", nLos_tof);
+      INFO_MILLSECONDS(5000, "Current rssi_1 : %f", format_8_8(rssi_1_tof));
+      INFO_MILLSECONDS(5000, "Current rssi_2 : %f", format_8_8(rssi_2_tof));
     }
   }
 }
@@ -569,7 +574,7 @@ void UWBCarpo::RunTask()
     auto msg = queue_.back();
 
     // publish msgs
-    INFO("Publish uwb raw mags.");
+    INFO_MILLSECONDS(5000, "Publish uwb raw mags.");
     status_function_(msg);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }

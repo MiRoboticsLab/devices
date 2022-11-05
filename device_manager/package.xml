@@ -19,6 +19,8 @@
   <depend>cyberdog_uwb</depend>
   <depend>cyberdog_touch</depend>
   <depend>pluginlib</depend>
+  <depend>cyberdog_machine</depend>
+  <depend>ament_index_cpp</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

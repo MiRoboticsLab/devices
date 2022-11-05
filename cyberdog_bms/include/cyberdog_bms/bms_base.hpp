@@ -41,6 +41,7 @@ public:
   virtual void ServiceCommand(
     const std::shared_ptr<protocol::srv::BmsCmd::Request> request,
     std::shared_ptr<protocol::srv::BmsCmd::Response> response) = 0;
+  virtual bool LowPower() = 0;
 
 protected:
   BMSBase() {}

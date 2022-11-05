@@ -27,6 +27,8 @@ find_package(cyberdog_led REQUIRED)
 find_package(cyberdog_bms REQUIRED)
 find_package(cyberdog_uwb REQUIRED)
 find_package(cyberdog_touch REQUIRED)
+find_package(cyberdog_machine REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 include_directories(include)
 
@@ -48,6 +50,8 @@ ament_target_dependencies(${PROJECT_NAME}
   cyberdog_uwb
   cyberdog_touch
   pluginlib
+  cyberdog_machine
+  ament_index_cpp
 )
 
 install(TARGETS

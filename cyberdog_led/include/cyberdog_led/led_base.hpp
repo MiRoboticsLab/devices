@@ -32,6 +32,7 @@ public:
   virtual bool Config() = 0;
   virtual bool Init() = 0;
   virtual bool SelfCheck() = 0;
+  virtual bool LowPower() = 0;
   virtual void Play(
     const std::shared_ptr<protocol::srv::LedExecute::Request> info_request,
     std::shared_ptr<protocol::srv::LedExecute::Response> info_response) = 0;

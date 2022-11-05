@@ -60,23 +60,54 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
                sensor_name) != this->simulator_.end());
     };
 
-  return bool(
-    led_ptr->Init() &&
-    touch_ptr->Init(
+  if (!led_ptr->Init()) {
+    ERROR("Led int fail.");
+    return false;
+  }
+  if (!touch_ptr->Init(
       std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1),
-      is_simulator("touch")) &&
-    bms_ptr_->Init(
+      is_simulator("touch")))
+  {
+    ERROR("Touch int fail.");
+    return false;
+  }
+  if (!bms_ptr_->Init(
       std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1),
-      is_simulator("bms")) &&
-    uwb_ptr_->Init(
+      is_simulator("bms")))
+  {
+    ERROR("Bms int fail.");
+    return false;
+  }
+  if (!uwb_ptr_->Init(
       std::bind(&DeviceHandler::PublishUwbMessage, this, std::placeholders::_1),
-      is_simulator("uwb"))
-  );
+      is_simulator("uwb")))
+  {
+    ERROR("Uwb int fail.");
+    return false;
+  }
+  return true;
 }
 
 bool cyberdog::device::DeviceHandler::SelfCheck()
 {
-  return led_ptr->SelfCheck();
+  INFO("DeviceManager SelfCheck begin");
+  if (!led_ptr->SelfCheck()) {
+    ERROR("Led selfcheck fail.");
+    return false;
+  }
+  if (!touch_ptr->SelfCheck()) {
+    ERROR("Touch selfcheck fail.");
+    return false;
+  }
+  if (!bms_ptr_->SelfCheck()) {
+    ERROR("Bms selfcheck fail.");
+    return false;
+  }
+  if (!uwb_ptr_->SelfCheck()) {
+    ERROR("Uwb selfcheck fail.");
+    return false;
+  }
+  return true;
 }
 
 void cyberdog::device::DeviceHandler::ExecuteLed(

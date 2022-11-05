@@ -39,6 +39,7 @@ public:
   virtual bool Init(std::function<void(TouchStatusMsg)> function_callback, bool simulation = false);
   virtual bool SelfCheck();
   virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> function_callback);
+  virtual bool LowPower();
 
 private:
   void RunTouchTask();
