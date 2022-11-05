@@ -41,9 +41,7 @@ bool BMSCarpo::Config()
 bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation)
 {
   RegisterTopic(function_callback);
-  bms_thread_ = std::thread(std::bind(&BMSCarpo::RunBmsTask, this));
-  bms_thread_.detach();
-
+  INFO("[Bms]:bind pub callback");
   simulation_ = simulation;
 
   if (simulation_) {
@@ -58,6 +56,8 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
     return initialized_finished_;
   }
 
+  bms_thread_ = std::thread(std::bind(&BMSCarpo::RunBmsTask, this));
+  bms_thread_.detach();
   INFO("[BMSCarpo]: %s", "BMSCarpo initialize success.");
   return initialized_finished_;
 }
@@ -86,6 +86,7 @@ void BMSCarpo::RunBmsTask()
     // queue_.pop_front();
 
     // Publish bms state
+    INFO_MILLSECONDS(2000, "Pub Bms message");
     status_function_(ros_bms_message_);
 
     // Every one second publish
@@ -176,10 +177,14 @@ void BMSCarpo::SetTestCase(int test_case)
 
 void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data)
 {
+  INFO_STREAM_MILLSECONDS(2000, "[Bms]HandleCallback input string is :" << name);
   // INFO("Function BMSCarpo::HandleBatteryStatusMessages() call.");
   {
     // std::lock_guard<std::mutex> lock(mutex_battery_);
     can_battery_message_ = *data;
+    if (data->battery_status[0] == 0) {
+      WARN("[Bms]No data received from can0");
+    }
     if (name == "battery_status" || name == "normal_status") {
       // INFO("[BmsProcessor]: Receive battery_status message from can.");
       // link BMSStatus data type
@@ -187,6 +192,7 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       std::array<uint8_t, 16> battery_status_data;
       for (size_t i = 0; i < battery_status_data.size(); i++) {
         battery_status_data[i] = data->battery_status[i];
+        // INFO_MILLSECONDS(4000, "[Bms]battery_status_data[%d] = %d", i, data->battery_status[i]);
       }
       // Set value for battery status
       SetBatteryStatus(battery_status_data);
@@ -195,6 +201,7 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       std::array<uint8_t, 6> normal_status_data;
       for (size_t i = 0; i < normal_status_data.size(); i++) {
         normal_status_data[i] = data->normal_status[i];
+        // INFO_MILLSECONDS(4000, "[Bms]nomal_status_data[%d] = %d", i, data->normal_status[i]);
       }
       SetNormalStatus(normal_status_data);
     }
@@ -202,6 +209,9 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
 
   // Convert can message struct to ROS format
   ros_bms_message_ = ToRos(can_battery_message_);
+  if (ros_bms_message_.batt_volt == 0) {
+    WARN("[Bms]: Battery data may be wrong");
+  }
   // auto msg = ToRos(can_battery_message_);
   // queue_.emplace_back(msg);
 }
@@ -345,10 +355,10 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   //   INFO("bit%d: %02X", i, can_data.battery_status[i]);
   // }
 
-  INFO_MILLSECONDS(4000, "battery_status[1] = %d", can_data.battery_status[1]);
-  INFO_MILLSECONDS(4000, "battery_status[2] = %d", can_data.battery_status[2]);
-  INFO_MILLSECONDS(4000, "battery_status[3] = %d", can_data.battery_status[3]);
-  INFO_MILLSECONDS(4000, "battery_status[4] = %d", can_data.battery_status[4]);
+  INFO_MILLSECONDS(4000, "[Bms]battery_status[1] = %d", can_data.battery_status[1]);
+  INFO_MILLSECONDS(4000, "[Bms]battery_status[2] = %d", can_data.battery_status[2]);
+  INFO_MILLSECONDS(4000, "[Bms]battery_status[3] = %d", can_data.battery_status[3]);
+  INFO_MILLSECONDS(4000, "[Bms]battery_status[4] = %d", can_data.battery_status[4]);
 
   message.batt_soc = can_data.battery_status[0];
   message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
@@ -369,7 +379,9 @@ void BMSCarpo::InitializeBmsProtocol()
   // Create Protocol for `BMSStatus` data
   battery_status_ptr_ = std::make_shared<cyberdog::embed::Protocol<BatteryStatus>>(path, false);
 
+  INFO("[Bms]:in InitializeBmsprototocol");
   // link BMSStatus data type
+  std::this_thread::sleep_for(std::chrono::seconds(3));
   battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
   // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->normal_status);
 
