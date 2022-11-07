@@ -372,6 +372,14 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.batt_loop_number = (can_data.battery_status[8] | can_data.battery_status[9] << 8);
   message.batt_health = can_data.battery_status[10];
   message.batt_st = can_data.battery_status[13];
+  message.power_normal = can_data.battery_status[13] & 0x01;
+  message.power_wired_charging = can_data.battery_status[13] >> 1 & 0x01;
+  message.power_finished_charging = can_data.battery_status[13] >> 2 & 0x01;
+  message.power_motor_shutdown = can_data.battery_status[13] >> 3 & 0x01;
+  message.power_soft_shutdown = can_data.battery_status[13] >> 4 & 0x01;
+  message.power_wp_place = can_data.battery_status[13] >> 5 & 0x01;
+  message.poewr_wp_charging = can_data.battery_status[13] >> 6 & 0x01;
+  message.power_expower_supply = can_data.battery_status[13] >> 7 & 0x01;
   return message;
 }
 

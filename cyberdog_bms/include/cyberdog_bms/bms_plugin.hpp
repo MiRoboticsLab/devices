@@ -41,6 +41,7 @@ struct BatteryStatus
   // 00 : normal
   // 01 : abnormal
   std::array<uint8_t, 6> normal_status;
+  // std::array<bool, 8> power_status;
 
   // 0x01(正常模式）
   // 0x02(关闭电机）
