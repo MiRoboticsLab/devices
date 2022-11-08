@@ -86,9 +86,11 @@ void BMSCarpo::RunBmsTask()
     // queue_.pop_front();
 
     // Publish bms state
-    INFO_MILLSECONDS(2000, "Pub Bms message");
-    status_function_(ros_bms_message_);
-
+    if (get_real_data_flag_) {
+      status_function_(ros_bms_message_);
+    } else {
+      INFO("[Bms]: pub bms status faild, No real data received");
+    }
     // Every one second publish
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
@@ -182,13 +184,16 @@ void BMSCarpo::SetTestCase(int test_case)
 
 void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data)
 {
-  INFO_STREAM_MILLSECONDS(2000, "[Bms]HandleCallback input string is :" << name);
+  // INFO_STREAM_MILLSECONDS(2000, "[Bms]HandleCallback input string is :" << name);
   // INFO("Function BMSCarpo::HandleBatteryStatusMessages() call.");
   {
     // std::lock_guard<std::mutex> lock(mutex_battery_);
     can_battery_message_ = *data;
-    if (data->battery_status[0] == 0) {
-      WARN("[Bms]No data received from can0");
+    // 通过电池健康值非0来确定是否收到真实数据
+    if (data->battery_status[10] != 0) {
+      get_real_data_flag_ = true;
+    } else {
+      WARN("[Bms]get bms date error ,bad data received from can0");
     }
     if (name == "battery_status" || name == "normal_status") {
       // INFO("[BmsProcessor]: Receive battery_status message from can.");
@@ -360,11 +365,6 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   //   INFO("bit%d: %02X", i, can_data.battery_status[i]);
   // }
 
-  INFO_MILLSECONDS(4000, "[Bms]battery_status[1] = %d", can_data.battery_status[1]);
-  INFO_MILLSECONDS(4000, "[Bms]battery_status[2] = %d", can_data.battery_status[2]);
-  INFO_MILLSECONDS(4000, "[Bms]battery_status[3] = %d", can_data.battery_status[3]);
-  INFO_MILLSECONDS(4000, "[Bms]battery_status[4] = %d", can_data.battery_status[4]);
-
   message.batt_soc = can_data.battery_status[0];
   message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
   message.batt_curr = (can_data.battery_status[3] | can_data.battery_status[4] << 8);
@@ -378,7 +378,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.power_motor_shutdown = can_data.battery_status[13] >> 3 & 0x01;
   message.power_soft_shutdown = can_data.battery_status[13] >> 4 & 0x01;
   message.power_wp_place = can_data.battery_status[13] >> 5 & 0x01;
-  message.poewr_wp_charging = can_data.battery_status[13] >> 6 & 0x01;
+  message.power_wp_charging = can_data.battery_status[13] >> 6 & 0x01;
   message.power_expower_supply = can_data.battery_status[13] >> 7 & 0x01;
   return message;
 }
