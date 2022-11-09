@@ -103,6 +103,7 @@ class BluetoothNode(Node, DefaultDelegate):
         folder_exist = os.path.exists(history_dir)
         if not folder_exist:
             os.mkdir(history_dir)
+            os.chmod(history_dir, 7 * 8 * 8 + 7 * 8 + 7)
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
