@@ -194,6 +194,7 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       get_real_data_flag_ = true;
     } else {
       WARN("[Bms]get bms date error ,bad data received from can0");
+      return;
     }
     if (name == "battery_status" || name == "normal_status") {
       // INFO("[BmsProcessor]: Receive battery_status message from can.");
