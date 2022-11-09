@@ -306,7 +306,7 @@ int32_t cyberdog::device::LedCarpo::request_legal(
   } else {
     if (info_request->mode == LedExecuteRequest::USER_DEFINED) {
       effect_is_legal = (info_request->effect >= LedExecuteRequest::RGB_ON &&
-        info_request->effect <= LedExecuteRequest::ONE_BY_ONE_FAST);
+        info_request->effect <= LedExecuteRequest::TRAILING_RACE);
       if (effect_is_legal == false) {
         ERROR(
           "rgb led effect only support effect from ON to ONE_BY_ONE_FAST"
