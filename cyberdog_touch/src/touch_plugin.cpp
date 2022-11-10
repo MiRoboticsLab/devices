@@ -104,7 +104,7 @@ void TouchCarpo::RunTouchTask()
         INFO("[TouchCarpo]: touch sensor data received: 0x%x", message.touch_state);
         status_function_(std::move(message));
       }
-      std::this_thread::sleep_for(std::chrono::seconds(2));
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
 }
