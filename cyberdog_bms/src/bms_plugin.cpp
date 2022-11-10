@@ -331,15 +331,6 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.header.stamp.nanosec = time_stu.tv_nsec;
   message.header.stamp.sec = time_stu.tv_sec;
 
-  // v1: 协议
-  // data
-  // battery[0]   : 电量
-  // battery[1]   : 电压
-  // battery[2]   : 电流
-  // battery[3]   : 温度
-  // battery[4-5] : 循环次数
-  // battery[6]   : 健康度
-  // battery[7]   : 状态
   // v2: 协议
   // 协议改动：
   // 电量%  data[0]
@@ -381,6 +372,12 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.power_wp_place = can_data.battery_status[13] >> 5 & 0x01;
   message.power_wp_charging = can_data.battery_status[13] >> 6 & 0x01;
   message.power_expower_supply = can_data.battery_status[13] >> 7 & 0x01;
+
+  static int current_battery_soc = message.batt_soc;
+  if (current_battery_soc != message.batt_soc) {
+    INFO("[Bms]: The current battery level is %d", message.batt_soc);
+    current_battery_soc = message.batt_soc;
+  }
   return message;
 }
 
