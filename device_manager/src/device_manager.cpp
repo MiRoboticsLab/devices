@@ -125,6 +125,10 @@ int32_t cyberdog::device::DeviceManager::OnActive()
         std::placeholders::_1, std::placeholders::_2));
     is_active = true;
   }
+
+  uwb_connection_state_ = node_ptr->create_subscription<std_msgs::msg::Bool>(
+    "uwb_connected", 5,
+    std::bind(&DeviceManager::UwbConnectedCallback, this, std::placeholders::_1));
   return 0;
 }
 
@@ -187,4 +191,10 @@ void cyberdog::device::DeviceManager::UwbServiceCallback(
   protocol::srv::GetUWBMacSessionID_Response::SharedPtr response)
 {
   device_handler_->ExecuteUwb(request, response);
+}
+
+void cyberdog::device::DeviceManager::UwbConnectedCallback(
+  const std_msgs::msg::Bool::ConstPtr msg)
+{
+  device_handler_->UwbConnectionSignal(msg);
 }

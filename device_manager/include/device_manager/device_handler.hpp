@@ -23,6 +23,7 @@
 #include <condition_variable>
 
 #include "std_msgs/msg/int32.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "device_manager/device_config.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
@@ -55,6 +56,8 @@ public:
   void ExecuteUwb(
     const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
     protocol::srv::GetUWBMacSessionID_Response::SharedPtr response);
+  
+  void UwbConnectionSignal(const std_msgs::msg::Bool::SharedPtr msg);
 
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::BmsStatus msg);

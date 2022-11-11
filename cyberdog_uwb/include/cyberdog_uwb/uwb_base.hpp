@@ -34,7 +34,7 @@ class UWBBase
 public:
   using UwbRawStatusMsg = protocol::msg::UwbArray;
   using UwbSignleStatusMsg = protocol::msg::UwbRaw;
-
+  virtual ~UWBBase() {}
   virtual bool Config() = 0;
   virtual bool Init(
     std::function<void(UwbSignleStatusMsg)>
@@ -46,6 +46,7 @@ public:
   virtual void Play(
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) = 0;
+  virtual void SetConnectedState(bool connected) = 0;
 
 protected:
   UWBBase() {}

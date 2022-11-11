@@ -17,6 +17,7 @@
 #include <string>
 #include <memory>
 
+#include "std_msgs/msg/bool.hpp"
 #include "manager_base/manager_base.hpp"
 #include "device_manager/device_handler.hpp"
 #include "cyberdog_machine/cyberdog_fs_machine.hpp"
@@ -71,6 +72,8 @@ private:
     const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
     protocol::srv::GetUWBMacSessionID_Response::SharedPtr response);
 
+  void UwbConnectedCallback(const std_msgs::msg::Bool::ConstPtr msg);
+
 private:
   std::string name_;
   std::shared_ptr<DeviceHandler> device_handler_ {nullptr};
@@ -78,6 +81,7 @@ private:
   rclcpp::Service<protocol::srv::LedExecute>::SharedPtr led_service_ {nullptr};
   rclcpp::Service<protocol::srv::BmsCmd>::SharedPtr bms_service_ {nullptr};
   rclcpp::Service<protocol::srv::GetUWBMacSessionID>::SharedPtr uwb_service_ {nullptr};
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr uwb_connection_state_ {nullptr};
   std::unique_ptr<cyberdog::machine::HeartBeatsActuator> heart_beats_ptr_ {nullptr};
   std::shared_ptr<cyberdog::system::CyberdogCode<DeviceErrorCode>> code_ptr_ {nullptr};
   rclcpp::executors::MultiThreadedExecutor executor;

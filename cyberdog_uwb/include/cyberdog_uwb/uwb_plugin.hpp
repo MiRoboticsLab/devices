@@ -15,6 +15,7 @@
 #ifndef CYBERDOG_UWB__UWB_PLUGIN_HPP_
 #define CYBERDOG_UWB__UWB_PLUGIN_HPP_
 
+#include <shared_mutex>
 #include <array>
 #include <memory>
 #include <string>
@@ -23,6 +24,8 @@
 #include <random>
 #include <mutex>
 #include <deque>
+#include <atomic>
+#include <condition_variable>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -126,6 +129,7 @@ class UWBCarpo : public cyberdog::device::UWBBase
 {
 public:
   UWBCarpo();
+  ~UWBCarpo();
   bool Config() override;
   bool Init(
     std::function<void(UwbSignleStatusMsg)>
@@ -135,6 +139,7 @@ public:
   void Play(
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override;
+  void SetConnectedState(bool connected) override;
   bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) override;
 
@@ -206,6 +211,7 @@ private:
 
   std::mutex mutex_;
   UwbRawStatusMsg ros_uwb_status_;
+  std::shared_mutex raw_data_mutex_0_, raw_data_mutex_1_;
   std::function<void(UwbSignleStatusMsg)> status_function_;
 
   // uwb config parameters
@@ -240,6 +246,9 @@ private:
   // geometry_msgs/msg/pose_stamped
   // std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
   std::deque<UwbSignleStatusMsg> queue_;
+  std::atomic_bool activated_ {false};
+  bool threading_ {false};
+  std::condition_variable cv_;
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog
