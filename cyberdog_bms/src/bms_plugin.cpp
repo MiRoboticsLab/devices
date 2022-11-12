@@ -64,7 +64,8 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
 
 bool BMSCarpo::SelfCheck()
 {
-  return true;
+  INFO("Bms SelfCheck %s", (get_real_data_flag_ ? "successed" : "failed"));
+  return get_real_data_flag_ ? true : false;
 }
 
 bool BMSCarpo::RegisterTopic(std::function<void(BmsStatusMsg)> function_callback)
