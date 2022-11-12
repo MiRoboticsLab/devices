@@ -105,8 +105,7 @@ int32_t cyberdog::device::DeviceManager::OnProtected()
 int32_t cyberdog::device::DeviceManager::OnActive()
 {
   INFO("device on active");
-  if(!is_active)
-  {
+  if (!is_active) {
     led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
       "led_execute",
       std::bind(
