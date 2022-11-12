@@ -72,7 +72,7 @@ private:
     const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
     protocol::srv::GetUWBMacSessionID_Response::SharedPtr response);
 
-  void UwbConnectedCallback(const std_msgs::msg::Bool::ConstPtr msg);
+  void UwbConnectedCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
 private:
   std::string name_;

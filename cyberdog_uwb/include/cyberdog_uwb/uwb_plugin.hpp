@@ -16,6 +16,7 @@
 #define CYBERDOG_UWB__UWB_PLUGIN_HPP_
 
 #include <shared_mutex>
+#include <vector>
 #include <array>
 #include <memory>
 #include <string>
@@ -23,9 +24,12 @@
 #include <chrono>
 #include <random>
 #include <mutex>
+#include <queue>
 #include <deque>
 #include <atomic>
 #include <condition_variable>
+#include <utility>
+#include <tuple>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -115,6 +119,16 @@ struct UWBConnectionInfo
   uint16_t head_uwb_mac;
   uint16_t rear_tof_mac;
   uint16_t rear_uwb_mac;
+};
+
+struct WaitingForResponse
+{
+  explicit WaitingForResponse(int no)
+  : task_no_(no)
+  {}
+  std::mutex mt_;
+  std::condition_variable cv_;
+  const int task_no_;
 };
 
 
@@ -248,7 +262,17 @@ private:
   std::deque<UwbSignleStatusMsg> queue_;
   std::atomic_bool activated_ {false};
   bool threading_ {false};
-  std::condition_variable cv_;
+  std::unique_ptr<std::thread> checking_thread_;
+  std::queue<int> checking_task_queue_;
+  WaitingForResponse wait_open_res_ {1}, wait_close_res_ {2}, wait_init_res_ {0};
+  WaitingForResponse task_checking_ {-1};
+  bool initializing_ {false};
+  void checkResponse();
+  bool ifFailThenRetry(
+    WaitingForResponse & wfr, int trial_times, int64_t milisec,
+    const std::vector<std::tuple<bool *, std::string, bool, std::vector<uint8_t> *>> & checks);
+
+  LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog

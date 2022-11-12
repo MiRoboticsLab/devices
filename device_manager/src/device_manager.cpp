@@ -194,7 +194,7 @@ void cyberdog::device::DeviceManager::UwbServiceCallback(
 }
 
 void cyberdog::device::DeviceManager::UwbConnectedCallback(
-  const std_msgs::msg::Bool::ConstPtr msg)
+  const std_msgs::msg::Bool::SharedPtr msg)
 {
   device_handler_->UwbConnectionSignal(msg);
 }
