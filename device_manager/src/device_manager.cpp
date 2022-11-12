@@ -105,23 +105,27 @@ int32_t cyberdog::device::DeviceManager::OnProtected()
 int32_t cyberdog::device::DeviceManager::OnActive()
 {
   INFO("device on active");
-  led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
-    "led_execute",
-    std::bind(
-      &DeviceManager::LedServiceCallback, this,
-      std::placeholders::_1, std::placeholders::_2));
+  if(!is_active)
+  {
+    led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
+      "led_execute",
+      std::bind(
+        &DeviceManager::LedServiceCallback, this,
+        std::placeholders::_1, std::placeholders::_2));
 
-  bms_service_ = node_ptr->create_service<protocol::srv::BmsCmd>(
-    "bms_cmd",
-    std::bind(
-      &DeviceManager::BmsControlCallback, this,
-      std::placeholders::_1, std::placeholders::_2));
+    bms_service_ = node_ptr->create_service<protocol::srv::BmsCmd>(
+      "bms_cmd",
+      std::bind(
+        &DeviceManager::BmsControlCallback, this,
+        std::placeholders::_1, std::placeholders::_2));
 
-  uwb_service_ = node_ptr->create_service<protocol::srv::GetUWBMacSessionID>(
-    "get_uwb_mac_session_id",
-    std::bind(
-      &DeviceManager::UwbServiceCallback, this,
-      std::placeholders::_1, std::placeholders::_2));
+    uwb_service_ = node_ptr->create_service<protocol::srv::GetUWBMacSessionID>(
+      "get_uwb_mac_session_id",
+      std::bind(
+        &DeviceManager::UwbServiceCallback, this,
+        std::placeholders::_1, std::placeholders::_2));
+    is_active = true;
+  }
   return 0;
 }
 

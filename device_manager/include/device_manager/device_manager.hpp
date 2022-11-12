@@ -81,6 +81,7 @@ private:
   std::unique_ptr<cyberdog::machine::HeartBeatsActuator> heart_beats_ptr_ {nullptr};
   std::shared_ptr<cyberdog::system::CyberdogCode<DeviceErrorCode>> code_ptr_ {nullptr};
   rclcpp::executors::MultiThreadedExecutor executor;
+  bool is_active {false};
 
 private:
   const std::string Uninitialized_V = std::string("Uninitialized");
