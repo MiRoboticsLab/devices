@@ -280,28 +280,35 @@ int32_t cyberdog::device::LedCarpo::request_legal(
     return LedExecuteResponse::PRIORITY_ERROR;
   }
   // mode
-  if (info_request->target == LedExecuteRequest::MINI_LED) {
-    if (info_request->mode != LedExecuteRequest::USER_DEFINED) {
-      ERROR("mini led only support USER_DEFINED mode");
-      return LedExecuteResponse::MODE_ERROR;
-    }
-  } else {
-    if (info_request->mode != LedExecuteRequest::SYSTEM_PREDEFINED &&
-      info_request->mode != LedExecuteRequest::USER_DEFINED)
-    {
-      ERROR("rgb led only support USER_DEFINED or SYSTEM_PREDEFINED mode");
-      return LedExecuteResponse::MODE_ERROR;
-    }
+
+  if (info_request->mode != LedExecuteRequest::SYSTEM_PREDEFINED &&
+    info_request->mode != LedExecuteRequest::USER_DEFINED)
+  {
+    ERROR("rgb/mini led only support USER_DEFINED or SYSTEM_PREDEFINED mode");
+    return LedExecuteResponse::MODE_ERROR;
   }
 
   // effect
   bool effect_is_legal;
   if (info_request->target == LedExecuteRequest::MINI_LED) {
-    effect_is_legal = (info_request->effect >= LedExecuteRequest::MINI_OFF &&
-      info_request->effect <= LedExecuteRequest::COLOR_ONE_BY_ONE);
-    if (effect_is_legal == false) {
-      ERROR("mini led only support effect from MINI_OFF to COLOR_ONE_BY_ONE");
-      return LedExecuteResponse::EFFECT_ERROR;
+    if (info_request->mode == LedExecuteRequest::USER_DEFINED) {
+      effect_is_legal = (info_request->effect >= LedExecuteRequest::CIRCULAR_BREATH &&
+        info_request->effect <= LedExecuteRequest::CIRCULAR_RING);
+      if (effect_is_legal == false) {
+        ERROR(
+          "mini led only support effect from CIRCULAR_BREATH"
+          "to CIRCULAR_RING when mode is USER_DEFINED");
+        return LedExecuteResponse::EFFECT_ERROR;
+      }
+    } else {
+      effect_is_legal = (info_request->effect >= LedExecuteRequest::MINI_OFF &&
+        info_request->effect <= LedExecuteRequest::COLOR_ONE_BY_ONE);
+      if (effect_is_legal == false) {
+        ERROR(
+          "mini led only support effect from MINI_OFF"
+          "to COLOR_ONE_BY_ONE when mode is SYSTEM_PREDEFINED");
+        return LedExecuteResponse::EFFECT_ERROR;
+      }
     }
   } else {
     if (info_request->mode == LedExecuteRequest::USER_DEFINED) {
@@ -364,61 +371,58 @@ void cyberdog::device::LedCarpo::find_cmd(
 
 void cyberdog::device::LedCarpo::mini_led_cmd(std::vector<uint8_t> & temp_vector)
 {
-  if (operatecmd.mode == LedExecuteRequest::USER_DEFINED) {
-    INFO("mini rgb led USER_DEFINED mode");
-    switch (operatecmd.effect) {
-      case LedExecuteRequest::MINI_OFF: {
-          temp_vector[0] = 0x00;
-          temp_vector[1] = 0;
-          temp_vector[2] = 0;
-          temp_vector[3] = 0;
-          break;
-        }
-      case LedExecuteRequest::CIRCULAR_BREATH: {
-          temp_vector[0] = 0x01;
-          temp_vector[1] = operatecmd.r_value;
-          temp_vector[2] = operatecmd.g_value;
-          temp_vector[3] = operatecmd.b_value;
-          break;
-        }
-      case LedExecuteRequest::CIRCULAR_RING: {
-          temp_vector[0] = 0x02;
-          temp_vector[1] = operatecmd.r_value;
-          temp_vector[2] = operatecmd.g_value;
-          temp_vector[3] = operatecmd.b_value;
-          break;
-        }
-      case LedExecuteRequest::RECTANGLE_COLOR: {
-          temp_vector[0] = 0x21;
-          temp_vector[1] = operatecmd.r_value;
-          temp_vector[2] = operatecmd.g_value;
-          temp_vector[3] = operatecmd.b_value;
-          break;
-        }
-      case LedExecuteRequest::CENTRE_COLOR: {
-          temp_vector[0] = 0x22;
-          temp_vector[1] = operatecmd.r_value;
-          temp_vector[2] = operatecmd.g_value;
-          temp_vector[3] = operatecmd.b_value;
-          break;
-        }
-      case LedExecuteRequest::THREE_CIRCULAR: {
-          temp_vector[0] = 0x23;
-          temp_vector[1] = operatecmd.r_value;
-          temp_vector[2] = operatecmd.g_value;
-          temp_vector[3] = operatecmd.b_value;
-          break;
-        }
-      case LedExecuteRequest::COLOR_ONE_BY_ONE: {
-          temp_vector[0] = 0x24;
-          temp_vector[1] = operatecmd.r_value;
-          temp_vector[2] = operatecmd.g_value;
-          temp_vector[3] = operatecmd.b_value;
-          break;
-        }
-    }
-  } else {
-    INFO("mini rgb led can not use SYSTEM_PREDEFINED mode");
+  switch (operatecmd.effect) {
+    case LedExecuteRequest::MINI_OFF: {
+        temp_vector[0] = 0x00;  // off canid
+        temp_vector[1] = 0;
+        temp_vector[2] = 0;
+        temp_vector[3] = 0;
+        break;
+      }
+    case LedExecuteRequest::CIRCULAR_BREATH: {
+        temp_vector[0] = 0x01;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
+        break;
+      }
+    case LedExecuteRequest::CIRCULAR_RING: {
+        temp_vector[0] = 0x02;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
+        break;
+      }
+    case LedExecuteRequest::RECTANGLE_COLOR: {
+        temp_vector[0] = 0x21;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
+        break;
+      }
+    case LedExecuteRequest::CENTRE_COLOR: {
+        temp_vector[0] = 0x22;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
+        break;
+      }
+    case LedExecuteRequest::THREE_CIRCULAR: {
+        temp_vector[0] = 0x23;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
+        break;
+      }
+    case LedExecuteRequest::COLOR_ONE_BY_ONE: {
+        temp_vector[0] = 0x24;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
+        break;
+      }
+    default:
+      break;
   }
 }
 
