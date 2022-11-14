@@ -15,6 +15,8 @@
 #ifndef CYBERDOG_UWB__UWB_PLUGIN_HPP_
 #define CYBERDOG_UWB__UWB_PLUGIN_HPP_
 
+#include <shared_mutex>
+#include <vector>
 #include <array>
 #include <memory>
 #include <string>
@@ -22,7 +24,12 @@
 #include <chrono>
 #include <random>
 #include <mutex>
+#include <queue>
 #include <deque>
+#include <atomic>
+#include <condition_variable>
+#include <utility>
+#include <tuple>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -114,6 +121,16 @@ struct UWBConnectionInfo
   uint16_t rear_uwb_mac;
 };
 
+struct WaitingForResponse
+{
+  explicit WaitingForResponse(int no)
+  : task_no_(no)
+  {}
+  std::mutex mt_;
+  std::condition_variable cv_;
+  const int task_no_;
+};
+
 
 // Converts from degrees to radians.
 constexpr double DegToRad(double deg) {return M_PI * deg / 180.;}
@@ -126,6 +143,7 @@ class UWBCarpo : public cyberdog::device::UWBBase
 {
 public:
   UWBCarpo();
+  ~UWBCarpo();
   bool Config() override;
   bool Init(
     std::function<void(UwbSignleStatusMsg)>
@@ -135,6 +153,7 @@ public:
   void Play(
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override;
+  void SetConnectedState(bool connected) override;
   bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) override;
 
@@ -206,6 +225,7 @@ private:
 
   std::mutex mutex_;
   UwbRawStatusMsg ros_uwb_status_;
+  std::shared_mutex raw_data_mutex_0_, raw_data_mutex_1_;
   std::function<void(UwbSignleStatusMsg)> status_function_;
 
   // uwb config parameters
@@ -240,6 +260,20 @@ private:
   // geometry_msgs/msg/pose_stamped
   // std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
   std::deque<UwbSignleStatusMsg> queue_;
+  std::atomic_bool activated_ {false};
+  bool threading_ {false};
+  std::unique_ptr<std::thread> checking_thread_;
+  std::queue<int> checking_task_queue_;
+  WaitingForResponse wait_open_res_ {1}, wait_close_res_ {2}, wait_init_res_ {0};
+  WaitingForResponse task_checking_ {-1};
+  bool initializing_ {false};
+  void checkResponse();
+  bool ifFailThenRetry(
+    WaitingForResponse & wfr, int trial_times, int64_t milisec,
+    const std::vector<std::tuple<bool *, std::string, bool, std::vector<uint8_t> *>> & checks,
+    bool negative = false);
+
+  LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device
 }   //  namespace cyberdog

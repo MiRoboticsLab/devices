@@ -131,6 +131,12 @@ void cyberdog::device::DeviceHandler::ExecuteUwb(
   uwb_ptr_->Play(request, response);
 }
 
+void cyberdog::device::DeviceHandler::UwbConnectionSignal(
+  const std_msgs::msg::Bool::SharedPtr msg)
+{
+  uwb_ptr_->SetConnectedState(msg->data);
+}
+
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
 {
   if (touch_pub_ != nullptr) {
