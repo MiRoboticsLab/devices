@@ -56,7 +56,7 @@ public:
   void ExecuteUwb(
     const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
     protocol::srv::GetUWBMacSessionID_Response::SharedPtr response);
-  
+
   void UwbConnectionSignal(const std_msgs::msg::Bool::SharedPtr msg);
 
   void PublishTouch(protocol::msg::TouchStatus msg);

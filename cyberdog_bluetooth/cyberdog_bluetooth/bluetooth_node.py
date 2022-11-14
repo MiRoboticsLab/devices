@@ -126,7 +126,7 @@ class BluetoothNode(Node, DefaultDelegate):
             0.05, self.__joyPubTimerCB, callback_group=self.__siglethread_callback_group)
         self.__joy_pub_timer.cancel()
         self.__notification_thread.start()
-        self.__uwb_connection_signal_pub = self.create_publisher(Bool, 'uwb_connected')
+        self.__uwb_connection_signal_pub = self.create_publisher(Bool, 'uwb_connected', 2)
 
     def __del__(self):
         self.__notification_thread.join()

@@ -270,7 +270,8 @@ private:
   void checkResponse();
   bool ifFailThenRetry(
     WaitingForResponse & wfr, int trial_times, int64_t milisec,
-    const std::vector<std::tuple<bool *, std::string, bool, std::vector<uint8_t> *>> & checks);
+    const std::vector<std::tuple<bool *, std::string, bool, std::vector<uint8_t> *>> & checks,
+    bool negative = false);
 
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
