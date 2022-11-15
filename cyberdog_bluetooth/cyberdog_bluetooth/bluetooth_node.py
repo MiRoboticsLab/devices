@@ -32,6 +32,7 @@ from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
 
 from . import bt_core
+from . import uwb_tracking
 from . import yaml_parser
 
 
@@ -95,7 +96,6 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joystick_update = False
         self.__motion_servo_cmd_pub = self.create_publisher(
             MotionServoCmd, 'motion_servo_cmd', 100)
-        self.__motion_id = 303
         self.__remote_moving = False
         self.__history_ble_list_file = '/home/mi/.cyberdog/known_bles.yaml'
         history_dir = self.__history_ble_list_file[0: self.__history_ble_list_file.find(
@@ -127,6 +127,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joy_pub_timer.cancel()
         self.__notification_thread.start()
         self.__uwb_connection_signal_pub = self.create_publisher(Bool, 'uwb_connected', 2)
+        self.__uwb_tracking = uwb_tracking.UWBTracking(self, self.__multithread_callback_group)
+        self.__is_tracking = False
+        self.__tread = ((303, 0.5, 1.0), (308, 1.0, 1.5), (305, 1.5, 2.0))
+        self.__tread_index = 0
 
     def __del__(self):
         self.__notification_thread.join()
@@ -355,24 +359,30 @@ class BluetoothNode(Node, DefaultDelegate):
     def __connectUWB(self, connect: bool, s_id=0, m=0, s1=0, s2=0, s3=0, s4=0):
         if not self.__bt_central.IsConnected():
             return not connect
+        if connect:
+            payload = bytearray()
+            payload.extend(s_id.to_bytes(4, 'little'))
+            payload.extend(m.to_bytes(2, 'little'))
+            payload.extend(s1.to_bytes(2, 'little'))
+            payload.extend(s2.to_bytes(2, 'little'))
+            payload.extend(s3.to_bytes(2, 'little'))
+            payload.extend(s4.to_bytes(2, 'little'))
+            return self.__uartCTL(b'\x01', bytes(payload), True)
+        return self.__uartCTL(b'\x02', b'\x00', True)
+
+    def __uartCTL(self, cmd: bytes, payload=None, response=True):
         msg_header = b'\xaa\x55\x00\x01'
         device_type = self.__connected_tag_type.to_bytes(1, 'little')
-        senser_frame_cmd = b'\x00\x00\x01' if connect else b'\x00\x00\x02'
-        payload_length = (4 + 2 * 5).to_bytes(1, 'little') if connect else b'\x01'
+        senser_frame = b'\x00\x00'
+        payload_length = 0 if payload is None else len(payload)
         contents_to_send = bytearray()
         contents_to_send.extend(msg_header)
         contents_to_send.extend(device_type)
-        contents_to_send.extend(senser_frame_cmd)
-        contents_to_send.extend(payload_length)
-        if connect:
-            contents_to_send.extend(s_id.to_bytes(4, 'little'))
-            contents_to_send.extend(m.to_bytes(2, 'little'))
-            contents_to_send.extend(s1.to_bytes(2, 'little'))
-            contents_to_send.extend(s2.to_bytes(2, 'little'))
-            contents_to_send.extend(s3.to_bytes(2, 'little'))
-            contents_to_send.extend(s4.to_bytes(2, 'little'))
-        else:
-            contents_to_send.extend(b'\x00')
+        contents_to_send.extend(senser_frame)
+        contents_to_send.extend(cmd)
+        contents_to_send.extend(payload_length.to_bytes(1, 'little'))
+        if payload is not None:
+            contents_to_send.extend(payload)
         sum_int = 0
         for each_byte in bytes(contents_to_send):
             sum_int += each_byte
@@ -380,7 +390,7 @@ class BluetoothNode(Node, DefaultDelegate):
         return self.__bt_central.Write(
             self.__UART_service_uuid,
             self.__RX_characteristic_uuid,
-            bytes(contents_to_send), True)
+            bytes(contents_to_send), response)
 
     def __getTagType(self):
         tag_info_service = self.__bt_central.GetService(self.__tag_info_service_uuid)
@@ -418,6 +428,23 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__uwb_connect_accepted = data[9]
         elif data[7] == 0x02:  # disconnect uwb response
             self.__uwb_disconnect_accepted = data[9]
+        elif data[7] == 0x04:  # uwb tracking
+            if data[8] == 0x01:
+                if self.__is_tracking:
+                    print('Calling stop tracking service')
+                    self.__uwb_tracking.StopTracking()
+                    self.__is_tracking = False
+                # self.__uartCTL(b'\x04', b'\x01', True)
+            elif data[8] == 0x00:
+                if not self.__is_tracking:
+                    print('Sending tracking goal to task action')
+                    self.__uwb_tracking.StartTracking()
+                    self.__is_tracking = True
+                # self.__uartCTL(b'\x04', b'\x00', True)
+        elif data[7] == 0x05:  # tread switching
+            self.__tread_index = (self.__tread_index + 1) % 3
+            # self.__uartCTL(b'\x05', None, True)
+
         self.__tryToReleaseMutex(self.__uart_data_mutex)
 
     def __joystickXCB(self, data):
@@ -665,22 +692,23 @@ class BluetoothNode(Node, DefaultDelegate):
             joy_msg.axes.append(self.__joystick_y)
             self.__joystick_pub.publish(joy_msg)
             servo_cmd = MotionServoCmd()
-            servo_cmd.motion_id = self.__motion_id
+            servo_cmd.motion_id = self.__tread[self.__tread_index][0]
             servo_cmd.cmd_type = 1
             servo_cmd.step_height.append(0.05)
             servo_cmd.step_height.append(0.05)
             servo_cmd.vel_des = [0.0, 0.0, 0.0]
-            if servo_cmd.motion_id == 303:  # slow
-                if abs(self.__joystick_y) > 5:
-                    servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * 0.5
-                    self.__remote_moving = True
-                if abs(self.__joystick_x) > 5:
-                    servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * 1.0
-                    self.__remote_moving = True
-                elif abs(self.__joystick_y) <= 5 and self.__remote_moving:
-                    servo_cmd.cmd_type = 2
-                    servo_cmd.step_height[0] = 0.0
-                    servo_cmd.step_height[1] = 0.0
+            if abs(self.__joystick_y) > 10:
+                servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * self.__tread[
+                    self.__tread_index][1]
+                self.__remote_moving = True
+            if abs(self.__joystick_x) > 10:
+                servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * self.__tread[
+                    self.__tread_index][2]
+                self.__remote_moving = True
+            elif abs(self.__joystick_y) <= 10 and self.__remote_moving:
+                servo_cmd.cmd_type = 2
+                servo_cmd.step_height[0] = 0.0
+                servo_cmd.step_height[1] = 0.0
             if self.__remote_moving:
                 self.__motion_servo_cmd_pub.publish(servo_cmd)
             if servo_cmd.cmd_type == 2:
