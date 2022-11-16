@@ -74,6 +74,24 @@ bool BMSCarpo::RegisterTopic(std::function<void(BmsStatusMsg)> function_callback
   return true;
 }
 
+bool BMSCarpo::Open()
+{
+  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->bms_enable_on);
+  bool success = battery_status_ptr_->Operate("bms_enable_on", std::vector<uint8_t>{});
+  battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->bms_enable_on);
+  INFO("bms turn on %s", success ? "success" : "false");
+  return success;
+}
+
+bool BMSCarpo::Close()
+{
+  battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
+  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->bms_enable_off);
+  bool success = battery_status_ptr_->Operate("bms_enable_off", std::vector<uint8_t>{});
+  INFO("bms turn off %s", success ? "success" : "false");
+  return success;
+}
+
 void BMSCarpo::RunBmsTask()
 {
   while (true) {
@@ -90,7 +108,7 @@ void BMSCarpo::RunBmsTask()
     if (get_real_data_flag_) {
       status_function_(ros_bms_message_);
     } else {
-      INFO("[Bms]: pub bms status faild, No real data received");
+      INFO_MILLSECONDS(500, "[Bms]:pub bms status failed, No real data received");
     }
     // Every one second publish
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -222,7 +240,7 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
   // Convert can message struct to ROS format
   ros_bms_message_ = ToRos(can_battery_message_);
   if (ros_bms_message_.batt_volt == 0) {
-    WARN("[Bms]: Battery data may be wrong");
+    WARN("[Bms]:Battery data may be wrong");
   }
   // auto msg = ToRos(can_battery_message_);
   // queue_.emplace_back(msg);
@@ -354,10 +372,6 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   //  - bit7 外部供电
   // 预留 test_data data[14-15]
 
-  // for (int i = 0; i < 16; i++) {
-  //   INFO("bit%d: %02X", i, can_data.battery_status[i]);
-  // }
-
   message.batt_soc = can_data.battery_status[0];
   message.batt_volt = (can_data.battery_status[1] | can_data.battery_status[2] << 8);
   message.batt_curr = (can_data.battery_status[3] | can_data.battery_status[4] << 8);
@@ -376,7 +390,7 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
 
   static int current_battery_soc = message.batt_soc;
   if (current_battery_soc != message.batt_soc) {
-    INFO("[Bms]: The current battery level is %d", message.batt_soc);
+    INFO("[Bms]:The current battery soc is %d", message.batt_soc);
     current_battery_soc = message.batt_soc;
   }
   return message;
@@ -390,9 +404,12 @@ void BMSCarpo::InitializeBmsProtocol()
 
   // Create Protocol for `BMSStatus` data
   battery_status_ptr_ = std::make_shared<cyberdog::embed::Protocol<BatteryStatus>>(path, false);
-
   INFO("[Bms]:in InitializeBmsprototocol");
-  // link BMSStatus data type
+  bool bsm_open = Open();
+  if (!bsm_open) {
+    INFO("Bms:Initialize failed, cannot open can0");
+    return;
+  }
   std::this_thread::sleep_for(std::chrono::seconds(3));
   battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
   // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->normal_status);
