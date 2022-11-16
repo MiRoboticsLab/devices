@@ -30,13 +30,21 @@ class UWBTracking:
             node, Navigation, 'start_algo_task', callback_group=multithread_callback_group)
 
     def StopTracking(self):
+        if not self.__stop_task_client.wait_for_service(timeout_sec=3.0):
+            print('stop_algo_task service is not available')
+            return False
         req = StopAlgoTask.Request()
         req.task_id = StopAlgoTask.Request.ALGO_TASK_UWB_TRACKING
         print('Calling stop uwb tracking.')
         self.__stop_task_client.call_async(req)
+        return True
 
     def StartTracking(self):
+        if not self._tracking_action_client.wait_for_server(timeout_sec=3.0):
+            print('start_algo_task action is not available')
+            return False
         goal = Navigation.Goal()
         goal.nav_type = Navigation.Goal.NAVIGATION_TYPE_START_UWB_TRACKING
         print('Sending uwb tracking goal.')
         self._tracking_action_client.send_goal_async(goal)
+        return True
