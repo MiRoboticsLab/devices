@@ -59,6 +59,10 @@ struct BatteryStatus
 
   // 测试
   uint8_t cmd_test;
+
+  // can0
+  uint8_t bms_enable_on;
+  uint8_t bms_enable_off;
 };
 
 
@@ -116,6 +120,10 @@ public:
 
   // Set which command case run.
   void SetTestCase(int test_case);
+
+  // Open and Close can0
+  bool Open();
+  bool Close();
 
 private:
   // Handle bms task and send process data
