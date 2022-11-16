@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import os
+from queue import Queue
 import struct
 import threading
 from time import sleep
@@ -125,12 +126,14 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joy_pub_timer = self.create_timer(
             0.05, self.__joyPubTimerCB, callback_group=self.__siglethread_callback_group)
         self.__joy_pub_timer.cancel()
-        self.__notification_thread.start()
         self.__uwb_connection_signal_pub = self.create_publisher(Bool, 'uwb_connected', 2)
         self.__uwb_tracking = uwb_tracking.UWBTracking(self, self.__multithread_callback_group)
         self.__is_tracking = False
         self.__tread = ((303, 0.5, 1.0), (308, 1.0, 1.5), (305, 1.5, 2.0))
         self.__tread_index = 0
+        self.__uart_ctrl_queue = Queue(5)
+        self.__queue_mutex = threading.Lock()
+        self.__notification_thread.start()
 
     def __del__(self):
         self.__notification_thread.join()
@@ -430,20 +433,26 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__uwb_disconnect_accepted = data[9]
         elif data[7] == 0x04:  # uwb tracking
             if data[8] == 0x01:
-                if self.__is_tracking:
+                if self.__uwb_tracking.IsTrackingTaskActivated():
                     print('Calling stop tracking service')
                     self.__uwb_tracking.StopTracking()
                     self.__is_tracking = False
-                # self.__uartCTL(b'\x04', b'\x01', True)
+                self.__queue_mutex.acquire()
+                self.__uart_ctrl_queue.put((b'\x04', b'\x01'))
+                self.__queue_mutex.release()
             elif data[8] == 0x00:
-                if not self.__is_tracking:
+                if not self.__uwb_tracking.IsTrackingTaskActivated():
                     print('Sending tracking goal to task action')
                     self.__uwb_tracking.StartTracking()
                     self.__is_tracking = True
-                # self.__uartCTL(b'\x04', b'\x00', True)
+                self.__queue_mutex.acquire()
+                self.__uart_ctrl_queue.put((b'\x04', b'\x00'))
+                self.__queue_mutex.release()
         elif data[7] == 0x05:  # tread switching
             self.__tread_index = (self.__tread_index + 1) % 3
-            # self.__uartCTL(b'\x05', None, True)
+            self.__queue_mutex.acquire()
+            self.__uart_ctrl_queue.put((b'\x05', None))
+            self.__queue_mutex.release()
 
         self.__tryToReleaseMutex(self.__uart_data_mutex)
 
@@ -479,18 +488,28 @@ class BluetoothNode(Node, DefaultDelegate):
     def __notificationTimerCB(self):
         notified = 0
         self.__poll_mutex.acquire()
-        if self.__connecting or not self.__bt_central.IsConnected():
-            sleep(0.05)
-        else:
-            notified = self.__bt_central.WaitForNotifications(0.05)
+        notified = self.__bt_central.WaitForNotifications(0.05)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if notified == 3:
             self.__disconnectUnexpectedly()
+
+    def __sendingUartCTL(self):
+        self.__queue_mutex.acquire()
+        if self.__uart_ctrl_queue.empty():
+            self.__queue_mutex.release()
             return
+        cmd, payload = self.__uart_ctrl_queue.get()
+        self.__queue_mutex.release()
+        if not self.__uartCTL(cmd, payload, True):
+            self.__disconnectUnexpectedly()
 
     def __notificationgThreading(self):
         while rclpy.ok():
-            self.__notificationTimerCB()
+            if self.__connecting or not self.__bt_central.IsConnected():
+                sleep(0.05)
+            else:
+                self.__sendingUartCTL()
+                self.__notificationTimerCB()
 
     def __disconnectUnexpectedly(self):
         self.__tryToReleaseMutex(self.__poll_mutex)

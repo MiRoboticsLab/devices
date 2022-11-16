@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from action_msgs.msg import GoalStatusArray
 from protocol.action import Navigation
 from protocol.srv import StopAlgoTask
 from rclpy.action import ActionClient
@@ -28,6 +29,10 @@ class UWBTracking:
             StopAlgoTask, 'stop_algo_task', callback_group=multithread_callback_group)
         self._tracking_action_client = ActionClient(
             node, Navigation, 'start_algo_task', callback_group=multithread_callback_group)
+        self.__tracking_task_status_sub = node.create_subscription(
+            GoalStatusArray, 'tracking_target/_action/status',
+            self.__taskStatusCB, 2)
+        self.__tracking_activating = False
 
     def StopTracking(self):
         if not self.__stop_task_client.wait_for_service(timeout_sec=3.0):
@@ -48,3 +53,15 @@ class UWBTracking:
         print('Sending uwb tracking goal.')
         self._tracking_action_client.send_goal_async(goal)
         return True
+
+    def IsTrackingTaskActivated(self):
+        return self.__tracking_activating
+
+    def __taskStatusCB(self, msg):
+        if len(msg.status_list) != 0:
+            for each_status in msg.status_list:
+                if each_status.status == 1 or each_status.status == 2:
+                    self.__tracking_activating = True
+                    break
+                else:
+                    self.__tracking_activating = False
