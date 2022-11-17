@@ -27,11 +27,11 @@ class UWBTracking:
     def __init__(self, node: Node, multithread_callback_group):
         self.__stop_task_client = node.create_client(
             StopAlgoTask, 'stop_algo_task', callback_group=multithread_callback_group)
-        self._tracking_action_client = ActionClient(
+        self.__tracking_action_client = ActionClient(
             node, Navigation, 'start_algo_task', callback_group=multithread_callback_group)
         self.__tracking_task_status_sub = node.create_subscription(
             GoalStatusArray, 'tracking_target/_action/status',
-            self.__taskStatusCB, 2)
+            self.__taskStatusCB, 20)
         self.__tracking_activating = False
 
     def StopTracking(self):
@@ -45,13 +45,13 @@ class UWBTracking:
         return True
 
     def StartTracking(self):
-        if not self._tracking_action_client.wait_for_server(timeout_sec=3.0):
+        if not self.__tracking_action_client.wait_for_server(timeout_sec=3.0):
             print('start_algo_task action is not available')
             return False
         goal = Navigation.Goal()
         goal.nav_type = Navigation.Goal.NAVIGATION_TYPE_START_UWB_TRACKING
         print('Sending uwb tracking goal.')
-        self._tracking_action_client.send_goal_async(goal)
+        self.__tracking_action_client.send_goal_async(goal)
         return True
 
     def IsTrackingTaskActivated(self):
@@ -65,3 +65,4 @@ class UWBTracking:
                     break
                 else:
                     self.__tracking_activating = False
+            print('UWB tracking status is', self.__tracking_activating)

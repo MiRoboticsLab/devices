@@ -432,28 +432,16 @@ class BluetoothNode(Node, DefaultDelegate):
         elif data[7] == 0x02:  # disconnect uwb response
             self.__uwb_disconnect_accepted = data[9]
         elif data[7] == 0x04:  # uwb tracking
-            if data[8] == 0x01:
-                if self.__uwb_tracking.IsTrackingTaskActivated():
-                    print('Calling stop tracking service')
-                    self.__uwb_tracking.StopTracking()
-                    self.__is_tracking = False
-                self.__queue_mutex.acquire()
-                self.__uart_ctrl_queue.put((b'\x04', b'\x01'))
-                self.__queue_mutex.release()
-            elif data[8] == 0x00:
-                if not self.__uwb_tracking.IsTrackingTaskActivated():
-                    print('Sending tracking goal to task action')
-                    self.__uwb_tracking.StartTracking()
-                    self.__is_tracking = True
-                self.__queue_mutex.acquire()
-                self.__uart_ctrl_queue.put((b'\x04', b'\x00'))
-                self.__queue_mutex.release()
+            if self.__uwb_tracking.IsTrackingTaskActivated():
+                print('Calling stop tracking service')
+                self.__uwb_tracking.StopTracking()
+                self.__is_tracking = False
+            else:
+                print('Sending tracking goal to task action')
+                self.__uwb_tracking.StartTracking()
+                self.__is_tracking = True
         elif data[7] == 0x05:  # tread switching
             self.__tread_index = (self.__tread_index + 1) % 3
-            self.__queue_mutex.acquire()
-            self.__uart_ctrl_queue.put((b'\x05', None))
-            self.__queue_mutex.release()
-
         self.__tryToReleaseMutex(self.__uart_data_mutex)
 
     def __joystickXCB(self, data):
