@@ -197,12 +197,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__joy_pub_timer.cancel()
                 self.__uwb_disconnect_accepted = 3
                 self.__connectUWB(False)
-                res.result = self.__waitForUWBResponse(False)
-                if res.result != 0 and self.__bt_central.IsConnected():
-                    self.__joy_pub_timer.reset()
-                    self.__tryToReleaseMutex(self.__scan_mutex)
-                    self.__connecting = False
-                    return res
+                self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
                 res.result = 0
         else:  # connect to device
