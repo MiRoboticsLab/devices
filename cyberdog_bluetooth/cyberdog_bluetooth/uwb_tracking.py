@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from action_msgs.msg import GoalStatusArray
 from protocol.action import Navigation
 from protocol.srv import StopAlgoTask
 from rclpy.action import ActionClient
@@ -26,17 +27,42 @@ class UWBTracking:
     def __init__(self, node: Node, multithread_callback_group):
         self.__stop_task_client = node.create_client(
             StopAlgoTask, 'stop_algo_task', callback_group=multithread_callback_group)
-        self._tracking_action_client = ActionClient(
+        self.__tracking_action_client = ActionClient(
             node, Navigation, 'start_algo_task', callback_group=multithread_callback_group)
+        self.__tracking_task_status_sub = node.create_subscription(
+            GoalStatusArray, 'tracking_target/_action/status',
+            self.__taskStatusCB, 20)
+        self.__tracking_activating = False
 
     def StopTracking(self):
+        if not self.__stop_task_client.wait_for_service(timeout_sec=3.0):
+            print('stop_algo_task service is not available')
+            return False
         req = StopAlgoTask.Request()
         req.task_id = StopAlgoTask.Request.ALGO_TASK_UWB_TRACKING
         print('Calling stop uwb tracking.')
         self.__stop_task_client.call_async(req)
+        return True
 
     def StartTracking(self):
+        if not self.__tracking_action_client.wait_for_server(timeout_sec=3.0):
+            print('start_algo_task action is not available')
+            return False
         goal = Navigation.Goal()
         goal.nav_type = Navigation.Goal.NAVIGATION_TYPE_START_UWB_TRACKING
         print('Sending uwb tracking goal.')
-        self._tracking_action_client.send_goal_async(goal)
+        self.__tracking_action_client.send_goal_async(goal)
+        return True
+
+    def IsTrackingTaskActivated(self):
+        return self.__tracking_activating
+
+    def __taskStatusCB(self, msg):
+        if len(msg.status_list) != 0:
+            for each_status in msg.status_list:
+                if each_status.status == 1 or each_status.status == 2:
+                    self.__tracking_activating = True
+                    break
+                else:
+                    self.__tracking_activating = False
+            print('UWB tracking status is', self.__tracking_activating)
