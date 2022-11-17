@@ -217,7 +217,7 @@ private:
   void SetData(const Type & type, const UwbSignleStatusMsg & data);
   void Debug2String(const Type & type, const geometry_msgs::msg::PoseStamped & uwb_posestamped);
   void Debug2String(const UwbSignleStatusMsg & uwb_msg);
-  void UwbRawStatusMsg2Ros();
+  bool UwbRawStatusMsg2Ros();
 
   std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
   std::shared_ptr<cyberdog::embed::Protocol<UWBRearData>> rear_can_ptr_ {nullptr};
@@ -272,6 +272,7 @@ private:
     WaitingForResponse & wfr, int trial_times, int64_t milisec,
     const std::vector<std::tuple<bool *, std::string, bool, std::vector<uint8_t> *>> & checks,
     bool negative = false);
+  bool raw_data_updated[2] {false, false};
 
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo

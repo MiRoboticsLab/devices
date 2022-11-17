@@ -394,6 +394,8 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
 
+      raw_data_updated[0] = true;
+
       INFO_MILLSECONDS(5000, "--------------------[UWB]----------------------");
       INFO_MILLSECONDS(5000, "%02X, %02X", data->rear_data_array[0], data->rear_data_array[1]);
       INFO_MILLSECONDS(5000, "Current dist : %f", dist);
@@ -514,6 +516,8 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
 
+      raw_data_updated[1] = true;
+
       INFO_MILLSECONDS(5000, "--------------------[UWB]----------------------");
       INFO_MILLSECONDS(5000, "%02X, %02X", data->head_data_array[0], data->head_data_array[1]);
       INFO_MILLSECONDS(5000, "Current dist : %f", dist);
@@ -539,9 +543,7 @@ void UWBCarpo::RunTask()
 {
   while (threading_) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    if (activated_) {
-      UwbRawStatusMsg2Ros();
-
+    if (activated_ && UwbRawStatusMsg2Ros()) {
       if (queue_.empty()) {
         continue;
       }
@@ -846,7 +848,7 @@ void UWBCarpo::Debug2String(const UwbSignleStatusMsg & uwb_msg)
   INFO_MILLSECONDS(3000, "rssi_2 = %f", uwb_msg.rssi_2);
 }
 
-void UWBCarpo::UwbRawStatusMsg2Ros()
+bool UWBCarpo::UwbRawStatusMsg2Ros()
 {
   // ros_uwb_status_.data[0] // head uwb front
   // ros_uwb_status_.data[3] // head tof back
@@ -861,6 +863,12 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
 
   std::shared_lock<std::shared_mutex> read_lock0(raw_data_mutex_0_);
   std::shared_lock<std::shared_mutex> read_lock1(raw_data_mutex_1_);
+  if (!(raw_data_updated[0] && raw_data_updated[1])) {
+    return false;
+  } else {
+    raw_data_updated[0] = false;
+    raw_data_updated[1] = false;
+  }
   auto & ros_uwb_status_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
   auto & ros_uwb_status_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
   auto & ros_uwb_status_left = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
@@ -1017,6 +1025,7 @@ void UWBCarpo::UwbRawStatusMsg2Ros()
   if (debug_to_string) {
     Debug2String(uwb_posestamped);
   }
+  return true;
 }
 
 bool UWBCarpo::ifFailThenRetry(
