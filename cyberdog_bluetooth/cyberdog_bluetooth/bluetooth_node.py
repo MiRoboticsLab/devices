@@ -129,7 +129,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__uwb_connection_signal_pub = self.create_publisher(Bool, 'uwb_connected', 2)
         self.__uwb_tracking = uwb_tracking.UWBTracking(self, self.__multithread_callback_group)
         self.__is_tracking = False
-        self.__tread = ((303, 0.6, 1.0), (308, 1.0, 1.5), (305, 1.6, 2.0))
+        self.__tread = ((309, 0.6, 1.0), (309, 1.0, 1.5), (309, 1.6, 2.0))
         self.__tread_index = 0
         self.__uart_ctrl_queue = Queue(5)
         self.__queue_mutex = threading.Lock()
