@@ -199,6 +199,9 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__connectUWB(False)
                 self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
+                connection_signal = Bool()
+                connection_signal.data = False
+                self.__uwb_connection_signal_pub.publish(connection_signal)
                 res.result = 0
         else:  # connect to device
             if self.__bt_central.IsConnected():
@@ -464,9 +467,6 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__connected_tag_type = 0
         self.__firmware_version = ''
         self.__tryToReleaseMutex(self.__poll_mutex)
-        connection_signal = Bool()
-        connection_signal.data = False
-        self.__uwb_connection_signal_pub.publish(connection_signal)
 
     def __notificationTimerCB(self):
         notified = 0
