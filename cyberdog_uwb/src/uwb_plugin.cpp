@@ -543,7 +543,12 @@ void UWBCarpo::RunTask()
 {
   while (threading_) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    if (activated_ && UwbRawStatusMsg2Ros()) {
+    bool updated = UwbRawStatusMsg2Ros();
+    INFO_STREAM_MILLSECONDS(
+      2000,
+      "activated_=" << activated_ << " queue_.empty()=" << queue_.empty() << " updated=" <<
+        updated);
+    if (activated_ && updated) {
       if (queue_.empty()) {
         continue;
       }
@@ -868,6 +873,9 @@ bool UWBCarpo::UwbRawStatusMsg2Ros()
   } else {
     raw_data_updated[0] = false;
     raw_data_updated[1] = false;
+    if (queue_.size() > 5) {
+      queue_.pop_front();
+    }
   }
   auto & ros_uwb_status_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
   auto & ros_uwb_status_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
