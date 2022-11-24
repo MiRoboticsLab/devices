@@ -699,6 +699,7 @@ class BluetoothNode(Node, DefaultDelegate):
             servo_cmd.step_height.append(0.05)
             servo_cmd.step_height.append(0.05)
             servo_cmd.vel_des = [0.0, 0.0, 0.0]
+            servo_cmd.cmd_source = 3
             if abs(self.__joystick_y) > 10:
                 servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * self.__tread[
                     self.__tread_index][1]
