@@ -1044,7 +1044,7 @@ bool UWBCarpo::ifFailThenRetry(
   std::unique_lock<std::mutex> lock(wfr.mt_);
   for (int i = 0; i < trial_times; ++i) {
     INFO("Start wait for timeout!");
-    bool is_on = wait_open_res_.cv_.wait_for(
+    bool is_on = wfr.cv_.wait_for(
       lock,
       std::chrono::milliseconds(millisec),
       [&]() {
