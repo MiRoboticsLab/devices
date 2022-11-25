@@ -868,6 +868,9 @@ bool UWBCarpo::UwbRawStatusMsg2Ros()
   } else {
     raw_data_updated[0] = false;
     raw_data_updated[1] = false;
+    if (queue_.size() > 5) {
+      queue_.pop_front();
+    }
   }
   auto & ros_uwb_status_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
   auto & ros_uwb_status_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
@@ -1036,7 +1039,7 @@ bool UWBCarpo::ifFailThenRetry(
   std::unique_lock<std::mutex> lock(wfr.mt_);
   for (int i = 0; i < trial_times; ++i) {
     INFO("Start wait for timeout!");
-    bool is_on = wait_open_res_.cv_.wait_for(
+    bool is_on = wfr.cv_.wait_for(
       lock,
       std::chrono::milliseconds(millisec),
       [&]() {
