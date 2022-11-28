@@ -50,6 +50,8 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
     InitializeBmsProtocol();
   }
 
+  Open();
+
   initialized_finished_ = true;
   if (!initialized_finished_) {
     INFO("[BMSCarpo]: %s", "Function Init() error.");
@@ -64,8 +66,8 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
 
 bool BMSCarpo::SelfCheck()
 {
-  INFO("Bms SelfCheck %s", (get_real_data_flag_ ? "successed" : "failed"));
-  return get_real_data_flag_ ? true : false;
+  INFO("Bms SelfCheck %s", (is_get_real_data_ ? "successed" : "failed"));
+  return is_get_real_data_ ? true : false;
 }
 
 bool BMSCarpo::RegisterTopic(std::function<void(BmsStatusMsg)> function_callback)
@@ -76,17 +78,28 @@ bool BMSCarpo::RegisterTopic(std::function<void(BmsStatusMsg)> function_callback
 
 bool BMSCarpo::Open()
 {
-  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->bms_enable_on);
-  bool success = battery_status_ptr_->Operate("bms_enable_on", std::vector<uint8_t>{});
-  battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->bms_enable_on);
-  INFO("bms turn on %s", success ? "success" : "false");
-  return success;
+  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->bms_enable_on_ack);
+  battery_status_ptr_->Operate("bms_enable_on", std::vector<uint8_t>{});
+
+  time_t time_opened_delay = time(nullptr);
+  while (is_open_ == false && difftime(time(nullptr), time_opened_delay) < 2.0f) {
+    std::this_thread::sleep_for(std::chrono::microseconds(30000));
+    INFO_MILLSECONDS(1000, "difftime = %2f ", difftime(time(nullptr), time_opened_delay));
+  }
+  if (is_open_ == false) {
+    ERROR(
+      "Bms open failed,can not receive enable on ack "
+      ",maybe can0 channel blocked");
+  } else {
+    INFO(" bms open successfully ");
+  }
+  return is_open_;
 }
 
 bool BMSCarpo::Close()
 {
   battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
-  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->bms_enable_off);
+  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->bms_enable_off_ack);
   bool success = battery_status_ptr_->Operate("bms_enable_off", std::vector<uint8_t>{});
   INFO("bms turn off %s", success ? "success" : "false");
   return success;
@@ -105,10 +118,10 @@ void BMSCarpo::RunBmsTask()
     // queue_.pop_front();
 
     // Publish bms state
-    if (get_real_data_flag_) {
+    if (is_get_real_data_) {
       status_function_(ros_bms_message_);
     } else {
-      INFO_MILLSECONDS(500, "[Bms]:pub bms status failed, No real data received");
+      INFO_MILLSECONDS(2000, "[Bms]:pub bms status failed, No real data received");
     }
     // Every one second publish
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -203,38 +216,37 @@ void BMSCarpo::SetTestCase(int test_case)
 
 void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<BatteryStatus> data)
 {
-  // INFO_STREAM_MILLSECONDS(2000, "[Bms]HandleCallback input string is :" << name);
-  // INFO("Function BMSCarpo::HandleBatteryStatusMessages() call.");
-  {
-    // std::lock_guard<std::mutex> lock(mutex_battery_);
+  if (name == "bms_enable_on_ack") {
+    INFO_ONCE(" got %s callback", name.c_str());
+    is_open_ = true;
+    battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->bms_enable_on_ack);
+    battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
+  }
+
+  // std::lock_guard<std::mutex> lock(mutex_battery_);
+  if (name == "battery_status" || name == "normal_status") {
     can_battery_message_ = *data;
     // 通过电池健康值非0来确定是否收到真实数据
     if (data->battery_status[10] != 0) {
-      get_real_data_flag_ = true;
+      is_get_real_data_ = true;
     } else {
       WARN("[Bms]get bms date error ,bad data received from can0");
       return;
     }
-    if (name == "battery_status" || name == "normal_status") {
-      // INFO("[BmsProcessor]: Receive battery_status message from can.");
-      // link BMSStatus data type
-      // battery_status_ptr_->BREAK_VAR(battery_status_ptr_->GetData()->battery_status);
-      std::array<uint8_t, 16> battery_status_data;
-      for (size_t i = 0; i < battery_status_data.size(); i++) {
-        battery_status_data[i] = data->battery_status[i];
-        // INFO_MILLSECONDS(4000, "[Bms]battery_status_data[%d] = %d", i, data->battery_status[i]);
-      }
-      // Set value for battery status
-      SetBatteryStatus(battery_status_data);
 
-      // normal_status
-      std::array<uint8_t, 6> normal_status_data;
-      for (size_t i = 0; i < normal_status_data.size(); i++) {
-        normal_status_data[i] = data->normal_status[i];
-        // INFO_MILLSECONDS(4000, "[Bms]nomal_status_data[%d] = %d", i, data->normal_status[i]);
-      }
-      SetNormalStatus(normal_status_data);
+    std::array<uint8_t, 16> battery_status_data;
+    for (size_t i = 0; i < battery_status_data.size(); i++) {
+      battery_status_data[i] = data->battery_status[i];
     }
+    // Set value for battery status
+    SetBatteryStatus(battery_status_data);
+
+    // normal_status
+    std::array<uint8_t, 6> normal_status_data;
+    for (size_t i = 0; i < normal_status_data.size(); i++) {
+      normal_status_data[i] = data->normal_status[i];
+    }
+    SetNormalStatus(normal_status_data);
   }
 
   // Convert can message struct to ROS format
@@ -405,13 +417,8 @@ void BMSCarpo::InitializeBmsProtocol()
   // Create Protocol for `BMSStatus` data
   battery_status_ptr_ = std::make_shared<cyberdog::embed::Protocol<BatteryStatus>>(path, false);
   INFO("[Bms]:in InitializeBmsprototocol");
-  bool bsm_open = Open();
-  if (!bsm_open) {
-    INFO("Bms:Initialize failed, cannot open can0");
-    return;
-  }
-  std::this_thread::sleep_for(std::chrono::seconds(3));
-  battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
+
+  // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->battery_status);
   // battery_status_ptr_->LINK_VAR(battery_status_ptr_->GetData()->normal_status);
 
   battery_status_ptr_->SetDataCallback(
