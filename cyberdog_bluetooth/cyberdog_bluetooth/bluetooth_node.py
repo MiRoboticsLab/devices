@@ -697,8 +697,8 @@ class BluetoothNode(Node, DefaultDelegate):
             servo_cmd = MotionServoCmd()
             servo_cmd.motion_id = self.__tread[self.__tread_index][0]
             servo_cmd.cmd_type = 1
-            servo_cmd.step_height.append(0.05)
-            servo_cmd.step_height.append(0.05)
+            servo_cmd.step_height.append(0.06)
+            servo_cmd.step_height.append(0.06)
             servo_cmd.vel_des = [0.0, 0.0, 0.0]
             servo_cmd.cmd_source = 3
             if abs(self.__joystick_y) > 10:
