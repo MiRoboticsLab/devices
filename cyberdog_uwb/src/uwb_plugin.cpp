@@ -1143,8 +1143,9 @@ bool UWBCarpo::UwbRawStatusMsg2Ros()
   static UwbSignleStatusMsg uwb_posestamped_pre;
   UwbSignleStatusMsg uwb_posestamped;
 
-  UwbRawStatusMsg uwb_msg;
-
+  // UwbRawStatusMsg uwb_msg;
+  std::shared_lock<std::shared_mutex> read_lock0(raw_data_mutex_0_);
+  std::shared_lock<std::shared_mutex> read_lock1(raw_data_mutex_1_);
   if (!(raw_data_updated[0] && raw_data_updated[1])) {
     return false;
   } else {
@@ -1156,12 +1157,12 @@ bool UWBCarpo::UwbRawStatusMsg2Ros()
   auto & ros_uwb_status_left = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
   auto & ros_uwb_status_right = ros_uwb_status_.data[static_cast<int>(Type::RearTOF)];
   auto & ros_uwb_status_tmp = ros_uwb_status_front;
-
+/*
   uwb_msg.data.push_back(ros_uwb_status_front);
   uwb_msg.data.push_back(ros_uwb_status_back);
   uwb_msg.data.push_back(ros_uwb_status_left);
   uwb_msg.data.push_back(ros_uwb_status_right);
-
+*/
 
   if (ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)].rssi_1 > -1 ||
     ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)].rssi_2 > -1)
