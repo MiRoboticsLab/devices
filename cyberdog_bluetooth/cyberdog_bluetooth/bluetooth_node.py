@@ -430,11 +430,12 @@ class BluetoothNode(Node, DefaultDelegate):
         elif data[7] == 0x02:  # disconnect uwb response
             self.__uwb_disconnect_accepted = data[9]
         elif data[7] == 0x04:  # uwb tracking
-            if self.__uwb_tracking.IsTrackingTaskActivated():
+            task_status = self.__uwb_tracking.IsTrackingTaskActivated()
+            if task_status == 11:
                 print('Calling stop tracking service')
                 self.__uwb_tracking.StopTracking()
                 self.__is_tracking = False
-            else:
+            elif task_status == 101:
                 print('Sending tracking goal to task action')
                 self.__uwb_tracking.StartTracking()
                 self.__is_tracking = True
