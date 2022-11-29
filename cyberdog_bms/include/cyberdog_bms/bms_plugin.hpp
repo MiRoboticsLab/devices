@@ -61,8 +61,8 @@ struct BatteryStatus
   uint8_t cmd_test;
 
   // can0
-  uint8_t bms_enable_on;
-  uint8_t bms_enable_off;
+  uint8_t bms_enable_on_ack;
+  uint8_t bms_enable_off_ack;
 };
 
 
@@ -172,7 +172,8 @@ private:
   // ROS2 interface
   sensor_msgs::msg::BatteryState battery_state_;
   std::deque<protocol::msg::BmsStatus> queue_;
-  bool get_real_data_flag_ {false};
+  bool is_get_real_data_ {false};
+  bool is_open_{false};
 };  //  class BMSCarpo
 }   //  namespace device
 }   //  namespace cyberdog
