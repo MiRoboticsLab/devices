@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from action_msgs.msg import GoalStatusArray
 from protocol.action import Navigation
-from protocol.srv import StopAlgoTask
+from protocol.srv import AlgoTaskStatus, StopAlgoTask
 from rclpy.action import ActionClient
 from rclpy.node import Node
 
@@ -29,10 +28,9 @@ class UWBTracking:
             StopAlgoTask, 'stop_algo_task', callback_group=multithread_callback_group)
         self.__tracking_action_client = ActionClient(
             node, Navigation, 'start_algo_task', callback_group=multithread_callback_group)
-        self.__tracking_task_status_sub = node.create_subscription(
-            GoalStatusArray, 'tracking_target/_action/status',
-            self.__taskStatusCB, 20)
-        self.__tracking_activating = False
+        self.__tracking_activating = 999  # 101 for IDLE, 11 for uwb, 999 for unavailable
+        self.__task_status_client = node.create_client(
+            AlgoTaskStatus, 'algo_task_status', callback_group=multithread_callback_group)
 
     def StopTracking(self):
         if not self.__stop_task_client.wait_for_service(timeout_sec=3.0):
@@ -55,14 +53,11 @@ class UWBTracking:
         return True
 
     def IsTrackingTaskActivated(self):
+        if self.__task_status_client.wait_for_service(timeout_sec=3.0):
+            response = self.__task_status_client.call(
+                AlgoTaskStatus.Request())
+            self.__tracking_activating = response.status
+        else:
+            self.__tracking_activating = 999
+        print('UWB tracking status is', self.__tracking_activating)
         return self.__tracking_activating
-
-    def __taskStatusCB(self, msg):
-        if len(msg.status_list) != 0:
-            for each_status in msg.status_list:
-                if each_status.status == 1 or each_status.status == 2:
-                    self.__tracking_activating = True
-                    break
-                else:
-                    self.__tracking_activating = False
-            print('UWB tracking status is', self.__tracking_activating)
