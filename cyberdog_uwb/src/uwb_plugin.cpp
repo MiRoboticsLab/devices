@@ -303,26 +303,53 @@ void UWBCarpo::HandleCan0Messages(
   INFO_STREAM_MILLSECONDS(2000, "    name ==   " << name);
 
   if (name == "rear_enable_initial_ack" || name == "rear_tof_enable_initial_ack") {
-    rear_enable_initial_ = true;
-    rear_tof_enable_initial_ = true;
-    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_initial_ack);
-    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_initial_ack);
+    if (data->rear_enable_initial_ack == 0 && data->rear_tof_enable_initial_ack == 0) {
+      rear_enable_initial_ = true;
+      rear_tof_enable_initial_ = true;
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_initial_ack);
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_initial_ack);
+    } else {
+      if (data->rear_enable_initial_ack != 0) {
+        ERROR_STREAM("rear_enable_initial_ack = " << data->rear_enable_initial_ack);
+      }
+      if (data->rear_tof_enable_initial_ack != 0) {
+        ERROR_STREAM("rear_tof_enable_initial_ack = " << data->rear_tof_enable_initial_ack);
+      }
+    }
   }
 
   if (rear_enable_initial_ && rear_tof_enable_initial_) {
     if (name == "rear_enable_on_ack" || name == "rear_tof_enable_on_ack") {
-      rear_turn_on_ = true;
-      rear_tof_turn_on_ = true;
-      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
-      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
+      if (data->rear_enable_on_ack == 0 && data->rear_tof_enable_on_ack == 0) {
+        rear_turn_on_ = true;
+        rear_tof_turn_on_ = true;
+        rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_on_ack);
+        rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_on_ack);
+      } else {
+        if (data->rear_enable_on_ack != 0) {
+          ERROR_STREAM("rear_enable_on_ack = " << data->rear_enable_on_ack);
+        }
+        if (data->rear_tof_enable_on_ack != 0) {
+          ERROR_STREAM("rear_tof_enable_on_ack = " << data->rear_tof_enable_on_ack);
+        }
+      }
     }
   }
 
   if (name == "rear_enable_off_ack" || name == "rear_tof_enable_off_ack") {
-    rear_turn_on_ = false;
-    rear_tof_turn_on_ = false;
-    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_off_ack);
-    rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_off_ack);
+    if (data->rear_enable_off_ack == 0 && data->rear_tof_enable_off_ack == 0) {
+      rear_turn_on_ = false;
+      rear_tof_turn_on_ = false;
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_enable_off_ack);
+      rear_can_ptr_->BREAK_VAR(rear_can_ptr_->GetData()->rear_tof_enable_off_ack);
+    } else {
+      if (data->rear_enable_off_ack != 0) {
+        ERROR_STREAM("rear_enable_off_ack = " << data->rear_enable_off_ack);
+      }
+      if (data->rear_tof_enable_off_ack != 0) {
+        ERROR_STREAM("rear_tof_enable_off_ack = " << data->rear_tof_enable_off_ack);
+      }
+    }
   }
 
   {
@@ -425,26 +452,53 @@ void UWBCarpo::HandleCan1Messages(
   INFO_STREAM_MILLSECONDS(2000, "    name ==   " << name);
 
   if (name == "head_enable_initial_ack" || name == "head_tof_enable_initial_ack") {
-    head_enable_initial_ = true;
-    head_tof_enable_initial_ = true;
-    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_initial_ack);
-    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_initial_ack);
+    if (data->head_enable_initial_ack == 0 && data->head_tof_enable_initial_ack == 0) {
+      head_enable_initial_ = true;
+      head_tof_enable_initial_ = true;
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_initial_ack);
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_initial_ack);
+    } else {
+      if (data->head_enable_initial_ack != 0) {
+        ERROR_STREAM("head_enable_initial_ack = " << data->head_enable_initial_ack);
+      }
+      if (data->head_tof_enable_initial_ack != 0) {
+        ERROR_STREAM("head_tof_enable_initial_ack = " << data->head_tof_enable_initial_ack);
+      }
+    }
   }
 
   if (head_enable_initial_ && head_tof_enable_initial_) {
     if (name == "head_enable_on_ack" || name == "head_tof_enable_on_ack") {
-      head_turn_on_ = true;
-      head_tof_turn_on_ = true;
-      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
-      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
+      if (data->head_enable_on_ack == 0 && data->head_tof_enable_on_ack == 0) {
+        head_turn_on_ = true;
+        head_tof_turn_on_ = true;
+        head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_on_ack);
+        head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_on_ack);
+      } else {
+        if (data->head_enable_on_ack != 0) {
+          ERROR_STREAM("head_enable_on_ack = " << data->head_enable_on_ack);
+        }
+        if (data->head_enable_on_ack != 0) {
+          ERROR_STREAM("head_enable_on_ack = " << data->head_enable_on_ack);
+        }
+      }
     }
   }
 
   if (name == "head_enable_off_ack" || name == "head_tof_enable_off_ack") {
-    head_turn_on_ = false;
-    head_tof_turn_on_ = false;
-    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_off_ack);
-    head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_off_ack);
+    if (data->head_enable_off_ack == 0 && data->head_tof_enable_off_ack == 0) {
+      head_turn_on_ = false;
+      head_tof_turn_on_ = false;
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_enable_off_ack);
+      head_can_ptr_->BREAK_VAR(head_can_ptr_->GetData()->head_tof_enable_off_ack);
+    } else {
+      if (data->head_enable_off_ack != 0) {
+        ERROR_STREAM("head_enable_off_ack = " << data->head_enable_off_ack);
+      }
+      if (data->head_tof_enable_off_ack != 0) {
+        ERROR_STREAM("head_tof_enable_off_ack = " << data->head_tof_enable_off_ack);
+      }
+    }
   }
 
   {
