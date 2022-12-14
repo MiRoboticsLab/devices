@@ -61,7 +61,7 @@ public:
 
   void PublishTouch(protocol::msg::TouchStatus msg);
   void PublishBmsMessage(protocol::msg::BmsStatus msg);
-  void PublishUwbMessage(protocol::msg::UwbRaw msg);
+  void PublishUwbMessage(protocol::msg::UwbArray msg);
 
 private:
   std::vector<std::string> simulator_;
@@ -76,7 +76,7 @@ private:
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::BmsStatus>::SharedPtr bms_pub_ {nullptr};
-  rclcpp::Publisher<protocol::msg::UwbRaw>::SharedPtr uwb_pub_ {nullptr};
+  rclcpp::Publisher<protocol::msg::UwbArray>::SharedPtr uwb_pub_ {nullptr};
 };  // class DeviceHandler
 
 }  // namespace device

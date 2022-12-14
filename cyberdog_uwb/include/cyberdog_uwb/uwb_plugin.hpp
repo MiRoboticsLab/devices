@@ -146,7 +146,7 @@ public:
   ~UWBCarpo();
   bool Config() override;
   bool Init(
-    std::function<void(UwbSignleStatusMsg)>
+    std::function<void(UwbRawStatusMsg)>
     function_callback, bool simulation = false) override;
   bool SelfCheck() override;
   bool LowPower() override;
@@ -155,7 +155,7 @@ public:
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override;
   void SetConnectedState(bool connected) override;
   bool RegisterTopic(
-    std::function<void(UwbSignleStatusMsg)> function_callback) override;
+    std::function<void(UwbRawStatusMsg)> function_callback) override;
 
   bool Open();
   bool Close();
@@ -226,7 +226,7 @@ private:
   std::mutex mutex_;
   UwbRawStatusMsg ros_uwb_status_;
   std::shared_mutex raw_data_mutex_0_, raw_data_mutex_1_;
-  std::function<void(UwbSignleStatusMsg)> status_function_;
+  std::function<void(UwbRawStatusMsg)> status_function_;
 
   // uwb config parameters
   UWBConfig uwb_config_;

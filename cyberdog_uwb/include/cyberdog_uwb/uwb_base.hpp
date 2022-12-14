@@ -37,12 +37,12 @@ public:
   virtual ~UWBBase() {}
   virtual bool Config() = 0;
   virtual bool Init(
-    std::function<void(UwbSignleStatusMsg)>
+    std::function<void(UwbRawStatusMsg)>
     function_callback, bool simulation = false) = 0;
   virtual bool SelfCheck() = 0;
   virtual bool LowPower() = 0;
   virtual bool RegisterTopic(
-    std::function<void(UwbSignleStatusMsg)> function_callback) = 0;
+    std::function<void(UwbRawStatusMsg)> function_callback) = 0;
   virtual void Play(
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) = 0;

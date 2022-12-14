@@ -58,7 +58,7 @@ bool UWBCarpo::Config()
 }
 
 bool UWBCarpo::Init(
-  std::function<void(UwbSignleStatusMsg)>
+  std::function<void(UwbRawStatusMsg)>
   function_callback, bool simulation)
 {
   if (use_uwb_) {
@@ -108,7 +108,7 @@ bool UWBCarpo::LowPower()
   return true;
 }
 
-bool UWBCarpo::RegisterTopic(std::function<void(UwbSignleStatusMsg)> function_callback)
+bool UWBCarpo::RegisterTopic(std::function<void(UwbRawStatusMsg)> function_callback)
 {
   status_function_ = function_callback;
   return true;
@@ -405,6 +405,9 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.data[index].n_los = nLos;
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2);
+      ros_uwb_status_.data[index].header.stamp.nanosec = time_stu.tv_nsec;
+      ros_uwb_status_.data[index].header.stamp.sec = time_stu.tv_sec;
+      ros_uwb_status_.data[index].header.frame_id = "rear_uwb";
 
       // TOF data
       float dist_tof = data->rear_tof_data_array[0] + (data->rear_tof_data_array[1] << 8); // NOLINT
@@ -420,6 +423,9 @@ void UWBCarpo::HandleCan0Messages(
       ros_uwb_status_.data[index].n_los = nLos_tof;
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
+      ros_uwb_status_.data[index].header.stamp.nanosec = time_stu.tv_nsec;
+      ros_uwb_status_.data[index].header.stamp.sec = time_stu.tv_sec;
+      ros_uwb_status_.data[index].header.frame_id = "rear_tof";      
 
       raw_data_updated[0] = true;
 
@@ -554,7 +560,9 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.data[index].n_los = nLos;
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2);
-
+      ros_uwb_status_.data[index].header.stamp.nanosec = time_stu.tv_nsec;
+      ros_uwb_status_.data[index].header.stamp.sec = time_stu.tv_sec;
+      ros_uwb_status_.data[index].header.frame_id = "head_uwb";      
       // TOF data
       float dist_tof = data->head_tof_data_array[0] + (data->head_tof_data_array[1] << 8);
       short angle_tof = data->head_tof_data_array[2] + (data->head_tof_data_array[3] << 8);   // NOLINT
@@ -569,6 +577,9 @@ void UWBCarpo::HandleCan1Messages(
       ros_uwb_status_.data[index].n_los = nLos_tof;
       ros_uwb_status_.data[index].rssi_1 = format_8_8(rssi_1_tof);
       ros_uwb_status_.data[index].rssi_2 = format_8_8(rssi_2_tof);
+      ros_uwb_status_.data[index].header.stamp.nanosec = time_stu.tv_nsec;
+      ros_uwb_status_.data[index].header.stamp.sec = time_stu.tv_sec;
+      ros_uwb_status_.data[index].header.frame_id = "head_tof";         
 
       raw_data_updated[1] = true;
 
@@ -611,7 +622,10 @@ void UWBCarpo::RunTask()
 
       // publish msgs
       INFO_MILLSECONDS(5000, "Publish uwb raw mags.");
-      status_function_(msg);
+      ros_uwb_status_.header.frame_id = "uwb";
+      ros_uwb_status_.header.stamp.nanosec = time_stu.tv_nsec;
+      ros_uwb_status_.header.stamp.sec = time_stu.tv_sec;
+      status_function_(ros_uwb_status_);
     }
   }
 }
