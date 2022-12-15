@@ -301,7 +301,8 @@ void UWBCarpo::HandleCan0Messages(
 {
   INFO_STREAM_MILLSECONDS(2000, "~~~~ can0 uwb callback ~~~~~ ");
   INFO_STREAM_MILLSECONDS(2000, "    name ==   " << name);
-
+  struct timespec time_stu;
+  clock_gettime(CLOCK_REALTIME, &time_stu);
   if (name == "rear_enable_initial_ack" || name == "rear_tof_enable_initial_ack") {
     if (data->rear_enable_initial_ack == 0 && data->rear_tof_enable_initial_ack == 0) {
       rear_enable_initial_ = true;
@@ -456,7 +457,8 @@ void UWBCarpo::HandleCan1Messages(
 {
   INFO_STREAM_MILLSECONDS(2000, "~~~~ can1 uwb callback ~~~~~ ");
   INFO_STREAM_MILLSECONDS(2000, "    name ==   " << name);
-
+  struct timespec time_stu;
+  clock_gettime(CLOCK_REALTIME, &time_stu);
   if (name == "head_enable_initial_ack" || name == "head_tof_enable_initial_ack") {
     if (data->head_enable_initial_ack == 0 && data->head_tof_enable_initial_ack == 0) {
       head_enable_initial_ = true;
@@ -606,6 +608,7 @@ void UWBCarpo::HandleCan1Messages(
 
 void UWBCarpo::RunTask()
 {
+  struct timespec time_stu;
   while (threading_) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (activated_ && UwbRawStatusMsg2Ros()) {
@@ -622,6 +625,7 @@ void UWBCarpo::RunTask()
 
       // publish msgs
       INFO_MILLSECONDS(5000, "Publish uwb raw mags.");
+      clock_gettime(CLOCK_REALTIME, &time_stu);  
       ros_uwb_status_.header.frame_id = "uwb";
       ros_uwb_status_.header.stamp.nanosec = time_stu.tv_nsec;
       ros_uwb_status_.header.stamp.sec = time_stu.tv_sec;
