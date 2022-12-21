@@ -67,10 +67,10 @@ def rescanWifi():
 def nmcliConnectWifi(ssid, pwd, timeout=18):
     cmd = "sudo nmcli --wait " + str(timeout) + " device wifi connect '"
     cmd += ssid
-    cmd += "' password '"
-    cmd += pwd
+    if pwd != '':
+        cmd += "' password '"
+        cmd += pwd
     cmd += "'"
-    print(cmd)
     return runCommand(cmd)
 
 def reconnect(ssid):
@@ -102,6 +102,7 @@ class CyberdogWifi(Node):
         self.mode_sub = self.create_subscription(Bool, 'app_connection_state', self.switchMode ,1)
         timer_period = 1.0  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.logger = self.get_logger()
         self.connection_list = []
         self.app_connected = True
         init_msg = Bool()
@@ -164,38 +165,42 @@ class CyberdogWifi(Node):
 
     def wifi_connect(self, request, response):
         """connect wifi callback"""
-        print('request ssid:', request.ssid, 'request pwd', request.pwd)
+        pwd_log = ''
+        for i in range(0, len(request.pwd)):
+            pwd_log += '*'
+        self.logger.info('request ssid: %s, request pwd: %s' % (request.ssid, pwd_log))
         if self.connected_ssid == request.ssid:
             response.result = RESULT_SUCCESS
-            print('ssid is the same!')
+            self.logger.info('ssid is the same!')
         else:
             response.result = RESULT_NO_SSID
             self.updateConnectionList()
             if request.ssid in self.connection_list:
-                print('ssid is in history list')
+                self.logger.info('ssid is in history list')
                 runCommand('sudo nmcli connection delete "' + request.ssid + '"')
             trial_times = 0
             while response.result != RESULT_SUCCESS and trial_times < 3:
                 sleep(1.0)
-                print('Try to connect', request.ssid, 'trial times:', trial_times)
+                self.logger.info('Try to connect %s trial times: %d' % (request.ssid, trial_times))
                 timeout = 16 - trial_times
                 connect_res = nmcliConnectWifi(request.ssid, request.pwd, timeout)
-                print(connect_res)
+                self.logger.info(connect_res)
                 response.result = return_connect_status(
                     connect_res)
                 if response.result == RESULT_ERR_PWD:
-                    print('pass word is error, stop connecting')
+                    self.logger.warning('password is error, stop connecting')
                     break
                 elif response.result == RESULT_NO_SSID and trial_times == 0:
-                    print('Rescan wifi list')
+                    self.logger.info('Rescan wifi list')
                     rescanWifi()
                     sleep(2.0)
                 elif response.result == RESULT_OTHER or response.result == RESULT_INTERRUPT:
-                    print('Not able to connect to ssid', request.ssid, 'now')
+                    self.logger.waring('Not able to connect to ssid %s now' % request.ssid)
                     break
                 trial_times += 1
-            print('finish tries', trial_times)
+            self.logger.info('finish tries %d' % trial_times)
             if response.result == RESULT_SUCCESS:
+                self.logger.info('successfully connected')
                 self.connected_ssid = request.ssid
         return response
     
@@ -259,7 +264,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     wifi_node = CyberdogWifi()
-    print("cyberdog wifi started.")
+    wifi_node.get_logger().info('cyberdog_wifi started.')
     rclpy.spin(wifi_node)
 
     # Destroy the service attached to the node explicitly
