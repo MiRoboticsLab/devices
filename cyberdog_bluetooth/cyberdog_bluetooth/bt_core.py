@@ -25,9 +25,9 @@ class ScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         if isNewDev:
-            print('Discovered device', dev.addr)
+            print('Discovered device', dev.addr, 'type:', dev.addrType)
         elif isNewData:
-            print('Received new data from', dev.addr)
+            print('Received new data from', dev.addr, 'type:', dev.addrType)
 
 
 class PeripheralDiviceInfo:
@@ -94,8 +94,7 @@ class BluetoothCore:
                 return True
             else:
                 self.Disconnect()
-        peripheral_inf = PeripheralDiviceInfo(mac, name, add_type)
-        return self.__connect(peripheral_inf)
+        return self.__connect(PeripheralDiviceInfo(mac, name, add_type))
 
     def GetPeripheralInfo(self):
         if self.__connected:
@@ -139,36 +138,27 @@ class BluetoothCore:
         """Set a callback for notifications."""
         self.__peripheral.setDelegate(notification)
 
-    def SetNotification(self, service, characteristic, enable=True):
+    def SetNotification(self, service, characteristic, enable=True, indicate=False):
         characteristic_handle = characteristic.getHandle()
         print('characteristic_handle:', characteristic_handle)
         descriptor_list = self.__peripheral.getDescriptors(characteristic_handle, service.hndEnd)
-        descriptor_handle_for_notification = None
-        for descriptor in descriptor_list:
-            if descriptor.uuid == UUID(0x2902):
-                print('found descriptor for notification')
-                descriptor_handle_for_notification = descriptor.handle
-                break
-        if descriptor_handle_for_notification is None:
-            print('Not found Client Characteristic Configuration')
+        if descriptor_list is None or len(descriptor_list) == 0:
+            print('No descpriptors of this characteristic')
             return None
-        if enable:
-            self.__peripheral.writeCharacteristic(
-                descriptor_handle_for_notification, bytes([1, 0]))
-        else:
-            self.__peripheral.writeCharacteristic(
-                descriptor_handle_for_notification, bytes([0, 0]))
-        print('setNotification done')
+        if not self.__setNotficationByDescriptorList(descriptor_list, enable, indicate):
+            return None
         return characteristic_handle
 
-    def SetNotificationByUUID(self, srv_uuid, char_uuid, enable: bool):
+    def SetNotificationByUUID(self, srv_uuid, char_uuid, enable=True, indicate=False):
         service = self.GetService(srv_uuid)
         if service is None:
+            print('No service found')
             return None
         characteristic = self.GetCharacteristic(service, char_uuid)
         if characteristic is None:
+            print('No characteristic found')
             return None
-        return self.SetNotification(service, characteristic, enable)
+        return self.SetNotification(service, characteristic, enable, indicate)
 
     def WriteCharacteristic(self, characteristic, value, withResponse=False):
         characteristic.write(value, withResponse)
@@ -184,44 +174,61 @@ class BluetoothCore:
             return False
         srv = self.GetService(service_uuid)
         if srv is not None:
+            print('found service')
             characteristic = self.GetCharacteristic(srv, characteristic_uuid)
-            print('Start to write charicteristic')
             if characteristic is not None:
-                try:
-                    if len(value) <= 20:
-                        self.WriteCharacteristic(characteristic, value, withResponse)
-                    else:
-                        packs = int(len(value) / 20)
-                        for i in range(0, packs):
-                            print('Writing pack', i)
-                            self.WriteCharacteristic(
-                                characteristic,
-                                value[i * 20: (i + 1) * 20],
-                                withResponse)
-                        if len(value) % 20 != 0:
-                            print('Writing last pack')
-                            self.WriteCharacteristic(
-                                characteristic,
-                                value[packs * 20:],
-                                withResponse)
-                    print('Writing complete')
-                except BTLEDisconnectError as e:
-                    self.__connected = False
-                    self.__peripheral_name = ''
-                    print('BTLEDisconnectError:', e, 'Disconnected unexpected while writing!')
-                    return False
-                except AttributeError as e:
-                    self.__connected = False
-                    self.__peripheral_name = ''
-                    print('AttributeError:', e, 'Disconnected unexpected while writing!')
-                    return False
-                except BTLEGattError as e:
-                    self.__connected = False
-                    self.__peripheral_name = ''
-                    print('BTLEGattError:', e, 'Disconnected unexpected while writing!')
-                    return False
-                return True
+                return self.__writeByCharacteristic(characteristic, value, withResponse)
+            else:
+                print('characteristic not found')
+                return False
+        print('service not found')
         return False
+
+    def WriteByChracteristicUUID(self, characteristic_uuid, value: bytes, withResponse=False):
+        if not self.__connect:
+            return False
+        characteristics = self.__peripheral.getCharacteristics(uuid=characteristic_uuid)
+        if characteristics is not None and len(characteristics) != 0:
+            return self.__writeByCharacteristic(characteristics[0], value, withResponse)
+        print('Not found characteristic')
+        return False
+
+    def __writeByCharacteristic(self, characteristic, value: bytes, withResponse=False):
+        print('Start to write characteristic')
+        try:
+            if len(value) <= 20:
+                self.WriteCharacteristic(characteristic, value, withResponse)
+            else:
+                packs = int(len(value) / 20)
+                for i in range(0, packs):
+                    print('Writing pack', i)
+                    self.WriteCharacteristic(
+                        characteristic,
+                        value[i * 20: (i + 1) * 20],
+                        withResponse)
+                if len(value) % 20 != 0:
+                    print('Writing last pack')
+                    self.WriteCharacteristic(
+                        characteristic,
+                        value[packs * 20:],
+                        withResponse)
+            print('Writing complete')
+        except BTLEDisconnectError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            print('BTLEDisconnectError:', e, 'Disconnected unexpected while writing!')
+            return False
+        except AttributeError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            print('AttributeError:', e, 'Disconnected unexpected while writing!')
+            return False
+        except BTLEGattError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            print('BTLEGattError:', e, 'Disconnected unexpected while writing!')
+            return False
+        return True
 
     def WriteCharacteristicByHandle(self, char_handel, value, withResponse=False):
         if self.__connected:
@@ -271,6 +278,48 @@ class BluetoothCore:
 
     def GetPeripheralList(self):
         return self.__peripheral_list
+
+    def GetCharacteristicList(self):
+        return self.__peripheral.getCharacteristics()
+
+    def SetNotificationByCharacteristicUUID(self, char_uuid: UUID, enable=True, indicate=False):
+        characteristics = self.__peripheral.getCharacteristics(uuid=char_uuid)
+        if len(characteristics) == 0:
+            print('Not found characteristic')
+            return None
+        characteristic = characteristics[0]
+        characteristic_handle = characteristic.getHandle()
+        print('characteristic_handle:', characteristic_handle)
+        descriptor_list = self.__peripheral.getDescriptors(characteristic_handle)
+        if descriptor_list is None or len(descriptor_list) == 0:
+            print('No descpriptors of this characteristic')
+            return None
+        if not self.__setNotficationByDescriptorList(descriptor_list, enable, indicate):
+            return None
+        return characteristic_handle
+
+    def __setNotficationByDescriptorList(self, descriptor_list: list, enable=True, indicate=False):
+        descriptor_handle_for_notification = None
+        for descriptor in descriptor_list:
+            if descriptor.uuid == UUID(0x2902):
+                print('found descriptor for notification')
+                descriptor_handle_for_notification = descriptor.handle
+                break
+        if descriptor_handle_for_notification is None:
+            print('Not found Client Characteristic Configuration')
+            return False
+        if enable:
+            if not indicate:
+                self.__peripheral.writeCharacteristic(
+                    descriptor_handle_for_notification, bytes([1, 0]))
+            else:
+                self.__peripheral.writeCharacteristic(
+                    descriptor_handle_for_notification, bytes([2, 0]))
+        else:
+            self.__peripheral.writeCharacteristic(
+                descriptor_handle_for_notification, bytes([0, 0]))
+        print('setNotification done')
+        return True
 
     def __connect(self, peripheral_info: PeripheralDiviceInfo):
         try:

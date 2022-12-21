@@ -43,6 +43,7 @@ class BluetoothNode(Node, DefaultDelegate):
     def __init__(self, node_name: str):
         Node.__init__(self, node_name)
         DefaultDelegate.__init__(self)
+        self.__logger = self.get_logger()  # ROS2 logger
         self.__bt_central = bt_core.BluetoothCore()
         self.__notification_map_mutex = threading.Lock()
         self.__character_handle_dic = {}
@@ -59,6 +60,8 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__remote_service_uuid = UUID('17b90101-3f76-7dba-4ad8-2f37edb7510b')
         self.__remote_x_characteristic_uuid = UUID('17b90102-3f76-7dba-4ad8-2f37edb7510b')
         self.__remote_y_characteristic_uuid = UUID('17b90103-3f76-7dba-4ad8-2f37edb7510b')
+        self.__dfu_service_uuid = UUID(0xFE59)
+        self.__dfu_characteristic_uuid = UUID('8ec90003-f315-4f60-9fb8-838830daea50')
         self.__joy_x_char = None
         self.__joy_y_char = None
         self.__connected_tag_type = 0  # 0 disconnected, 16 band, 17 dock
@@ -67,6 +70,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__uart_received = False
         self.__uwb_connect_accepted = 3  # 3 default, 0 accepted, 1 rejected
         self.__uwb_disconnect_accepted = 3
+        self.__connected_mac = ''
         self.__multithread_callback_group = ReentrantCallbackGroup()
         self.__siglethread_callback_group = MutuallyExclusiveCallbackGroup()
         self.__scan_server = self.create_service(
@@ -139,7 +143,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__notification_thread.join()
 
     def __scan_callback(self, req, res):
-        print('__scan_callback')
+        self.__logger.info('__scan_callback')
         if abs(req.scan_seconds) < 0.001:  # get history device info
             history_info_list = self.__getHistoryConnectionInfo()
             if history_info_list is None:
@@ -183,9 +187,9 @@ class BluetoothNode(Node, DefaultDelegate):
         return self.__local_scan_result_list
 
     def __connect_callback(self, req, res):
-        print('__connect_callback')
+        self.__logger.info('__connect_callback')
         if self.__connecting:
-            print('is connecting!')
+            self.__logger.info('is connecting!')
             res.result = 1
             return
         self.__connecting = True
@@ -224,11 +228,12 @@ class BluetoothNode(Node, DefaultDelegate):
                 try:
                     self.__getTagType()
                     self.__getTagFirmwareVersion()
-                    print(
-                        'device type', self.__connected_tag_type,
-                        'firmware version', self.__firmware_version)
+                    self.__logger.info(
+                        'device type %d firmware version %s' % (
+                            self.__connected_tag_type, self.__firmware_version))
                     if self.__connected_tag_type == 0:
-                        print(req.selected_device.device_name, 'is not a cyberdog device!')
+                        self.__logger.warning(
+                            '%s is not a cyberdog device!' % req.selected_device.device_name)
                         res.result = 1
                         self.__disconnectPeripheral()
                         self.__tryToReleaseMutex(self.__scan_mutex)
@@ -238,16 +243,16 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__UART_service_uuid,
                         self.__TX_characteristic_uuid, True)
                     if tx_handle is not None:
-                        print('registering uart tx')
+                        self.__logger.info('registering uart tx')
                         self.__registNotificationCallback(
                             tx_handle, self.__uartCB)
                     if self.__connected_tag_type == 16:  # band
-                        print("it 's a band")
+                        self.__logger.info("it 's a band")
                         battery_handle = self.__bt_central.SetNotificationByUUID(  # battery char
                             self.__battery_service_uuid,
                             self.__battery_level_characteristic_uuid, True)
                         if battery_handle is not None:
-                            print('registering battery level')
+                            self.__logger.info('registering battery level')
                             battery_first_time_reading =\
                                 self.__bt_central.ReadCharacteristicByHandle(battery_handle)
                             if battery_first_time_reading is None:
@@ -263,14 +268,14 @@ class BluetoothNode(Node, DefaultDelegate):
                             self.__remote_service_uuid,
                             self.__remote_x_characteristic_uuid, True)
                         if joy_x_handle is not None:
-                            print('registering joyx')
+                            self.__logger.info('registering joyx')
                             self.__registNotificationCallback(
                                 joy_x_handle, self.__joystickXCB)
                         joy_y_handle = self.__bt_central.SetNotificationByUUID(  # joystick y char
                             self.__remote_service_uuid,
                             self.__remote_y_characteristic_uuid, True)
                         if joy_y_handle is not None:
-                            print('registering joyy')
+                            self.__logger.info('registering joyy')
                             self.__registNotificationCallback(
                                 joy_y_handle, self.__joystickYCB)
                     elif self.__connected_tag_type == 17:  # dock
@@ -278,19 +283,24 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__joystick_x = 0.0
                         self.__joystick_y = 0.0
                 except BTLEDisconnectError as e:
-                    print('BTLEDisconnectError:', e, 'Disconnected unexpected while registering!')
+                    self.__logger.error(
+                        'BTLEDisconnectError: %s Disconnected unexpected while registering!' % e)
                     res.result = 1
                 except AttributeError as e:
-                    print('AttributeError:', e, 'Disconnected unexpected while registering!')
+                    self.__logger.error(
+                        'AttributeError: %s Disconnected unexpected while registering!' % e)
                     res.result = 1
                 except BTLEInternalError as e:
-                    print('BTLEInternalError:', e, 'Disconnected unexpected while registering!')
+                    self.__logger.error(
+                        'BTLEInternalError: %s Disconnected unexpected while registering!' % e)
                     res.result = 1
                 except ValueError as e:
-                    print('ValueError:', e, 'Disconnected unexpected while registering!')
+                    self.__logger.error(
+                        'ValueError: %s Disconnected unexpected while registering!' % e)
                     res.result = 1
                 except BTLEGattError as e:
-                    print('BTLEGattError:', e, 'Disconnected unexpected while registering!')
+                    self.__logger.error(
+                        'BTLEGattError: %s Disconnected unexpected while registering!' % e)
                     res.result = 1
                 if res.result == 1:
                     self.__disconnectPeripheral()
@@ -322,6 +332,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         'device_type': self.__connected_tag_type,
                         'firmware_version': self.__firmware_version}
                     self.__updateHistoryFile(new_connection)
+                    self.__connected_mac = req.selected_device.mac
                     connection_signal = Bool()
                     connection_signal.data = True
                     self.__uwb_connection_signal_pub.publish(connection_signal)
@@ -348,7 +359,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if data is None:
             return
         self.__battery_level_float = int.from_bytes(data, 'little') / 100.0
-        print('battery level is', self.__battery_level_float)
+        self.__logger.info('battery level is %f' % self.__battery_level_float)
         battery_msg = BatteryState()
         battery_msg.percentage = self.__battery_level_float
         battery_msg.present = True
@@ -393,12 +404,12 @@ class BluetoothNode(Node, DefaultDelegate):
     def __getTagType(self):
         tag_info_service = self.__bt_central.GetService(self.__tag_info_service_uuid)
         if tag_info_service is None:
-            print('This device is not a cyberdog device!')
+            self.__logger.warning('This device is not a cyberdog device!')
             return 0
         tag_type_char = self.__bt_central.GetCharacteristic(
             tag_info_service, self.__tag_type_characteristic_uuid)
         if tag_type_char is None:
-            print('Cannot get device type!')
+            self.__logger.warning('Not able to get device type!')
             return 0
         self.__connected_tag_type = int.from_bytes(
             self.__bt_central.ReadCharacteristic(tag_type_char), 'little')
@@ -407,19 +418,19 @@ class BluetoothNode(Node, DefaultDelegate):
     def __getTagFirmwareVersion(self):
         gatt_service = self.__bt_central.GetService(self.__GATT_service_uuid)
         if gatt_service is None:
-            print('This device has no GATT service!')
+            self.__logger.warning('This device has no GATT service!')
             return ''
         software_version_char = self.__bt_central.GetCharacteristic(
             gatt_service, self.__software_version_characteristic_uuid)
         if software_version_char is None:
-            print('Cannot get firmware version!')
+            self.__logger.warning('Not able to get firmware version!')
             return ''
         self.__firmware_version = self.__bt_central.ReadCharacteristic(
             software_version_char).decode('UTF-8')
         return self.__firmware_version
 
     def __uartCB(self, data):
-        print('receive uart data:', data)
+        self.__logger.info('receive uart data: %s' % data)
         self.__uart_data_mutex.acquire()
         self.__uart_received = True
         if data[7] == 0x01:  # connect uwb response
@@ -429,11 +440,11 @@ class BluetoothNode(Node, DefaultDelegate):
         elif data[7] == 0x04:  # uwb tracking
             task_status = self.__uwb_tracking.IsTrackingTaskActivated()
             if task_status == 11:
-                print('Calling stop tracking service')
+                self.__logger.info('Calling stop tracking service')
                 self.__uwb_tracking.StopTracking()
                 self.__is_tracking = False
             elif task_status == 101:
-                print('Sending tracking goal to task action')
+                self.__logger.info('Sending tracking goal to task action')
                 self.__uwb_tracking.StartTracking()
                 self.__is_tracking = True
         elif data[7] == 0x05:  # tread switching
@@ -580,7 +591,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __connectTimeoutCB(self):
         if not self.__bt_central.IsConnected():
-            print('timeout and device is not able to connected')
+            self.__logger.error('timeout and device is not able to connected')
             self.__bt_central.Disconnect()
         self.__connect_timeout_timer.cancel()
 
@@ -650,7 +661,7 @@ class BluetoothNode(Node, DefaultDelegate):
         try:
             mutex.release()
         except RuntimeError as re:
-            print('RuntimeError:', re)
+            self.__logger.error('RuntimeError: %s' % re)
 
     def __removeCurrentConnectionFromList(self, info_list):
         if not self.__bt_central.IsConnected():
@@ -719,3 +730,22 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__remote_moving = False
             self.__joystick_update = False
         self.__tryToReleaseMutex(self.__joystick_mutex)
+
+    def __activateDFU(self):
+        dfu_handle = self.__bt_central.SetNotificationByUUID(  # indicate
+            self.__dfu_service_uuid,
+            self.__dfu_characteristic_uuid, True, True)
+        self.__logger.info('dfu handle: %d' % dfu_handle)
+        self.__uwb_disconnect_accepted = 3
+        result = self.__connectUWB(False)
+        self.__logger.info('deactivate uwb')
+        self.__waitForUWBResponse(False)
+        self.__logger.info('start to write dfu_characteristic')
+        result = self.__bt_central.Write(
+            self.__dfu_service_uuid,
+            self.__dfu_characteristic_uuid,
+            b'\x01', True)
+        self.__joy_pub_timer.cancel()
+        sleep(1.0)
+        self.__disconnectPeripheral()
+        return result
