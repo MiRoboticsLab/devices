@@ -109,6 +109,8 @@ class BluetoothNode(Node, DefaultDelegate):
         if not folder_exist:
             os.mkdir(history_dir)
             os.chmod(history_dir, 7 * 8 * 8 + 7 * 8 + 7)
+        self.__history_updated = True
+        self.__history_connection_buffer = []
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
@@ -145,8 +147,9 @@ class BluetoothNode(Node, DefaultDelegate):
     def __scan_callback(self, req, res):
         self.__logger.info('__scan_callback')
         if abs(req.scan_seconds) < 0.001:  # get history device info
+            self.__logger.info('request history connections')
             history_info_list = self.__getHistoryConnectionInfo()
-            if history_info_list is None:
+            if history_info_list is None or history_info_list == []:
                 return res
             for dev_info in history_info_list:
                 info = BLEInfo()
@@ -159,6 +162,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 res.device_info_list.append(info)
             self.__removeCurrentConnectionFromList(res.device_info_list)
         elif not self.__bt_central.IsConnected():  # scan device info
+            self.__logger.info('request scan')
             if self.__scan_mutex.acquire(blocking=False):
                 self.__bt_central.Scan(req.scan_seconds)
                 self.__getLatestScanResult()
@@ -169,6 +173,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__tryToReleaseMutex(self.__scan_mutex)
             res.device_info_list = self.__local_scan_result_list
         else:  # get latest scan result
+            self.__logger.info('request scan, return latest scan result')
             self.__getLatestScanResult()
             self.__removeHistoryFromList(self.__local_scan_result_list)
             res.device_info_list = self.__local_scan_result_list
@@ -181,6 +186,7 @@ class BluetoothNode(Node, DefaultDelegate):
             info.mac = dev_info.mac
             info.name = dev_info.name
             info.addr_type = dev_info.addrType
+            info.device_type = dev_info.device_type
             info.firmware_version = ''
             info.battery_level = 0.0
             self.__local_scan_result_list.append(info)
@@ -195,6 +201,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__connecting = True
         self.__scan_mutex.acquire()
         if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
+            self.__logger.info('request disconnection')
             if not self.__bt_central.IsConnected():
                 res.result = 3
             else:
@@ -205,6 +212,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__disconnectPeripheral()
                 res.result = 0
         else:  # connect to device
+            self.__logger.info('request connection')
             if self.__bt_central.IsConnected():
                 connection_info = self.__bt_central.GetPeripheralInfo()
                 if connection_info is not None:
@@ -553,7 +561,11 @@ class BluetoothNode(Node, DefaultDelegate):
         return result
 
     def __getHistoryConnectionInfo(self):
-        return yaml_parser.YamlParser.GetYamlData(self.__history_ble_list_file)
+        if self.__history_updated:
+            self.__history_connection_buffer = yaml_parser.YamlParser.GetYamlData(
+                self.__history_ble_list_file)
+            self.__history_updated = False
+        return self.__history_connection_buffer
 
     def __updateHistoryFile(self, new_ble_info):
         history_list = yaml_parser.YamlParser.GetYamlData(self.__history_ble_list_file)
@@ -575,6 +587,7 @@ class BluetoothNode(Node, DefaultDelegate):
         elif found == 2:
             return True
         history_list.append(new_ble_info)
+        self.__history_updated = True
         return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
 
     def __currentConnectionsCB(self, req, res):
@@ -649,6 +662,7 @@ class BluetoothNode(Node, DefaultDelegate):
             i += 1
         if found:
             del history_info_list[i]
+            self.__history_updated = True
             return yaml_parser.YamlParser.GenerateYamlDoc(
                 history_info_list, self.__history_ble_list_file)
         return False

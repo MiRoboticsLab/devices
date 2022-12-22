@@ -32,10 +32,11 @@ class ScanDelegate(DefaultDelegate):
 
 class PeripheralDiviceInfo:
 
-    def __init__(self, mac, name, addrType='random'):
+    def __init__(self, mac, name, addrType='random', device_type=0):
         self.mac = mac
         self.name = name
         self.addrType = addrType
+        self.device_type = device_type
 
 
 class BluetoothCore:
@@ -58,10 +59,18 @@ class BluetoothCore:
         for dev in devices:
             print('Device %s (%s), RSSI=%d dB' % (
                 dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME), dev.rssi))
-            if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None:
+            if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None and\
+                    dev.getValueText(ScanEntry.MANUFACTURER) is not None and\
+                    dev.getValueText(ScanEntry.MANUFACTURER)[0: 4] == '8f03':
+                print('got a Xiaomi device')
+                device_type = 0
+                if dev.getValueText(ScanEntry.MANUFACTURER)[4: 8] == '105b':
+                    device_type = 16
+                elif dev.getValueText(ScanEntry.MANUFACTURER)[4: 8] == '115b':
+                    device_type = 17
                 self.__peripheral_list.append(PeripheralDiviceInfo(
                     dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME),
-                    dev.addrType))
+                    dev.addrType, device_type))
         return self.__peripheral_list
 
     def ConnectToBLEDeviceByName(self, name):
