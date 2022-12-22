@@ -25,9 +25,11 @@ class ScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         if isNewDev:
-            print('Discovered device', dev.addr, 'type:', dev.addrType)
+            # print('Discovered device', dev.addr, 'type:', dev.addrType)
+            pass
         elif isNewData:
-            print('Received new data from', dev.addr, 'type:', dev.addrType)
+            # print('Received new data from', dev.addr, 'type:', dev.addrType)
+            pass
 
 
 class PeripheralDiviceInfo:
@@ -57,11 +59,13 @@ class BluetoothCore:
         self.__peripheral_list.clear()
         devices = self.__scanner.scan(sec)
         for dev in devices:
-            print('Device %s (%s), RSSI=%d dB' % (
-                dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME), dev.rssi))
+            # print('Device %s (%s), RSSI=%d dB' % (
+            #     dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME), dev.rssi))
             if dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME) is not None and\
                     dev.getValueText(ScanEntry.MANUFACTURER) is not None and\
                     dev.getValueText(ScanEntry.MANUFACTURER)[0: 4] == '8f03':
+                print('Device %s (%s), RSSI=%d dB' % (
+                    dev.addr, dev.getValueText(ScanEntry.COMPLETE_LOCAL_NAME), dev.rssi))
                 print('got a Xiaomi device')
                 device_type = 0
                 if dev.getValueText(ScanEntry.MANUFACTURER)[4: 8] == '105b':

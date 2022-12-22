@@ -84,9 +84,9 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__uwb_mac_session_id_client = self.create_client(
             GetUWBMacSessionID, 'get_uwb_mac_session_id',
             callback_group=self.__multithread_callback_group)
-        self.__timeout_timer = self.create_timer(
-            10.0, self.__timeoutCB, callback_group=self.__multithread_callback_group)
-        self.__timeout_timer.cancel()
+        self.__response_timeout_timer = self.create_timer(
+            10.0, self.__responseTimeoutCB, callback_group=self.__multithread_callback_group)
+        self.__response_timeout_timer.cancel()
         self.__timeout = False
         self.__battery_volume_pub = self.create_publisher(BatteryState, 'band_battery', 2)
         self.__battery_level_float = 0.0
@@ -111,6 +111,7 @@ class BluetoothNode(Node, DefaultDelegate):
             os.chmod(history_dir, 7 * 8 * 8 + 7 * 8 + 7)
         self.__history_updated = True
         self.__history_connection_buffer = []
+        self.__history_scan_intersection = []
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
@@ -139,6 +140,9 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__tread_index = 0
         self.__uart_ctrl_queue = Queue(5)
         self.__queue_mutex = threading.Lock()
+        self.__auto_reconnect_timer = self.create_timer(
+            30.0, self.__autoReconnect, callback_group=self.__multithread_callback_group)
+        self.__enable_self_connection = True
         self.__notification_thread.start()
 
     def __del__(self):
@@ -149,7 +153,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if abs(req.scan_seconds) < 0.001:  # get history device info
             self.__logger.info('request history connections')
             history_info_list = self.__getHistoryConnectionInfo()
-            if history_info_list is None or history_info_list == []:
+            if history_info_list is None or len(history_info_list) == 0:
                 return res
             for dev_info in history_info_list:
                 info = BLEInfo()
@@ -161,7 +165,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 info.battery_level = 0.0
                 res.device_info_list.append(info)
             self.__removeCurrentConnectionFromList(res.device_info_list)
-        elif not self.__bt_central.IsConnected():  # scan device info
+        elif not self.__bt_central.IsConnected() and not self.__connecting:  # scan device info
             self.__logger.info('request scan')
             if self.__scan_mutex.acquire(blocking=False):
                 self.__bt_central.Scan(req.scan_seconds)
@@ -521,14 +525,14 @@ class BluetoothNode(Node, DefaultDelegate):
         disconnect_msg.data = True
         self.__disconnect_unexpectedly_pub.publish(disconnect_msg)
 
-    def __timeoutCB(self):
+    def __responseTimeoutCB(self):
         self.__timeout = True
-        self.__timeout_timer.cancel()
+        self.__response_timeout_timer.cancel()
 
     def __waitForUWBResponse(self, connect: bool):
         got_uwb_response = False
         self.__timeout = False
-        self.__timeout_timer.reset()
+        self.__response_timeout_timer.reset()
         result = 2
         while not got_uwb_response:
             got_uwb_response = self.__timeout
@@ -648,7 +652,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __deleteHistory(self, mac):
         history_info_list = self.__getHistoryConnectionInfo()
-        if history_info_list is None:
+        if history_info_list is None or len(history_info_list) == 0:
             return False
         if mac == '':
             os.remove(self.__history_ble_list_file)
@@ -696,18 +700,20 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __removeHistoryFromList(self, info_list):
         history_list = self.__getHistoryConnectionInfo()
-        if not history_list:
+        if history_list is None or len(history_list) == 0:
             return
         i = 0
         found = []
+        self.__history_scan_intersection.clear()
         for info in info_list:
             for info_h in history_list:
                 if info.mac == info_h['mac']:
                     found.append(i)
+                    self.__history_scan_intersection.append(info)
                     break
             i += 1
         j = 0
-        if found:
+        if len(found) != 0:
             for numb in found:
                 del info_list[numb - j]
                 j += 1
@@ -763,3 +769,19 @@ class BluetoothNode(Node, DefaultDelegate):
         sleep(1.0)
         self.__disconnectPeripheral()
         return result
+
+    def __autoReconnect(self):
+        if self.__bt_central.IsConnected() or\
+                self.__connecting or not self.__enable_self_connection:
+            return
+        scan_req = BLEScan.Request()
+        scan_res = BLEScan.Response()
+        scan_req.scan_seconds = 3.0
+        self.__scan_callback(scan_req, scan_res)
+        if len(self.__history_scan_intersection) != 0:
+            self.__logger.info(
+                'find history device %s in scan result' % self.__history_scan_intersection[0].mac)
+            connect_req = BLEConnect.Request()
+            connect_res = BLEConnect.Response()
+            connect_req.selected_device = self.__history_scan_intersection[0]
+            self.__connect_callback(connect_req, connect_res)
