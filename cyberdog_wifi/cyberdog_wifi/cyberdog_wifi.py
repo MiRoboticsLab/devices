@@ -63,16 +63,6 @@ def runCommand(cmd):
 def rescanWifi():
     runCommand('sudo nmcli device wifi rescan')
 
-# do a new wlan connect
-def nmcliConnectWifi(ssid, pwd, timeout=18):
-    cmd = "sudo nmcli --wait " + str(timeout) + " device wifi connect '"
-    cmd += ssid
-    if pwd != '':
-        cmd += "' password '"
-        cmd += pwd
-    cmd += "'"
-    return runCommand(cmd)
-
 def reconnect(ssid):
     cmd = 'sudo nmcli connection up "' + ssid + '"'
     print(cmd)
@@ -181,9 +171,10 @@ class CyberdogWifi(Node):
             trial_times = 0
             while response.result != RESULT_SUCCESS and trial_times < 3:
                 sleep(1.0)
-                self.logger.info('Try to connect %s trial times: %d' % (request.ssid, trial_times))
+                self.logger.info(
+                    'Try to connect %s trial times: %d' % (request.ssid, trial_times))
                 timeout = 16 - trial_times
-                connect_res = nmcliConnectWifi(request.ssid, request.pwd, timeout)
+                connect_res = self.nmcliConnectWifi(request.ssid, request.pwd, timeout)
                 self.logger.info(connect_res)
                 response.result = return_connect_status(
                     connect_res)
@@ -222,6 +213,7 @@ class CyberdogWifi(Node):
 
     def updateConnectionList(self):
         self.connection_list.clear()
+        self.logger.info('update connection list')
         raw_str = runCommand('nmcli connection show | grep wifi')
         str_list = raw_str.split('\n')
         num = len(str_list) - 1
@@ -243,6 +235,7 @@ class CyberdogWifi(Node):
         else:
             activate = 'no'
         cmd = 'sudo nmcli connection modify "' + ssid + '" connection.autoconnect ' + activate
+        self.logger.info(cmd)
         runCommand(cmd)
 
     def switchMode(self, msg):
@@ -255,6 +248,17 @@ class CyberdogWifi(Node):
             if (msg.data and not(self.connected_ssid in ssid)) or not msg.data:
                 self.setAutoconnect(ssid, not msg.data)
         self.app_connected = msg.data
+
+    # do a new wlan connect
+    def nmcliConnectWifi(self, ssid, pwd, timeout=18):
+        cmd = "sudo nmcli --wait " + str(timeout) + " device wifi connect '"
+        cmd += ssid
+        if pwd != '':
+            cmd += "' password '"
+            cmd += pwd
+        cmd += "'"
+        self.logger.info(cmd)
+        return runCommand(cmd)
 
     def __del__(self):
         self.destroy_service(self.srv_wifi)
