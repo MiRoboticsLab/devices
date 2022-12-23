@@ -199,9 +199,11 @@ bool cyberdog::device::LedCarpo::request_load_priority(
       it->second[i].r_value = info_request->r_value;
       it->second[i].g_value = info_request->g_value;
       it->second[i].b_value = info_request->b_value;
-      if (info_request->effect != LedExecuteRequest::RGB_OFF ||
-        info_request->effect != LedExecuteRequest::MINI_OFF)
+      if (info_request->effect == LedExecuteRequest::RGB_OFF ||
+        info_request->effect == LedExecuteRequest::MINI_OFF)
       {
+        it->second[i].isoff = true;
+      } else {
         it->second[i].isoff = false;
       }
       break;
@@ -354,8 +356,8 @@ void cyberdog::device::LedCarpo::find_cmd(
         index = i;
         break;
       } else {
-        for (uint64_t j = i; i < it->second.size(); j++) {
-          if (it->second[i].isoff == false) {
+        for (uint64_t j = i; j < it->second.size(); j++) {
+          if (it->second[j].isoff == false) {
             index = j;
             break;
           }
