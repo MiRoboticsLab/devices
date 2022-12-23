@@ -203,8 +203,7 @@ bool cyberdog::device::LedCarpo::request_load_priority(
         info_request->effect == LedExecuteRequest::MINI_OFF)
       {
         it->second[i].isoff = true;
-      }
-      else {
+      } else {
         it->second[i].isoff = false;
       }
       break;
