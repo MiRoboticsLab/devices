@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import binascii
+import os
 import threading
 from time import sleep
 import zipfile
@@ -45,7 +46,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
 
     def __init__(self, bt_core: bt_core.BluetoothCore, mac: str, zip_file: str, logger=None):
         super().__init__()
-        self.logger = logger
+        self.__logger = logger
         self.__bt_central = bt_core
         self.__dfu_mac = mac
         last_byte = self.__dfu_mac.split(':')[-1]
@@ -55,13 +56,13 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         else:
             last_byte_plus_one = last_byte_plus_one[2:]
         self.__dfu_mac = self.__dfu_mac[0: -2] + last_byte_plus_one
-        self.logger.info('dfu_mac: %s' % self.__dfu_mac)
+        self.__logger.info('dfu_mac: %s' % self.__dfu_mac)
         self.__connected_to_dfu = False
         self.__zip_file = zip_file
         self.__init_package = ''
         self.__firmware_image = ''
         self.__unzip_dir = '/home/mi/.cyberdog/'
-        self.__secure_dfu_service_uuid = UUID(0xFE59)
+        self.__secure_dfu_service_uuid = UUID(0xFE59)  # useless
         self.__control_point_uuid = UUID('8ec90001-f315-4f60-9fb8-838830daea50')
         self.__dfu_packet_uuid = UUID('8ec90002-f315-4f60-9fb8-838830daea50')
         self.__notification_map_mutex = threading.Lock()
@@ -89,39 +90,39 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
             self.__connected_to_dfu = self.__bt_central.ConnectToBLE(
                 self.__dfu_mac, 'DFU', 'random')
             if self.__connected_to_dfu:
-                self.logger.info('DFU ble connected. Start to set Delegate.')
+                self.__logger.info('DFU ble connected. Start to set Delegate.')
                 self.__bt_central.SetNotificationDelegate(self)
-                self.logger.info('Turn on control point notification')
+                self.__logger.info('Turn on control point notification')
                 ctrl_point_handle = self.__bt_central.SetNotificationByCharacteristicUUID(
                     self.__control_point_uuid, True)
                 if ctrl_point_handle is None:
                     self.__connecting = False
                     return False
-                self.logger.info('registering control point handle: %d' % ctrl_point_handle)
+                self.__logger.info('registering control point handle: %d' % ctrl_point_handle)
                 self.__registNotificationCallback(ctrl_point_handle, self.__ctrlPointCB)
                 self.__connected_to_dfu = True
             else:
                 self.__connected_to_dfu = False
         except BTLEDisconnectError as e:
-            self.logger.error(
+            self.__logger.error(
                 'BTLEDisconnectError: %s %s' % (
                     str(e),
                     'Disconnected unexpected while registering!'))
             self.__connected_to_dfu = False
         except AttributeError as e:
-            self.logger.error(
+            self.__logger.error(
                 'AttributeError: %s %s' % (
                     str(e),
                     'Disconnected unexpected while registering!'))
             self.__connected_to_dfu = False
         except BTLEInternalError as e:
-            self.logger.error(
+            self.__logger.error(
                 'BTLEInternalError: %s %s' % (
                     str(e),
                     'Disconnected unexpected while registering!'))
             self.__connected_to_dfu = False
         except BTLEGattError as e:
-            self.logger.error(
+            self.__logger.error(
                 'BTLEGattError: %s %s' % (
                     str(e),
                     'Disconnected unexpected while registering!'))
@@ -156,12 +157,12 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
 
     def AbortDFUMode(self):
         cmd = b'\x0c'  # Abort
-        self.logger.info('sending Abort: %s' % cmd)
+        self.__logger.info('sending Abort: %s' % cmd)
         write_result = self.__bt_central.WriteByChracteristicUUID(
             self.__control_point_uuid,
             cmd, True)
         if not write_result:
-            self.logger.error('Error while writing Abort.')
+            self.__logger.error('Error while writing Abort.')
             return False
         return True
 
@@ -177,12 +178,12 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         return True
 
     def __writeCmdAndGetResp(self, cmd: bytes, descripton: str, timeout=2.0, trial_times=1):
-        self.logger.info('writing %s : %s' % (descripton, str(cmd)))
+        self.__logger.info('writing %s : %s' % (descripton, str(cmd)))
         write_result = self.__bt_central.WriteByChracteristicUUID(
             self.__control_point_uuid,
             cmd, True)
         if not write_result:
-            self.logger.error('Error while writing %s.' % descripton)
+            self.__logger.error('Error while writing %s.' % descripton)
             return 3
         response_bytearray = bytearray()
         response_bytearray.extend(b'\x60')
@@ -205,23 +206,23 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         if write_result == 3:
             return False
         elif write_result == 0:
-            self.logger.info('set PRN seccessfully')
+            self.__logger.info('set PRN seccessfully')
 
     def __transferInitPackage(self):
         self.SetPRN(self.__pkt_receipt_interval)
         if self.__init_package == '' or self.__init_package[-3:] != 'dat':
-            self.logger.warning('Init package is error')
+            self.__logger.warning('Init package is error')
             return False
         file_data = self.__readFile(self.__init_package)
         if len(file_data) == 0:
-            self.logger.warning('Init package size is 0')
+            self.__logger.warning('Init package size is 0')
             return False
         offset = 0
         crc = 0
         max_size = 0
         calculated_crc32 = binascii.crc32(file_data) & 0xFFFFFFFF
         file_offset = len(file_data)
-        self.logger.info('init pack size %d, crc %d' % (len(file_data), calculated_crc32))
+        self.__logger.info('init pack size %d, crc %d' % (len(file_data), calculated_crc32))
         cmd = b'\x06\x01'  # select command
         write_result = self.__writeCmdAndGetResp(cmd, 'Select command', 2.0, 2)
         if write_result != 0 and write_result != 2:
@@ -229,10 +230,10 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         max_size = int.from_bytes(self.__ctrl_notify_data[3: 7], 'little')
         offset = int.from_bytes(self.__ctrl_notify_data[7: 11], 'little')
         crc = int.from_bytes(self.__ctrl_notify_data[11: 15], 'little')
-        self.logger.info('offset:%d crc:%d max_size:%d' % (offset, crc, max_size))
+        self.__logger.info('offset:%d crc:%d max_size:%d' % (offset, crc, max_size))
         trial_time = 3
         while (offset != file_offset or crc != calculated_crc32) and trial_time > 0:
-            self.logger.info('offset or crc is not the same')
+            self.__logger.info('offset or crc is not the same')
             ctrl_bytearray = bytearray()
             ctrl_bytearray.extend(b'\x01\x01')
             ctrl_bytearray.extend(len(file_data).to_bytes(4, 'little'))
@@ -243,14 +244,14 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
             file_offset = 0
             offset = 0
             crc = 0
-            self.logger.info('start to write init pack')
+            self.__logger.info('start to write init pack')
             write_data_result = self.__bt_central.WriteByChracteristicUUID(
                 self.__dfu_packet_uuid,
                 file_data, False)
             if not write_data_result:
                 return False
             file_offset = len(file_data)
-            self.logger.info('finish writing init pack')
+            self.__logger.info('finish writing init pack')
             cmd = b'\x03'  # CRC
             write_result = 2
             while write_result == 2:
@@ -259,16 +260,16 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                 return False
             offset = int.from_bytes(self.__ctrl_notify_data[3: 7], 'little')
             crc = int.from_bytes(self.__ctrl_notify_data[7: 11], 'little')
-            self.logger.info('offset:%d crc:%d' % (offset, crc))
+            self.__logger.info('offset:%d crc:%d' % (offset, crc))
             trial_time -= 1
         if trial_time > 0 or (offset == file_offset and crc == calculated_crc32):
             cmd = b'\x04'  # Execute
             write_result = self.__writeCmdAndGetResp(cmd, 'Execute', 10.0, 3)
             if write_result != 0:
                 return False
-            self.logger.info('finish executing init pack')
+            self.__logger.info('finish executing init pack')
             return True
-        self.logger.error('fail to send init pack')
+        self.__logger.error('fail to send init pack')
         return False
 
     def __waitForResponse(self, compare: bytes, operation: str, timeout=5.0):
@@ -280,24 +281,24 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         self.__ctrl_notify_event.clear()
         if not wait_flag or self.__ctrl_notify_data[0: 3] != compare:
             if not wait_flag:
-                self.logger.warning('Timeout waiting for %s response.' % operation)
+                self.__logger.warning('Timeout waiting for %s response.' % operation)
             else:
-                self.logger.info('response is not correct')
+                self.__logger.info('response is not correct')
             return False
         return True
 
     def __waitForResponseSyn(self, compare: bytes, operation: str, timeout=5.0):
         wait_result = self.__bt_central.WaitForNotifications(timeout)
         if wait_result == 1:
-            self.logger.warning('Timeout waiting for %s response.' % operation)
+            self.__logger.warning('Timeout waiting for %s response.' % operation)
             return 2
         elif wait_result == 3:
-            self.logger.error('Disconnected unexpectedly while waiting for notification')
+            self.__logger.error('Disconnected unexpectedly while waiting for notification')
             self.DisconnectToDFU()
             return 3
         else:
             if self.__ctrl_notify_data[0: 3] != compare:
-                self.logger.info(
+                self.__logger.info(
                     'response is not correct: %s ' % str(self.__ctrl_notify_data[0: 3]))
                 return 1
             else:
@@ -306,11 +307,11 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
     def __transferFirmwareImage(self):
         self.SetPRN(self.__pkt_receipt_interval)
         if self.__firmware_image == '' or self.__firmware_image[-3:] != 'bin':
-            self.logger.warning('Firmware image is error')
+            self.__logger.warning('Firmware image is error')
             return False
         file_data = self.__readFile(self.__firmware_image)
         if len(file_data) == 0:
-            self.logger.warning('Firmware image size is 0')
+            self.__logger.warning('Firmware image size is 0')
             return False
         offset = 0
         crc = 0
@@ -318,7 +319,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         calculated_crc32 = binascii.crc32(file_data) & 0xFFFFFFFF
         full_crc32 = calculated_crc32
         file_offset = 0
-        self.logger.info('firmware image size %d, crc %d' % (len(file_data), calculated_crc32))
+        self.__logger.info('firmware image size %d, crc %d' % (len(file_data), calculated_crc32))
         cmd = b'\x06\x02'  # select data
         write_result = self.__writeCmdAndGetResp(cmd, 'Select data', 10.0, 3)
         if write_result != 0:
@@ -326,7 +327,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         max_size = int.from_bytes(self.__ctrl_notify_data[3: 7], 'little')
         offset = int.from_bytes(self.__ctrl_notify_data[7: 11], 'little')
         crc = int.from_bytes(self.__ctrl_notify_data[11: 15], 'little')
-        self.logger.info('offset:%d crc:%d max_size:%d' % (offset, crc, max_size))
+        self.__logger.info('offset:%d crc:%d max_size:%d' % (offset, crc, max_size))
         write_pack_per_obj = 0
         if max_size < len(file_data):
             write_pack_per_obj = int(max_size / self.__pkt_payload_size)
@@ -336,11 +337,11 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
             write_pack_per_obj = int(len(file_data) / self.__pkt_payload_size)
             if len(file_data) / self.__pkt_payload_size > write_pack_per_obj:
                 write_pack_per_obj += 1
-        self.logger.info('it can be sent %d packs to max_size' % write_pack_per_obj)
+        self.__logger.info('it can be sent %d packs to max_size' % write_pack_per_obj)
         obj_sum = int(len(file_data) / max_size)
         if len(file_data) / max_size > obj_sum:
             obj_sum += 1
-        self.logger.info('total %d data objects' % obj_sum)
+        self.__logger.info('total %d data objects' % obj_sum)
         crc_correct = True
         obj_index = 0
         while file_offset < len(file_data) or not crc_correct:
@@ -357,7 +358,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                 write_result = self.__writeCmdAndGetResp(cmd, 'Create data', 2.0, 2)
                 if write_result != 0 and write_result != 2:
                     return False
-                self.logger.info('start to write firmware image')
+                self.__logger.info('start to write firmware image')
                 this_obj_last_offset = min(file_offset + max_size, len(file_data))
                 write_data_result = self.__bt_central.WriteByChracteristicUUID(
                     self.__dfu_packet_uuid,
@@ -365,7 +366,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                 if not write_data_result:
                     return False
                 file_offset = this_obj_last_offset
-                self.logger.info(
+                self.__logger.info(
                     'writing firmware image process: %f' % (file_offset * 1.0 / len(file_data)))
                 cmd = b'\x03'  # CRC
                 write_result = self.__writeCmdAndGetResp(cmd, 'CRC', 2.0, 1)
@@ -375,7 +376,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                     return False
                 offset = int.from_bytes(self.__ctrl_notify_data[3: 7], 'little')
                 crc = int.from_bytes(self.__ctrl_notify_data[7: 11], 'little')
-                self.logger.info('offset:%d crc:%d' % (offset, crc))
+                self.__logger.info('offset:%d crc:%d' % (offset, crc))
             if reply_timeout or\
                     (offset == file_offset and crc == binascii.crc32(file_data[0: file_offset])):
                 cmd = b'\x04'  # Execute
@@ -383,13 +384,13 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                 if write_result != 0 and write_result != 2:
                     return False
                 obj_index += 1
-                self.logger.info(
+                self.__logger.info(
                     'finish executing firmware image object %d / %d' % (obj_index, obj_sum))
             else:
                 crc_correct = False
-                self.logger.warning('offset or crc is not correct, stop executing')
+                self.__logger.warning('offset or crc is not correct, stop executing')
                 return False
-        self.logger.info('finish executing firmware image')
+        self.__logger.info('finish executing firmware image')
         return True
 
     def __readFile(self, file_name: str):
@@ -403,16 +404,16 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
             self.__character_handle_dic[handle] = callback
 
     def handleNotification(self, cHandle, data):
-        self.logger.info('receive data from characteristic %d' % cHandle)
+        self.__logger.info('receive data from characteristic %d' % cHandle)
         with self.__notification_map_mutex:
             if cHandle in self.__character_handle_dic:
                 self.__character_handle_dic[cHandle](data)
 
     def __ctrlPointCB(self, data):
         if len(data) == 0:
-            self.logger.warning('data is empty!')
+            self.__logger.warning('data is empty!')
             return
-        self.logger.info('receive data from ctrl point: %s' % data)
+        self.__logger.info('receive data from ctrl point: %s' % data)
         self.__ctrl_notify_data = data
         self.__ctrl_notify_event.set()
 
@@ -426,3 +427,41 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                     self.DisconnectToDFU()
             else:
                 sleep(0.05)
+
+
+class DFUFileChecker:
+
+    def __init__(self, firmware_dir='/home/mi/.cyberdog/'):
+        self.__directory = firmware_dir
+        self.__band_prefix = 'BLE_UWB_TAG_BAND_APP_OTA_PACKAGE'
+        self.__power_perfix = 'BLE_UWB_TAG_POWER_APP_OTA_PACKAGE'
+
+    def Check(self, device_type: int, version: str):
+        files = os.listdir(self.__directory)
+        if len(files) == 0:
+            return ''
+        find_index = version.find('_')
+        if find_index == -1:
+            return ''
+        date = version[find_index + 1: find_index + 9]
+        result_list = []
+        for file in files:
+            if file[-3:] == 'zip':
+                if device_type == 16 and self.__band_prefix in file:
+                    result_list.append(file)
+                elif device_type == 17 and self.__power_perfix in file:
+                    result_list.append(file)
+        if len(result_list) == 0:
+            return ''
+        max_date = 0
+        try:
+            for candidate in result_list:
+                candidate_date = int(candidate[-12: -4])
+                if candidate_date > max_date:
+                    max_date = candidate_date
+        except ValueError as e:
+            print('ValueError', e)
+            return ''
+        if candidate_date > date:
+            return candidate_date
+        return ''
