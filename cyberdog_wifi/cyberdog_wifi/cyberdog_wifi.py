@@ -186,7 +186,7 @@ class CyberdogWifi(Node):
                     rescanWifi()
                     sleep(2.0)
                 elif response.result == RESULT_OTHER or response.result == RESULT_INTERRUPT:
-                    self.logger.waring('Not able to connect to ssid %s now' % request.ssid)
+                    self.logger.warning('Not able to connect to ssid %s now' % request.ssid)
                     break
                 trial_times += 1
             self.logger.info('finish tries %d' % trial_times)
