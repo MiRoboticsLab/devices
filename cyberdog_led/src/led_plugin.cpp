@@ -41,8 +41,7 @@ bool cyberdog::device::LedCarpo::Init()
   if (config_res == false) {
     return false;
   }
-  // 初始化优先级序列
-  toml::value value;
+  toml::value value_table;
   auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
   auto local_config_dir = local_share_dir + std::string("/toml_config/device/led_priority.toml");
   if (access(local_config_dir.c_str(), F_OK) != 0) {
@@ -51,32 +50,40 @@ bool cyberdog::device::LedCarpo::Init()
   } else {
     INFO("load led_priority toml file successfully");
   }
-  if (!cyberdog::common::CyberdogToml::ParseFile(local_config_dir, value)) {
+  if (!cyberdog::common::CyberdogToml::ParseFile(local_config_dir, value_table)) {
     ERROR("fail to read data from led_priority toml");
     return false;
   }
-  std::vector<std::string> toml_priority;
-  if (!cyberdog::common::CyberdogToml::Get(value, "priority", toml_priority)) {
-    ERROR(" fail to read key headled from toml");
+  if (!value_table.is_table()) {
+    ERROR("Toml format error");
+    return false;
   }
-  for (uint64_t i = 0; i < toml_priority.size()-1; i++) {
+  toml::value values;
+  cyberdog::common::CyberdogToml::Get(value_table, "priority", values);
+  // 初始化优先级序列
+  for (uint64_t i = 0; i < values.size() - 1; i++) {
     Request_Attribute temp;
-    temp.priority = toml_priority[i];
     this->headled_attrs.emplace_back(temp);
-  }
-  this->headled_attrs.emplace_back(this->system_headled);
-  for (uint64_t i = 0; i < toml_priority.size()-1; i++) {
-    Request_Attribute temp;
-    temp.priority = toml_priority[i];
     this->tailled_attrs.emplace_back(temp);
-  }
-  this->tailled_attrs.emplace_back(this->system_tailled);
-  for (uint64_t i = 0; i < toml_priority.size()-1; i++) {
-    Request_Attribute temp;
-    temp.priority = toml_priority[i];
     this->miniled_attrs.emplace_back(temp);
   }
+  this->headled_attrs.emplace_back(this->system_headled);
+  this->tailled_attrs.emplace_back(this->system_tailled);
   this->miniled_attrs.emplace_back(this->system_miniled);
+  for (size_t i = 0; i < values.size(); i++) {
+    auto value = values.at(i);
+    std::string client_name;
+    if (!cyberdog::common::CyberdogToml::Get(value, "client", client_name)) {
+      ERROR(" fail to read key headled from toml");
+    }
+    uint64_t id;
+    if (!cyberdog::common::CyberdogToml::Get(value, "id", id)) {
+      ERROR(" fail to read key headled from toml");
+    }
+    this->headled_attrs[id].priority = client_name;
+    this->tailled_attrs[id].priority = client_name;
+    this->miniled_attrs[id].priority = client_name;
+  }
   this->led_map.insert(std::make_pair(LedExecuteRequest::HEAD_LED, this->headled_attrs));
   this->led_map.insert(std::make_pair(LedExecuteRequest::TAIL_LED, this->tailled_attrs));
   this->led_map.insert(std::make_pair(LedExecuteRequest::MINI_LED, this->miniled_attrs));
@@ -171,32 +178,52 @@ bool cyberdog::device::LedCarpo::Config()
   if (!cyberdog::common::CyberdogToml::Get(value, "system_headled", headled)) {
     ERROR(" fail to read table system_headled from toml");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "occupation",
-    this->system_headled.occupation)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "occupation",
+      this->system_headled.occupation))
+  {
     ERROR(" fail to read key occupation from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "client",
-    this->system_headled.client)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "client",
+      this->system_headled.client))
+  {
     ERROR(" fail to read key client from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "mode",
-    this->system_headled.mode)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "target",
+      this->system_headled.target))
+  {
+    ERROR(" fail to read key target from table");
+  }
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "mode",
+      this->system_headled.mode))
+  {
     ERROR(" fail to read key mode from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "effect",
-    this->system_headled.effect)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "effect",
+      this->system_headled.effect))
+  {
     ERROR(" fail to read key effect from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "r_value",
-    this->system_headled.r_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "r_value",
+      this->system_headled.r_value))
+  {
     ERROR(" fail to read key r_value from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "g_value",
-    this->system_headled.g_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "g_value",
+      this->system_headled.g_value))
+  {
     ERROR(" fail to read key g_value from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(headled, "b_value",
-    this->system_headled.b_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      headled, "b_value",
+      this->system_headled.b_value))
+  {
     ERROR(" fail to read key b_value from table");
   }
   this->system_headled.priority = this->system_headled.client;
@@ -204,32 +231,52 @@ bool cyberdog::device::LedCarpo::Config()
   if (!cyberdog::common::CyberdogToml::Get(value, "system_tailled", tailled)) {
     ERROR(" fail to read table system_tailled from toml");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "occupation",
-    this->system_tailled.occupation)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "occupation",
+      this->system_tailled.occupation))
+  {
     ERROR(" fail to read key occupation from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "client",
-    this->system_tailled.client)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "client",
+      this->system_tailled.client))
+  {
     ERROR(" fail to read key client from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "mode",
-    this->system_tailled.mode)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "target",
+      this->system_tailled.target))
+  {
+    ERROR(" fail to read key target from table");
+  }
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "mode",
+      this->system_tailled.mode))
+  {
     ERROR(" fail to read key mode from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "effect",
-    this->system_tailled.effect)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "effect",
+      this->system_tailled.effect))
+  {
     ERROR(" fail to read key effect from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "r_value",
-    this->system_tailled.r_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "r_value",
+      this->system_tailled.r_value))
+  {
     ERROR(" fail to read key r_value from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "g_value",
-    this->system_tailled.g_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "g_value",
+      this->system_tailled.g_value))
+  {
     ERROR(" fail to read key g_value from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(tailled, "b_value",
-    this->system_tailled.b_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      tailled, "b_value",
+      this->system_tailled.b_value))
+  {
     ERROR(" fail to read key b_value from table");
   }
   this->system_tailled.priority = this->system_tailled.client;
@@ -237,32 +284,52 @@ bool cyberdog::device::LedCarpo::Config()
   if (!cyberdog::common::CyberdogToml::Get(value, "system_miniled", miniled)) {
     ERROR(" fail to read table system_miniled from toml");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "occupation",
-    this->system_miniled.occupation)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "occupation",
+      this->system_miniled.occupation))
+  {
     ERROR(" fail to read key occupation from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "client",
-    this->system_miniled.client)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "client",
+      this->system_miniled.client))
+  {
     ERROR(" fail to read key client from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "mode",
-    this->system_miniled.mode)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "target",
+      this->system_miniled.target))
+  {
+    ERROR(" fail to read key target from table");
+  }
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "mode",
+      this->system_miniled.mode))
+  {
     ERROR(" fail to read key mode from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "effect",
-    this->system_miniled.effect)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "effect",
+      this->system_miniled.effect))
+  {
     ERROR(" fail to read key effect from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "r_value",
-    this->system_miniled.r_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "r_value",
+      this->system_miniled.r_value))
+  {
     ERROR(" fail to read key r_value from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "g_value",
-    this->system_miniled.g_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "g_value",
+      this->system_miniled.g_value))
+  {
     ERROR(" fail to read key g_value from table");
   }
-  if (!cyberdog::common::CyberdogToml::Get(miniled, "b_value",
-    this->system_miniled.b_value)) {
+  if (!cyberdog::common::CyberdogToml::Get(
+      miniled, "b_value",
+      this->system_miniled.b_value))
+  {
     ERROR(" fail to read key b_value from table");
   }
   this->system_miniled.priority = this->system_miniled.client;
@@ -456,7 +523,17 @@ void cyberdog::device::LedCarpo::find_cmd(
   }
   // operate
   this->operatecmd = it->second[index];
-  INFO("the client %s gets permission to execute led",this->operatecmd.client.c_str());
+  INFO("the client %s gets permission to execute led", this->operatecmd.client.c_str());
+  INFO(
+    "execute cmd: priority: %s" ", occupation: %d" ",client: %s" ", target: %d"
+    ", mode : %d" ", effect: %d" ", r_value: %d" ", g_value: %d"
+    ", b_value: %d ", this->operatecmd.priority.c_str(),
+    static_cast<int>(this->operatecmd.occupation),
+    this->operatecmd.client.c_str(), static_cast<int>(this->operatecmd.target),
+    static_cast<int>(this->operatecmd.mode),
+    static_cast<int>(this->operatecmd.effect), static_cast<int>(this->operatecmd.r_value),
+    static_cast<int>(this->operatecmd.g_value),
+    static_cast<int>(this->operatecmd.b_value));
 }
 
 void cyberdog::device::LedCarpo::mini_led_cmd(std::vector<uint8_t> & temp_vector)
