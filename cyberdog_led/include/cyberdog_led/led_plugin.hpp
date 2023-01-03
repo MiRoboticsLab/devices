@@ -72,6 +72,9 @@ private:
   std::vector<Request_Attribute> tailled_attrs;
   std::vector<Request_Attribute> miniled_attrs;
   Request_Attribute operatecmd;
+  Request_Attribute system_headled;
+  Request_Attribute system_tailled;
+  Request_Attribute system_miniled;
   std::vector<uint8_t> red;
   std::vector<uint8_t> yellow;
   std::vector<uint8_t> blue;
