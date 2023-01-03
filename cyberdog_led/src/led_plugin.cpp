@@ -199,7 +199,7 @@ bool cyberdog::device::LedCarpo::Config()
     this->system_headled.b_value)) {
     ERROR(" fail to read key b_value from table");
   }
-
+  this->system_headled.priority = this->system_headled.client;
   toml::value tailled;
   if (!cyberdog::common::CyberdogToml::Get(value, "system_tailled", tailled)) {
     ERROR(" fail to read table system_tailled from toml");
@@ -232,8 +232,7 @@ bool cyberdog::device::LedCarpo::Config()
     this->system_tailled.b_value)) {
     ERROR(" fail to read key b_value from table");
   }
-
-
+  this->system_tailled.priority = this->system_tailled.client;
   toml::value miniled;
   if (!cyberdog::common::CyberdogToml::Get(value, "system_miniled", miniled)) {
     ERROR(" fail to read table system_miniled from toml");
@@ -266,6 +265,7 @@ bool cyberdog::device::LedCarpo::Config()
     this->system_miniled.b_value)) {
     ERROR(" fail to read key b_value from table");
   }
+  this->system_miniled.priority = this->system_miniled.client;
   return true;
 }
 // 自查下状态
@@ -332,6 +332,7 @@ void cyberdog::device::LedCarpo::Play(
     INFO("request priority is enough to play led");
   }
   // Play by priority
+  INFO("Play by priority");
   find_cmd(info_request);
   info_response->code = play_by_priority(info_request);
 }
@@ -455,8 +456,8 @@ void cyberdog::device::LedCarpo::find_cmd(
   }
   // operate
   this->operatecmd = it->second[index];
+  INFO("the client %s gets permission to execute led",this->operatecmd.client.c_str());
 }
-
 
 void cyberdog::device::LedCarpo::mini_led_cmd(std::vector<uint8_t> & temp_vector)
 {
