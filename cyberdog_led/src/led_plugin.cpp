@@ -408,7 +408,7 @@ int32_t cyberdog::device::LedCarpo::request_legal(
   const std::shared_ptr<protocol::srv::LedExecute::Request> info_request)
 {
   INFO(
-    "occupation: %d" ",request:  client: %s" ", target: %d"
+    "request:  occupation: %d" ", client: %s" ", target: %d"
     ", mode : %d" ", effect: %d" ", r_value: %d" ", g_value: %d"
     ", b_value: %d ",
     static_cast<int>(info_request->occupation),
@@ -437,14 +437,15 @@ int32_t cyberdog::device::LedCarpo::request_legal(
     return LedExecuteResponse::PRIORITY_ERROR;
   }
   // mode
-
+  if (info_request->occupation == false) {
+    return 0;
+  }
   if (info_request->mode != LedExecuteRequest::SYSTEM_PREDEFINED &&
     info_request->mode != LedExecuteRequest::USER_DEFINED)
   {
     ERROR("rgb/mini led only support USER_DEFINED or SYSTEM_PREDEFINED mode");
     return LedExecuteResponse::MODE_ERROR;
   }
-
   // effect
   bool effect_is_legal;
   if (info_request->target == LedExecuteRequest::MINI_LED) {
