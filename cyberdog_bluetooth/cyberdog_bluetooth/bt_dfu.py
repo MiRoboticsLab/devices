@@ -44,7 +44,9 @@ class Unzip:
 class BtDeviceFirmwareUpdate(DefaultDelegate):
     """Operations for bluetooth device firmware updating OTA."""
 
-    def __init__(self, bt_core: bt_core.BluetoothCore, mac: str, zip_file: str, logger=None):
+    def __init__(
+            self, bt_core: bt_core.BluetoothCore, mac: str, zip_file: str,
+            logger=None, progress=None):
         super().__init__()
         self.__logger = logger
         self.__bt_central = bt_core
@@ -75,6 +77,7 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         self.__pkt_payload_size = 20
         self.__pkt_receipt_interval = 0  # 10
         self.__trial_time = 5
+        self.__progress_publisher = progress
         # self.__notification_thread.start()
 
     def __del__(self):
@@ -100,9 +103,6 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                     return False
                 self.__logger.info('registering control point handle: %d' % ctrl_point_handle)
                 self.__registNotificationCallback(ctrl_point_handle, self.__ctrlPointCB)
-                self.__connected_to_dfu = True
-            else:
-                self.__connected_to_dfu = False
         except BTLEDisconnectError as e:
             self.__logger.error(
                 'BTLEDisconnectError: %s %s' % (
@@ -137,21 +137,39 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
 
     def UpdateFirmware(self):
         if not self.__connected_to_dfu:
+            info = 'dfu device is not connected'
+            self.__logger.error(info)
+            msg = (6, 0.05, info)
+            self.__progress_publisher(msg)
             return False
+        info = 'start sending init package'
+        self.__logger.info(info)
+        msg = (5, 0.05, info)
+        self.__progress_publisher(msg)
         if not self.__transferInitPackage():
+            info = 'failed to transfer init package'
+            self.__logger.error(info)
+            msg = (6, 0.05, info)
+            self.__progress_publisher(msg)
             return False
+        info = 'start sending firmware image'
+        self.__logger.info(info)
+        msg = (7, 0.1, info)
+        self.__progress_publisher(msg)
         if not self.__transferFirmwareImage():
+            info = 'failed to transfer init package'
+            self.__logger.error(info)
+            msg = (8, 0.05, info)
+            self.__progress_publisher(msg)
             return False
         return True
 
-    def TestDFUMode(self):
-        print('start zipping!')
+    def ProcessUpdate(self):
         if not self.UnzipFile():
-            print('error while unzipping.')
+            self.__logger.error('error while unzipping.')
             return False
-        print('start updating')
         if not self.UpdateFirmware():
-            print('error while updating')
+            self.__logger.error('error while updating')
             return False
         return True
 
@@ -167,8 +185,16 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         return True
 
     def UnzipFile(self):
+        info = 'start zipping!'
+        self.__logger.info(info)
+        msg = (3, 0.0, info)
+        self.__progress_publisher(msg)
         unzip_file_list = Unzip.unzipFile(self.__zip_file, self.__unzip_dir)
         if len(unzip_file_list) == 0:
+            info = 'no zip file is found'
+            self.__logger.error(info)
+            msg = (4, 0.0, info)
+            self.__progress_publisher(msg)
             return False
         for file_name in unzip_file_list:
             if file_name[-3:] == 'dat':
@@ -176,6 +202,15 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
             elif file_name[-3:] == 'bin':
                 self.__firmware_image = self.__unzip_dir + file_name
         return True
+
+    def RemoveZipFile(self):
+        if len(self.__zip_file):
+            os.remove(self.__zip_file)
+
+    def RemoveUnzipedFiles(self):
+        if len(self.__init_package) != 0 and len(self.__firmware_image) != 0:
+            os.remove(self.__init_package)
+            os.remove(self.__firmware_image)
 
     def __writeCmdAndGetResp(self, cmd: bytes, descripton: str, timeout=2.0, trial_times=1):
         self.__logger.info('writing %s : %s' % (descripton, str(cmd)))
@@ -307,11 +342,17 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
     def __transferFirmwareImage(self):
         self.SetPRN(self.__pkt_receipt_interval)
         if self.__firmware_image == '' or self.__firmware_image[-3:] != 'bin':
-            self.__logger.warning('Firmware image is error')
+            info = 'Firmware image is error'
+            self.__logger.warning(info)
+            msg = (8, 0.1, info)
+            self.__progress_publisher(msg)
             return False
         file_data = self.__readFile(self.__firmware_image)
         if len(file_data) == 0:
-            self.__logger.warning('Firmware image size is 0')
+            info = 'Firmware image size is 0'
+            self.__logger.warning(info)
+            msg = (8, 0.1, info)
+            self.__progress_publisher(msg)
             return False
         offset = 0
         crc = 0
@@ -323,6 +364,10 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         cmd = b'\x06\x02'  # select data
         write_result = self.__writeCmdAndGetResp(cmd, 'Select data', 10.0, 3)
         if write_result != 0:
+            info = 'write command result is not correct'
+            self.__logger.warning(info)
+            msg = (8, 0.1, info)
+            self.__progress_publisher(msg)
             return False
         max_size = int.from_bytes(self.__ctrl_notify_data[3: 7], 'little')
         offset = int.from_bytes(self.__ctrl_notify_data[7: 11], 'little')
@@ -364,6 +409,10 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                     self.__dfu_packet_uuid,
                     file_data[file_offset: this_obj_last_offset], False)
                 if not write_data_result:
+                    info = 'write data result is not correct'
+                    self.__logger.warning(info)
+                    msg = (8, (obj_index * 1.0 / obj_sum) * 0.85 + 0.1, info)
+                    self.__progress_publisher(msg)
                     return False
                 file_offset = this_obj_last_offset
                 self.__logger.info(
@@ -373,6 +422,10 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                 if write_result == 2:
                     reply_timeout = True
                 elif write_result != 0:
+                    info = 'write CRC result is not correct'
+                    self.__logger.warning(info)
+                    msg = (8, (obj_index * 1.0 / obj_sum) * 0.85 + 0.1, info)
+                    self.__progress_publisher(msg)
                     return False
                 offset = int.from_bytes(self.__ctrl_notify_data[3: 7], 'little')
                 crc = int.from_bytes(self.__ctrl_notify_data[7: 11], 'little')
@@ -382,15 +435,27 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
                 cmd = b'\x04'  # Execute
                 write_result = self.__writeCmdAndGetResp(cmd, 'Execute', 2.0, 2)
                 if write_result != 0 and write_result != 2:
+                    info = 'write Execute result is not correct'
+                    self.__logger.warning(info)
+                    msg = (8, (obj_index * 1.0 / obj_sum) * 0.85 + 0.1, info)
+                    self.__progress_publisher(msg)
                     return False
                 obj_index += 1
-                self.__logger.info(
-                    'finish executing firmware image object %d / %d' % (obj_index, obj_sum))
+                info = 'finish executing firmware image object %d / %d' % (obj_index, obj_sum)
+                self.__logger.info(info)
+                msg = (7, (obj_index * 1.0 / obj_sum) * 0.85 + 0.1, info)
+                self.__progress_publisher(msg)
             else:
                 crc_correct = False
-                self.__logger.warning('offset or crc is not correct, stop executing')
+                info = 'offset or crc is not correct, stop executing'
+                self.__logger.warning(info)
+                msg = (8, (obj_index * 1.0 / obj_sum) * 0.85 + 0.1, info)
+                self.__progress_publisher(msg)
                 return False
-        self.__logger.info('finish executing firmware image')
+        info = 'finish executing firmware image'
+        self.__logger.info(info)
+        msg = (7, 0.95, info)
+        self.__progress_publisher(msg)
         return True
 
     def __readFile(self, file_name: str):
@@ -445,23 +510,29 @@ class DFUFileChecker:
             return ''
         date = version[find_index + 1: find_index + 9]
         result_list = []
-        for file in files:
-            if file[-3:] == 'zip':
-                if device_type == 16 and self.__band_prefix in file:
-                    result_list.append(file)
-                elif device_type == 17 and self.__power_perfix in file:
-                    result_list.append(file)
+        for file_name in files:
+            if file_name[-3:] == 'zip':
+                if device_type == 16 and self.__band_prefix in file_name:
+                    result_list.append(file_name)
+                elif device_type == 17 and self.__power_perfix in file_name:
+                    result_list.append(file_name)
         if len(result_list) == 0:
             return ''
         max_date = 0
+        max_candidate = ''
         try:
             for candidate in result_list:
                 candidate_date = int(candidate[-12: -4])
                 if candidate_date > max_date:
                     max_date = candidate_date
+                    if max_candidate != '':
+                        os.remove(self.__directory + max_candidate)
+                    max_candidate = candidate
+                else:
+                    os.remove(self.__directory + candidate)
         except ValueError as e:
             print('ValueError', e)
             return ''
-        if candidate_date > date:
-            return candidate_date
+        if max_date > int(date):
+            return self.__directory + max_candidate
         return ''

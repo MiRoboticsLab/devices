@@ -23,16 +23,17 @@ from time import sleep
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
     DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
-from protocol.msg import BLEInfo, MotionServoCmd
+from protocol.msg import BLEDFUProgress, BLEInfo, MotionServoCmd
 from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState, Joy
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from std_srvs.srv import Trigger
 
 from . import bt_core
+from . import bt_dfu
 from . import uwb_tracking
 from . import yaml_parser
 
@@ -143,6 +144,25 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__auto_reconnect_timer = self.create_timer(
             30.0, self.__autoReconnect, callback_group=self.__multithread_callback_group)
         self.__enable_self_connection = True
+        self.__app_status_sub = self.create_subscription(
+            Bool, 'app_connection_state', self.__appConnectionCB, 1,
+            callback_group=self.__siglethread_callback_group)
+        self.__app_connected = False
+        self.__dfu_notification_pub = self.create_publisher(
+            String, 'ble_firmware_update_notification', 2)
+        self.__dfu_process_service = self.create_service(
+            Trigger, 'update_ble_firmware', self.__updateFirmwareCB,
+            callback_group=self.__siglethread_callback_group)
+        self.__dfu_file_checker = bt_dfu.DFUFileChecker('/home/mi/.cyberdog/')
+        self.__firmware_candidate = ''
+        self.__dfu_progress_publisher = self.create_publisher(
+            BLEDFUProgress, 'ble_dfu_progress', 100)
+        self.__dfu_timer = self.create_timer(
+            0.12, self.__firmwareUpdateTimerCB,
+            callback_group=self.__siglethread_callback_group)
+        self.__dfu_timer.cancel()
+        self.__bt_dfu_obj = None
+        self.__dfu_processing = False
         self.__notification_thread.start()
 
     def __del__(self):
@@ -201,7 +221,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if self.__connecting:
             self.__logger.info('is connecting!')
             res.result = 1
-            return
+            return res
         self.__connecting = True
         self.__scan_mutex.acquire()
         if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
@@ -215,6 +235,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
                 res.result = 0
+                self.__logger.info('disconnect complete')
         else:  # connect to device
             self.__logger.info('request connection')
             if self.__bt_central.IsConnected():
@@ -348,6 +369,8 @@ class BluetoothNode(Node, DefaultDelegate):
                     connection_signal = Bool()
                     connection_signal.data = True
                     self.__uwb_connection_signal_pub.publish(connection_signal)
+                    if self.__app_connected and not self.__dfu_processing:
+                        self.__checkAndPublishDFUNotification()
             else:
                 res.result = 1
         self.__tryToReleaseMutex(self.__scan_mutex)
@@ -785,3 +808,110 @@ class BluetoothNode(Node, DefaultDelegate):
             connect_res = BLEConnect.Response()
             connect_req.selected_device = self.__history_scan_intersection[0]
             self.__connect_callback(connect_req, connect_res)
+
+    def __appConnectionCB(self, msg):
+        if self.__app_connected == msg.data:
+            return
+        self.__app_connected = msg.data  # update status
+        if self.__connecting:
+            return
+        if self.__app_connected and self.__bt_central.IsConnected() and not self.__dfu_processing:
+            sleep(5)
+            self.__checkAndPublishDFUNotification()
+
+    def __checkAndPublishDFUNotification(self):
+        self.__logger.info('Checking firmware updating.')
+        self.__firmware_candidate = self.__dfu_file_checker.Check(
+            self.__connected_tag_type, self.__firmware_version)
+        if len(self.__firmware_candidate) > 36:
+            msg = String()
+            index = self.__firmware_candidate.find('APP_OTA_PACKAGE_V') + 16
+            msg.data = self.__firmware_version + ' ' + self.__firmware_candidate[index: -4]
+            self.__dfu_notification_pub.publish(msg)
+
+    def __updateFirmwareCB(self, req, res):
+        self.__connecting = True
+        self.__dfu_processing = True
+        self.__logger.info('activate dfu')
+        self.__activateDFU()  # active dfu mode and disconnect current peripheral
+        sleep(1.0)
+        self.__logger.info('create dfu object')
+        self.__bt_dfu_obj = bt_dfu.BtDeviceFirmwareUpdate(
+            self.__bt_central, self.__connected_mac,
+            self.__firmware_candidate,
+            self.get_logger(), self.__publishProgress)
+        self.__logger.info('start to connect to dfu device')
+        if self.__bt_dfu_obj.ConnectToDFU():
+            msg = 'dfu device connected'
+            self.__logger.info(msg)
+            res.success = True
+            res.message = msg
+            self.__dfu_timer.reset()
+        else:
+            msg = 'failed to connect to dfu'
+            self.__logger.error(msg)
+            res.success = False
+            res.message = msg
+            self.__bt_dfu_obj.DisconnectToDFU()
+            self.__dfu_processing = False
+            self.__connecting = False
+        return res
+
+    def __publishProgress(self, progress):
+        msg = BLEDFUProgress()
+        msg.status = progress[0]
+        msg.progress = progress[1]
+        msg.message = progress[2]
+        self.__dfu_progress_publisher.publish(msg)
+
+    def __firmwareUpdateTimerCB(self):
+        self.__dfu_timer.cancel()
+        if self.__bt_dfu_obj is None:
+            self.__dfu_processing = False
+            self.__connecting = False
+            return
+        if self.__bt_dfu_obj.ProcessUpdate():
+            info = 'aborting dfu mode'
+            self.__logger.info(info)
+            progress = (9, 0.955, info)
+            self.__publishProgress(progress)
+            self.__bt_dfu_obj.AbortDFUMode()
+            self.__logger.info('disconnect dfu')
+            self.__bt_dfu_obj.DisconnectToDFU()
+            info = 'wait for restarting'
+            self.__logger.info(info)
+            progress = (9, 0.96, info)
+            self.__publishProgress(progress)
+            sleep(5)
+            info = 'reconnecting to new firmware device'
+            self.__logger.info(info)
+            progress = (9, 0.965, info)
+            self.__publishProgress(progress)
+            con_req = BLEConnect.Request()
+            con_res = BLEConnect.Response()
+            con_info = BLEInfo()
+            con_info.addr_type = 'random'
+            con_info.mac = self.__connected_mac
+            con_req.selected_device = con_info
+            self.__connecting = False
+            self.__connect_callback(con_req, con_res)
+            self.__connecting = True
+            if con_res.result == 0:
+                info = 'successfully upgraded'
+                self.__logger.info(info)
+                progress = (1, 1.0, 'successfully upgraded')
+                self.__publishProgress(progress)
+                self.__bt_dfu_obj.RemoveZipFile()
+                self.__firmware_candidate = ''
+            else:
+                info = 'failed upgrading'
+                self.__logger.error(info)
+                progress = (10, 1.0, info)
+                self.__publishProgress(progress)
+            self.__bt_dfu_obj.RemoveUnzipedFiles()
+        else:
+            info = 'failed upgrading'
+            self.__logger.error(info)
+        self.__bt_dfu_obj = None
+        self.__dfu_processing = False
+        self.__connecting = False
