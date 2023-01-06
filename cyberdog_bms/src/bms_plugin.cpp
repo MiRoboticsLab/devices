@@ -247,12 +247,12 @@ void BMSCarpo::HandleBatteryStatusMessages(std::string & name, std::shared_ptr<B
       normal_status_data[i] = data->normal_status[i];
     }
     SetNormalStatus(normal_status_data);
-  }
 
-  // Convert can message struct to ROS format
-  ros_bms_message_ = ToRos(can_battery_message_);
-  if (ros_bms_message_.batt_volt == 0) {
-    WARN("[Bms]:Battery data may be wrong");
+    // Convert can message struct to ROS format
+    ros_bms_message_ = ToRos(can_battery_message_);
+    if (ros_bms_message_.batt_volt == 0) {
+      WARN("[Bms]:Battery data may be wrong");
+    }
   }
   // auto msg = ToRos(can_battery_message_);
   // queue_.emplace_back(msg);
@@ -400,10 +400,22 @@ protocol::msg::BmsStatus BMSCarpo::ToRos(const BatteryStatus & can_data)
   message.power_wp_charging = can_data.battery_status[13] >> 6 & 0x01;
   message.power_expower_supply = can_data.battery_status[13] >> 7 & 0x01;
 
-  static int current_battery_soc = message.batt_soc;
-  if (current_battery_soc != message.batt_soc) {
-    INFO("[Bms]:The current battery soc is %d", message.batt_soc);
-    current_battery_soc = message.batt_soc;
+  static protocol::msg::BmsStatus previous_message = message;
+  int soc_jump = previous_message.batt_soc - message.batt_soc;
+  if (previous_message.batt_soc != message.batt_soc) {
+    if ((soc_jump > 5) || (soc_jump < -5)) {
+      ERROR(
+        "[Bms]: the battery soc jump form %d to %d, soc = %d, volt = %dmV, curr = %dmA, "
+        "temp = %d, st =%d", previous_message.batt_soc, message.batt_soc, message.batt_soc,
+        message.batt_volt, message.batt_curr, message.batt_temp, message.batt_st);
+      return previous_message;
+    } else {
+      INFO(
+        "[Bms]:The battery soc = %d, volt = %dmV, curr = %dmA, "
+        "temp = %d, st =%d", message.batt_soc, message.batt_volt, message.batt_curr,
+        message.batt_temp, message.batt_st);
+      previous_message = message;
+    }
   }
   return message;
 }
