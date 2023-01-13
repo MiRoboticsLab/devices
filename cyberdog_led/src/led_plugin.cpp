@@ -87,6 +87,20 @@ bool cyberdog::device::LedCarpo::Init()
   this->led_map.insert(std::make_pair(LedExecuteRequest::HEAD_LED, this->headled_attrs));
   this->led_map.insert(std::make_pair(LedExecuteRequest::TAIL_LED, this->tailled_attrs));
   this->led_map.insert(std::make_pair(LedExecuteRequest::MINI_LED, this->miniled_attrs));
+  // 执行默认的头部和尾部rgb灯带系统默认灯效
+  std::vector<uint8_t> temp_vector(4);
+  temp_vector[0] = this->system_headled.effect;
+  temp_vector[1] = this->system_headled.r_value;
+  temp_vector[2] = this->system_headled.g_value;
+  temp_vector[3] = this->system_headled.b_value;
+  INFO("send headled system default cmd");
+  this->head_can_->Operate("enable_on", temp_vector);
+  INFO("send tail system default cmd");
+  temp_vector[0] = this->system_tailled.effect;
+  temp_vector[1] = this->system_tailled.r_value;
+  temp_vector[2] = this->system_tailled.g_value;
+  temp_vector[3] = this->system_tailled.b_value;
+  this->tail_can_->Operate("enable_on", temp_vector);
   return true;
 }
 void cyberdog::device::LedCarpo::shutdown()
