@@ -23,7 +23,7 @@ from time import sleep
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
     DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
-from protocol.msg import BLEDFUProgress, BLEInfo, MotionServoCmd
+from protocol.msg import AlgoTaskStatus, BLEDFUProgress, BLEInfo, MotionServoCmd
 from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
@@ -95,7 +95,7 @@ class BluetoothNode(Node, DefaultDelegate):
             GetBLEBatteryLevel, 'ble_device_battery_level', self.__batteryLevelServerCB,
             callback_group=self.__multithread_callback_group)
         self.__joystick_pub = self.create_publisher(Joy, 'bluetooth_joystick', 100)
-        self.__notification_thread = threading.Thread(target=self.__notificationgThreading)
+        self.__notification_thread = threading.Thread(target=self.__notificationThreading)
         self.__joystick_x = 0.0
         self.__joystick_y = 0.0
         self.__joystick_mutex = threading.Lock()
@@ -163,6 +163,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__dfu_timer.cancel()
         self.__bt_dfu_obj = None
         self.__dfu_processing = False
+        self.__uwb_tracking_state_sub = self.create_subscription(
+            AlgoTaskStatus, 'algo_task_status', self.__taskStatusCB, 10,
+            callback_group=self.__siglethread_callback_group)
+        self.__task_status = 101
         self.__notification_thread.start()
 
     def __del__(self):
@@ -232,7 +236,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__joy_pub_timer.cancel()
                 self.__uwb_disconnect_accepted = 3
                 self.__connectUWB(False)
-                self.__waitForUWBResponse(False)
+                # self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
                 res.result = 0
                 self.__logger.info('disconnect complete')
@@ -250,7 +254,8 @@ class BluetoothNode(Node, DefaultDelegate):
                     else:
                         self.__uwb_disconnect_accepted = 3
                         self.__connectUWB(False)
-                        res.result = self.__waitForUWBResponse(False)
+                        # res.result = self.__waitForUWBResponse(False)
+                        res.result = 0
                         self.__disconnectPeripheral()
             self.__connect_timeout_timer.reset()
             if self.__bt_central.ConnectToBLE(
@@ -279,6 +284,8 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__logger.info('registering uart tx')
                         self.__registNotificationCallback(
                             tx_handle, self.__uartCB)
+                        self.__uartCTL(b'\xff', None, True)  # handshake
+                        self.__logger.info('handshake ok')
                     if self.__connected_tag_type == 16:  # band
                         self.__logger.info("it 's a band")
                         battery_handle = self.__bt_central.SetNotificationByUUID(  # battery char
@@ -311,6 +318,14 @@ class BluetoothNode(Node, DefaultDelegate):
                             self.__logger.info('registering joyy')
                             self.__registNotificationCallback(
                                 joy_y_handle, self.__joystickYCB)
+                        uwb_tracking_status = bytes()
+                        if self.__task_status == 11:
+                            uwb_tracking_status = b'\x00'
+                        else:
+                            uwb_tracking_status = b'\x01'
+                        self.__uartCTL(b'\x06', uwb_tracking_status, True)  # uwb status
+                        self.__logger.info(
+                            'sending latest uwb tracking status: %d' % uwb_tracking_status[0])
                     elif self.__connected_tag_type == 17:  # dock
                         self.__battery_level_float = 1.0
                         self.__joystick_x = 0.0
@@ -431,6 +446,7 @@ class BluetoothNode(Node, DefaultDelegate):
         for each_byte in bytes(contents_to_send):
             sum_int += each_byte
         contents_to_send.extend((sum_int % 0xFFFF).to_bytes(2, 'little'))
+        self.__logger.info('sending uart data %s' % bytes(contents_to_send))
         return self.__bt_central.Write(
             self.__UART_service_uuid,
             self.__RX_characteristic_uuid,
@@ -484,6 +500,8 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__is_tracking = True
         elif data[7] == 0x05:  # tread switching
             self.__tread_index = (self.__tread_index + 1) % 3
+        elif data[7] == 0x06:
+            self.__logger.info('uwb connection status: %d' % data[9])
         self.__tryToReleaseMutex(self.__uart_data_mutex)
 
     def __joystickXCB(self, data):
@@ -533,7 +551,12 @@ class BluetoothNode(Node, DefaultDelegate):
         if not self.__uartCTL(cmd, payload, True):
             self.__disconnectUnexpectedly()
 
-    def __notificationgThreading(self):
+    def __addUartCTL(self, cmd, payload):
+        self.__queue_mutex.acquire()
+        self.__uart_ctrl_queue.put((cmd, payload))
+        self.__queue_mutex.release()
+
+    def __notificationThreading(self):
         while rclpy.ok():
             if self.__connecting or not self.__bt_central.IsConnected():
                 sleep(0.05)
@@ -915,3 +938,12 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__bt_dfu_obj = None
         self.__dfu_processing = False
         self.__connecting = False
+
+    def __taskStatusCB(self, msg):
+        if self.__bt_central.IsConnected() and not self.__connecting and\
+                not self.__dfu_processing:
+            if msg.task_status == 11 and self.__task_status != 11:
+                self.__addUartCTL(b'\x06', b'\x00')  # uwb tracking is on
+            elif msg.task_status != 11 and self.__task_status == 11:
+                self.__addUartCTL(b'\x06', b'\x01')  # uwb tracking is off
+        self.__task_status = msg.task_status
