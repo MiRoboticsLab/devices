@@ -29,7 +29,7 @@ import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState, Joy
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, Int8, String
 from std_srvs.srv import Trigger
 
 from . import bt_core
@@ -139,6 +139,11 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__is_tracking = False
         self.__tread = ((303, 0.6, 1.0), (308, 1.0, 1.5), (305, 1.6, 2.0))
         self.__tread_index = 0
+        self.__tread_pub = self.create_publisher(Int8, 'update_bluetooth_tread', 2)
+        self.__tread_sub = self.create_subscription(
+            Int8, 'set_bluetooth_tread', self.__treadCB, 1)
+        self.__tread_server = self.create_service(
+            Trigger, 'get_bluetooth_tread', self.__getTreadServiceCB)
         self.__uart_ctrl_queue = Queue(5)
         self.__queue_mutex = threading.Lock()
         self.__auto_reconnect_timer = self.create_timer(
@@ -500,9 +505,23 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__is_tracking = True
         elif data[7] == 0x05:  # tread switching
             self.__tread_index = (self.__tread_index + 1) % 3
+            tread_msg = Int8()
+            tread_msg.data = self.__tread_index
+            self.__tread_pub.publish(tread_msg)
+            self.__logger.info('updated tread from bluetooth: %d' % self.__tread_index)
         elif data[7] == 0x06:
             self.__logger.info('uwb connection status: %d' % data[9])
         self.__tryToReleaseMutex(self.__uart_data_mutex)
+
+    def __treadCB(self, msg):
+        self.__tread_index = msg.data
+        self.__logger.info('updated tread from app: %d' % self.__tread_index)
+
+    def __getTreadServiceCB(self, req, res):
+        self.__logger.info('request tread from app')
+        res.success = self.__bt_central.IsConnected()
+        res.message = str(self.__tread_index)
+        return res
 
     def __joystickXCB(self, data):
         self.__joystickCB(True, data)
@@ -819,6 +838,9 @@ class BluetoothNode(Node, DefaultDelegate):
     def __autoReconnect(self):
         if self.__bt_central.IsConnected() or\
                 self.__connecting or not self.__enable_self_connection:
+            return
+        history_info_list = self.__getHistoryConnectionInfo()
+        if history_info_list is None or len(history_info_list) == 0:
             return
         scan_req = BLEScan.Request()
         scan_res = BLEScan.Response()
