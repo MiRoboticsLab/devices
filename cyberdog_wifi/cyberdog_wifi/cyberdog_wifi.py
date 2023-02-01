@@ -29,6 +29,7 @@ RESULT_OTHER = 6
 RESULT_SUCCESS = 7
 RESULT_INTERRUPT = 14
 RESULT_TIMEOUT = 15
+RESULT_HIDDEN_SSID = 16
 
 # parsing the wlan connect/reconnect return value
 nossid = 'No network with SSID'
@@ -36,7 +37,8 @@ errorpwd = 'Secrets were required, but not provided'
 connected = 'successfully activated'
 interrupt = 'The base network connection was interrupted'
 activatefail = 'Connection activation failed'
-timeout = 'Timeout expired'
+timeout = 'Timeout'
+hidden_ssid = 'hidden SSID'
 
 def return_connect_status(output):
     if operator.contains(output, connected):
@@ -49,6 +51,8 @@ def return_connect_status(output):
         return RESULT_INTERRUPT
     elif operator.contains(output, timeout):
         return RESULT_TIMEOUT
+    elif operator.contains(output, hidden_ssid):
+        return RESULT_HIDDEN_SSID
     else:
         return RESULT_OTHER
 
@@ -59,9 +63,6 @@ def runCommand(cmd):
     output.wait()  # wait for cmd done
     tmp = str(output.stdout.read(), encoding='utf-8')
     return tmp
-
-def rescanWifi():
-    runCommand('sudo nmcli device wifi rescan')
 
 def reconnect(ssid):
     cmd = 'sudo nmcli connection up "' + ssid + '"'
@@ -169,30 +170,42 @@ class CyberdogWifi(Node):
                 self.logger.info('ssid is in history list')
                 runCommand('sudo nmcli connection delete "' + request.ssid + '"')
             trial_times = 0
+            hidden = False
             while response.result != RESULT_SUCCESS and trial_times < 3:
                 sleep(1.0)
                 self.logger.info(
                     'Try to connect %s trial times: %d' % (request.ssid, trial_times))
                 timeout = 16 - trial_times
-                connect_res = self.nmcliConnectWifi(request.ssid, request.pwd, timeout)
+                connect_res = self.nmcliConnectWifi(request.ssid, request.pwd, timeout, hidden)
                 self.logger.info(connect_res)
-                response.result = return_connect_status(
-                    connect_res)
+                response.result = return_connect_status(connect_res)
                 if response.result == RESULT_ERR_PWD:
                     self.logger.warning('password is error, stop connecting')
                     break
                 elif response.result == RESULT_NO_SSID and trial_times == 0:
                     self.logger.info('Rescan wifi list')
-                    rescanWifi()
-                    sleep(2.0)
+                    self.rescanWifi(request.ssid)
+                    sleep(3.0)
+                elif response.result == RESULT_NO_SSID:
+                    self.logger.warning('ssid not found')
+                    sleep(1.0)
                 elif response.result == RESULT_OTHER or response.result == RESULT_INTERRUPT:
                     self.logger.warning('Not able to connect to ssid %s now' % request.ssid)
+                    break
+                elif response.result == RESULT_HIDDEN_SSID:
+                    self.logger.warning('Need to wait more time for connecting hidden ssid')
+                    sleep(1.0)
+                elif response.result == RESULT_TIMEOUT:
+                    self.logger.warning('Command timeout')
                     break
                 trial_times += 1
             self.logger.info('finish tries %d' % trial_times)
             if response.result == RESULT_SUCCESS:
                 self.logger.info('successfully connected')
                 self.connected_ssid = request.ssid
+                self.timer_callback()
+                sleep(1.0)
+            self.logger.info('The response result is %d' % response.result)
         return response
     
     def timer_callback(self):
@@ -250,15 +263,24 @@ class CyberdogWifi(Node):
         self.app_connected = msg.data
 
     # do a new wlan connect
-    def nmcliConnectWifi(self, ssid, pwd, timeout=18):
-        cmd = "sudo nmcli --wait " + str(timeout) + " device wifi connect '"
+    def nmcliConnectWifi(self, ssid, pwd, timeout=18, hidden=True):
+        cmd = 'sudo nmcli --wait ' + str(timeout) + ' device wifi connect "'
         cmd += ssid
         if pwd != '':
-            cmd += "' password '"
+            cmd += '" password "'
             cmd += pwd
-        cmd += "'"
+        cmd += '"'
+        if hidden:
+            cmd += ' hidden yes'
         self.logger.info(cmd)
         return runCommand(cmd)
+
+    def rescanWifi(self, ssid=''):
+        cmd = 'sudo nmcli device wifi rescan'
+        if ssid != '':
+            cmd += ' ssid "' + ssid + '"'
+        self.logger.info(cmd)
+        runCommand(cmd)
 
     def __del__(self):
         self.destroy_service(self.srv_wifi)
