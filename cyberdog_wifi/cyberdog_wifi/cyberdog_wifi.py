@@ -171,7 +171,7 @@ class CyberdogWifi(Node):
                 runCommand('sudo nmcli connection delete "' + request.ssid + '"')
             trial_times = 0
             hidden = False
-            while response.result != RESULT_SUCCESS and trial_times < 3:
+            while response.result != RESULT_SUCCESS and trial_times < 4:
                 sleep(1.0)
                 self.logger.info(
                     'Try to connect %s trial times: %d' % (request.ssid, trial_times))
@@ -203,8 +203,6 @@ class CyberdogWifi(Node):
             if response.result == RESULT_SUCCESS:
                 self.logger.info('successfully connected')
                 self.connected_ssid = request.ssid
-                self.timer_callback()
-                sleep(1.0)
             self.logger.info('The response result is %d' % response.result)
         return response
     
