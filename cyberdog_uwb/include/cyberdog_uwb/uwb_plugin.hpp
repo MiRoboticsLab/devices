@@ -37,13 +37,15 @@
 #include "cyberdog_uwb/uwb_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
 #include "cyberdog_common/cyberdog_toml.hpp"
+#include "cyberdog_system/robot_code.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "embed_protocol/embed_protocol.hpp"
 namespace cyberdog
 {
 namespace device
 {
-
+namespace EP = cyberdog::embed;
+namespace SYS = cyberdog::system;
 struct UWBHeadData
 {
   uint8_t head_data_array[16];
@@ -148,7 +150,7 @@ public:
   bool Init(
     std::function<void(UwbSignleStatusMsg)>
     function_callback, bool simulation = false) override;
-  bool SelfCheck() override;
+  int32_t SelfCheck() override;
   bool LowPower() override;
   void Play(
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
@@ -161,6 +163,15 @@ public:
   bool Close();
   bool Initialize();
   bool GetVersion();
+
+public:
+  enum class UWB_Code : int32_t
+  {
+    kDemoError1 = 21
+  };
+
+private:
+  std::shared_ptr<SYS::CyberdogCode<UWB_Code>> code_{nullptr};
 
 private:
   void HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBRearData> data);

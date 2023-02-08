@@ -22,6 +22,7 @@
 #include "cyberdog_touch/touch_sensor_handler.hpp"
 #include "cyberdog_touch/touch_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
+#include "cyberdog_system/robot_code.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -30,6 +31,8 @@ namespace cyberdog
 {
 namespace device
 {
+namespace SYS = cyberdog::system;
+
 class TouchCarpo : public cyberdog::device::TouchBase
 {
 public:
@@ -37,9 +40,18 @@ public:
 
   virtual bool Config();
   virtual bool Init(std::function<void(TouchStatusMsg)> function_callback, bool simulation = false);
-  virtual bool SelfCheck();
+  virtual int32_t SelfCheck();
   virtual bool RegisterTopic(std::function<void(TouchStatusMsg)> function_callback);
   virtual bool LowPower();
+
+public:
+  enum class TouchCode : int32_t
+  {
+    kDemoError1 = 21
+  };
+
+private:
+  std::shared_ptr<SYS::CyberdogCode<TouchCode>> code_{nullptr};
 
 private:
   void RunTouchTask();

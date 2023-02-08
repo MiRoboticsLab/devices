@@ -42,7 +42,7 @@ public:
 
   void Config();
   bool Init(rclcpp::Node::SharedPtr node_ptr);
-  bool SelfCheck();
+  int32_t SelfCheck();
 
 public:
   void ExecuteLed(

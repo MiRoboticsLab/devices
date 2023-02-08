@@ -34,6 +34,8 @@ bool TouchCarpo::Config()
 
 bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback, bool simulation)
 {
+  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kTouch;
+  code_ = std::make_shared<SYS::CyberdogCode<TouchCode>>(kModuleCode);
   touch_handler_ = std::make_shared<TouchSensorHandler>();
   touch_thread_ = std::thread(std::bind(&TouchCarpo::RunTouchTask, this));
   initialized_finished_ = RegisterTopic(function_callback);
@@ -57,12 +59,13 @@ bool TouchCarpo::LowPower()
   return true;
 }
 
-bool TouchCarpo::SelfCheck()
+int32_t TouchCarpo::SelfCheck()
 {
   if (touch_handler_->openInput() < 0) {
-    return false;
+    return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
+  } else {
+    return code_->GetKeyCode(SYS::KeyCode::kOK);
   }
-  return true;
 }
 
 bool TouchCarpo::RegisterTopic(std::function<void(TouchStatusMsg)> function_callback)

@@ -67,9 +67,12 @@ bool cyberdog::device::DeviceManager::Init()
 
 int32_t cyberdog::device::DeviceManager::SelfCheck()
 {
-  return device_handler_->SelfCheck() ?
-         code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK) :
-         code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kSelfCheckFailed);
+  int32_t err_code = device_handler_->SelfCheck();
+  if (err_code == 0) {
+    return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
+  } else {
+    return err_code;
+  }
 }
 
 void cyberdog::device::DeviceManager::Run()
@@ -81,25 +84,25 @@ void cyberdog::device::DeviceManager::Run()
 int32_t cyberdog::device::DeviceManager::OnError()
 {
   ERROR("device on error");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnLowPower()
 {
   ERROR("device on lowpower");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnSuspend()
 {
   ERROR("device on suspend");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnProtected()
 {
   ERROR("on protect");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnActive()
@@ -129,13 +132,13 @@ int32_t cyberdog::device::DeviceManager::OnActive()
   uwb_connection_state_ = node_ptr->create_subscription<std_msgs::msg::Bool>(
     "uwb_connected", 5,
     std::bind(&DeviceManager::UwbConnectedCallback, this, std::placeholders::_1));
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnDeActive()
 {
   ERROR("device on deactive");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnSetUp()
@@ -153,13 +156,13 @@ int32_t cyberdog::device::DeviceManager::OnSetUp()
 int32_t cyberdog::device::DeviceManager::ONTearDown()
 {
   ERROR("device on teardown");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 int32_t cyberdog::device::DeviceManager::OnOTA()
 {
   ERROR("device on ota");
-  return 0;
+  return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
 bool cyberdog::device::DeviceManager::IsStateInvalid()

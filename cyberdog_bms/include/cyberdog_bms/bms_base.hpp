@@ -36,7 +36,7 @@ public:
   virtual bool Init(
     std::function<void(BmsStatusMsg)> function_callback,
     bool simulation = false) = 0;
-  virtual bool SelfCheck() = 0;
+  virtual int32_t SelfCheck() = 0;
   virtual bool RegisterTopic(std::function<void(BmsStatusMsg)> function_callback) = 0;
   virtual void ServiceCommand(
     const std::shared_ptr<protocol::srv::BmsCmd::Request> request,

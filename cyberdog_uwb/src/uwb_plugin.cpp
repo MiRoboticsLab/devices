@@ -32,6 +32,8 @@ namespace device
 
 UWBCarpo::UWBCarpo()
 {
+  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
+  code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
   queue_.resize(5);
   ros_uwb_status_.data.resize(4);
   if (!LoadUWBTomlConfig()) {
@@ -98,9 +100,9 @@ bool UWBCarpo::Init(
   return initialized_finished_;
 }
 
-bool UWBCarpo::SelfCheck()
+int32_t UWBCarpo::SelfCheck()
 {
-  return true;
+  return code_->GetKeyCode(SYS::KeyCode::kOK);
 }
 
 bool UWBCarpo::LowPower()

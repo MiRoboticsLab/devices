@@ -34,6 +34,9 @@ namespace cyberdog
 {
 namespace device
 {
+namespace EP = cyberdog::embed;
+namespace SYS = cyberdog::system;
+
 using LedExecuteRequest = protocol::srv::LedExecute::Request;
 using LedExecuteResponse = protocol::srv::LedExecute::Response;
 struct Request_Attribute
@@ -93,10 +96,17 @@ private:
   LOGGER_MINOR_INSTANCE("cyberdog_led");
 
 public:
+  enum class LedCode : int32_t
+  {
+    kDemoError1 = 21
+  };
+
+public:
+  std::shared_ptr<SYS::CyberdogCode<LedCode>> code_{nullptr};
   void shutdown() override;
   bool Config() override;
   bool Init() override;
-  bool SelfCheck() override;
+  int32_t SelfCheck() override;
   void Play(
     const std::shared_ptr<protocol::srv::LedExecute::Request> info_request,
     std::shared_ptr<protocol::srv::LedExecute::Response> info_response) override;
