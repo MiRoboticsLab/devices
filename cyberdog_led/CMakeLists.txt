@@ -26,6 +26,7 @@ find_package(cyberdog_system REQUIRED)
 find_package(params REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(cyberdog_common REQUIRED)
+find_package(cyberdog_system REQUIRED)
 
 add_library(${PROJECT_NAME} src/led_plugin.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC

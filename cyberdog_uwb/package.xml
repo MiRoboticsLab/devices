@@ -12,7 +12,8 @@
   <depend>rclcpp</depend>
   <depend>pluginlib</depend>
   <depend>protocol</depend>
-  <depend>cyberdog_common</depend> 
+  <depend>cyberdog_common</depend>
+  <depend>cyberdog_system</depend>
   <depend>cyberdog_embed_protocol</depend>
   <depend>params</depend>
   <depend>geometry_msgs</depend>

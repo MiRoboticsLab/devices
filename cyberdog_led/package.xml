@@ -15,6 +15,7 @@
   <depend>params</depend>
   <depend>ament_index_cpp</depend>
   <depend>cyberdog_common</depend>
+  <depend>cyberdog_system</depend>
  
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
