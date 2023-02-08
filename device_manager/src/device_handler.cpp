@@ -18,6 +18,7 @@
 #include "cyberdog_touch/touch_plugin.hpp"
 #include "cyberdog_bms/bms_plugin.hpp"
 #include "cyberdog_uwb/uwb_plugin.hpp"
+#define IS_OK(code)  ((code & 0xFF) ? false : true)
 
 void cyberdog::device::DeviceHandler::Config()
 {
@@ -88,26 +89,31 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   return true;
 }
 
-bool cyberdog::device::DeviceHandler::SelfCheck()
+int32_t cyberdog::device::DeviceHandler::SelfCheck()
 {
+  int32_t err_code;
   INFO("DeviceManager SelfCheck begin");
-  if (!led_ptr->SelfCheck()) {
+  err_code = led_ptr->SelfCheck();
+  if (!IS_OK(err_code)) {
     ERROR("Led selfcheck fail.");
-    return false;
+    return err_code;
   }
-  if (!touch_ptr->SelfCheck()) {
+  err_code = touch_ptr->SelfCheck();
+  if (!IS_OK(err_code)) {
     ERROR("Touch selfcheck fail.");
-    return false;
+    return err_code;
   }
-  if (!bms_ptr_->SelfCheck()) {
+  err_code = bms_ptr_->SelfCheck();
+  if (!IS_OK(err_code)) {
     ERROR("Bms selfcheck fail.");
-    return false;
+    return err_code;
   }
-  if (!uwb_ptr_->SelfCheck()) {
+  err_code = uwb_ptr_->SelfCheck();
+  if (!IS_OK(err_code)) {
     ERROR("Uwb selfcheck fail.");
-    return false;
+    return err_code;
   }
-  return true;
+  return 0;
 }
 
 void cyberdog::device::DeviceHandler::ExecuteLed(

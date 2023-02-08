@@ -21,12 +21,12 @@
 
 #include "pluginlib/class_list_macros.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
+#include "cyberdog_system/robot_code.hpp"
 
 namespace cyberdog
 {
 namespace device
 {
-
 BMSCarpo::BMSCarpo()
 {
 }
@@ -38,6 +38,8 @@ bool BMSCarpo::Config()
 
 bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation)
 {
+  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kBms;
+  code_ = std::make_shared<SYS::CyberdogCode<BMS_Code>>(kModuleCode);
   RegisterTopic(function_callback);
   simulator_ = simulation;
 
@@ -51,11 +53,15 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
   return true;
 }
 
-bool BMSCarpo::SelfCheck()
+int32_t BMSCarpo::SelfCheck()
 {
   bool check = battery_->GetData()->data_received;
   INFO("Bms SelfCheck %s", (check ? "successed" : "failed"));
-  return check;
+  if (check) {
+    return code_->GetKeyCode(SYS::KeyCode::kOK);
+  } else {
+    return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
+  }
 }
 
 bool BMSCarpo::RegisterTopic(std::function<void(BmsStatusMsg)> publisher)
@@ -173,7 +179,7 @@ bool BMSCarpo::LowPower()
   return true;
 }
 
-void BMSCarpo::BatteryMsgCall(EVM::DataLabel & label, std::shared_ptr<BatteryMsg> data)
+void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg> data)
 {
   // set topic msg and pub
   auto MsgCallback = [&]() {
@@ -279,7 +285,7 @@ void BMSCarpo::InitializeBmsProtocol()
   auto path = local_share_dir + std::string("/toml_config/device/battery_config.toml");
 
   // Create Protocol for `BMSStatus` data
-  battery_ = std::make_shared<cyberdog::embed::Protocol<BatteryMsg>>(path, false);
+  battery_ = std::make_shared<EP::Protocol<BatteryMsg>>(path, false);
   battery_->GetData()->data_received = false;
   INFO("[Bms]:in InitializeBmsprototocol");
 

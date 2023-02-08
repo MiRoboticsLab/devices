@@ -39,7 +39,7 @@ public:
   virtual bool Init(
     std::function<void(UwbSignleStatusMsg)>
     function_callback, bool simulation = false) = 0;
-  virtual bool SelfCheck() = 0;
+  virtual int32_t SelfCheck() = 0;
   virtual bool LowPower() = 0;
   virtual bool RegisterTopic(
     std::function<void(UwbSignleStatusMsg)> function_callback) = 0;

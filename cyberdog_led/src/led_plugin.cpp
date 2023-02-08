@@ -37,6 +37,8 @@
 bool cyberdog::device::LedCarpo::Init()
 {
   INFO("begin led init.");
+  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kLED;
+  code_ = std::make_shared<SYS::CyberdogCode<LedCode>>(kModuleCode);
   bool config_res = Config();
   if (config_res == false) {
     return false;
@@ -350,9 +352,9 @@ bool cyberdog::device::LedCarpo::Config()
   return true;
 }
 // 自查下状态
-bool cyberdog::device::LedCarpo::SelfCheck()
+int32_t cyberdog::device::LedCarpo::SelfCheck()
 {
-  return true;
+  return code_->GetKeyCode(SYS::KeyCode::kOK);
 }
 bool cyberdog::device::LedCarpo::request_load_priority(
   const std::shared_ptr<protocol::srv::LedExecute::Request> info_request)
