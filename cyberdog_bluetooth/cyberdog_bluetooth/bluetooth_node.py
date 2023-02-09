@@ -197,11 +197,13 @@ class BluetoothNode(Node, DefaultDelegate):
         elif not self.__bt_central.IsConnected() and not self.__connecting:  # scan device info
             self.__logger.info('request scan')
             if self.__scan_mutex.acquire(blocking=False):
+                self.__logger.info('start scanning')
                 self.__bt_central.Scan(req.scan_seconds)
                 self.__getLatestScanResult()
                 self.__removeHistoryFromList(self.__local_scan_result_list)
                 self.__tryToReleaseMutex(self.__scan_mutex)
             else:  # got scan request while scanning
+                self._logger.warning('another thread is scanning, wait for the result')
                 self.__scan_mutex.acquire()
                 self.__tryToReleaseMutex(self.__scan_mutex)
             res.device_info_list = self.__local_scan_result_list
@@ -631,6 +633,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __getHistoryConnectionInfo(self):
         if self.__history_updated:
+            self.__logger.info('update history list')
             self.__history_connection_buffer = yaml_parser.YamlParser.GetYamlData(
                 self.__history_ble_list_file)
             self.__history_updated = False
@@ -716,6 +719,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__joyPollingCB(handel, False)
 
     def __deleteHistory(self, mac):
+        self.__logger.info('__deleteHistory')
         history_info_list = self.__getHistoryConnectionInfo()
         if history_info_list is None or len(history_info_list) == 0:
             return False
@@ -730,10 +734,12 @@ class BluetoothNode(Node, DefaultDelegate):
                 break
             i += 1
         if found:
+            self.__logger.info('delete device %s from history' % mac)
             del history_info_list[i]
             self.__history_updated = True
             return yaml_parser.YamlParser.GenerateYamlDoc(
                 history_info_list, self.__history_ble_list_file)
+        self.__logger.warning('not found the mac you want to delete')
         return False
 
     def __deleteHistoryCB(self, req, res):
@@ -764,12 +770,12 @@ class BluetoothNode(Node, DefaultDelegate):
             del info_list[i]
 
     def __removeHistoryFromList(self, info_list):
+        self.__history_scan_intersection.clear()
         history_list = self.__getHistoryConnectionInfo()
         if history_list is None or len(history_list) == 0:
             return
         i = 0
         found = []
-        self.__history_scan_intersection.clear()
         for info in info_list:
             for info_h in history_list:
                 if info.mac == info_h['mac']:
@@ -839,6 +845,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if self.__bt_central.IsConnected() or\
                 self.__connecting or not self.__enable_self_connection:
             return
+        self.__logger.info('start to scan for reconnection')
         history_info_list = self.__getHistoryConnectionInfo()
         if history_info_list is None or len(history_info_list) == 0:
             return
