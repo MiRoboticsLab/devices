@@ -394,6 +394,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     if self.__app_connected and not self.__dfu_processing:
                         self.__checkAndPublishDFUNotification()
             else:
+                self._logger.error('Connecting to device %s failed' % req.selected_device.mac)
                 res.result = 1
         self.__tryToReleaseMutex(self.__scan_mutex)
         self.__connecting = False
