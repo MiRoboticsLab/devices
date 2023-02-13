@@ -330,14 +330,6 @@ class BluetoothNode(Node, DefaultDelegate):
                             self.__logger.info('registering joyy')
                             self.__registNotificationCallback(
                                 joy_y_handle, self.__joystickYCB)
-                        uwb_tracking_status = bytes()
-                        if self.__task_status == 11:
-                            uwb_tracking_status = b'\x00'
-                        else:
-                            uwb_tracking_status = b'\x01'
-                        self.__uartCTL(b'\x06', uwb_tracking_status, True)  # uwb status
-                        self.__logger.info(
-                            'sending latest uwb tracking status: %d' % uwb_tracking_status[0])
                     elif self.__connected_tag_type == 17:  # dock
                         self.__battery_level_float = 1.0
                         self.__joystick_x = 0.0
@@ -377,7 +369,24 @@ class BluetoothNode(Node, DefaultDelegate):
                             response.session_id,
                             response.master,
                             response.slave1, response.slave2, response.slave3, response.slave4):
-                        res.result = self.__waitForUWBResponse(True)
+                        wait_for_uwb_init_result = self.__waitForUWBResponse(True)
+                        if wait_for_uwb_init_result != 0:
+                            self.__logger.error('uwb init ack is not correct')
+                            res.result = wait_for_uwb_init_result
+                        else:
+                            uwb_tracking_status = bytes()
+                            if self.__connected_tag_type == 16 and self.__task_status == 11:
+                                uwb_tracking_status = b'\x00'
+                            else:
+                                uwb_tracking_status = b'\x01'
+                            self.__logger.info(
+                                'sending latest uwb tracking status: %d' % uwb_tracking_status[0])
+                            if self.__uartCTL(b'\x06', uwb_tracking_status, True):  # uwb status
+                                self.__logger.info('sent latest uwb status successfully')
+                                res.result = 0
+                            else:
+                                self.__logger.error('failed sending latest uwb status')
+                                res.result = 2
                     else:
                         self.__logger.error('not receice acknowledge from ble device')
                         res.result = 2
