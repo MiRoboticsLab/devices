@@ -148,6 +148,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__queue_mutex = threading.Lock()
         self.__auto_reconnect_timer = self.create_timer(
             30.0, self.__autoReconnect, callback_group=self.__multithread_callback_group)
+        self.__manually_disconnected_list = []
         self.__enable_self_connection = True
         self.__app_status_sub = self.create_subscription(
             Bool, 'app_connection_state', self.__appConnectionCB, 1,
@@ -238,9 +239,13 @@ class BluetoothNode(Node, DefaultDelegate):
         if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
             self.__logger.info('request disconnection')
             if not self.__bt_central.IsConnected():
+                self.__logger.warning('no ble peripheral is connected')
                 res.result = 3
             else:
                 self.__joy_pub_timer.cancel()
+                current_ble = self.__bt_central.GetPeripheralInfo()
+                if current_ble is not None:
+                    self.__manually_disconnected_list.append(current_ble[0])
                 self.__uwb_disconnect_accepted = 3
                 self.__connectUWB(False)
                 # self.__waitForUWBResponse(False)
@@ -366,6 +371,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     response = self.__uwb_mac_session_id_client.call(
                         GetUWBMacSessionID.Request())
                     self.__uwb_connect_accepted = 3
+                    self.__logger.info('initializing uwb')
                     if self.__connectUWB(
                             True,
                             response.session_id,
@@ -373,8 +379,10 @@ class BluetoothNode(Node, DefaultDelegate):
                             response.slave1, response.slave2, response.slave3, response.slave4):
                         res.result = self.__waitForUWBResponse(True)
                     else:
+                        self.__logger.error('not receice acknowledge from ble device')
                         res.result = 2
                 else:
+                    self.__logger.error('service get_uwb_mac_session_id is not available')
                     res.result = 3
                 if res.result != 0:
                     self.__disconnectPeripheral()
@@ -393,6 +401,8 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__uwb_connection_signal_pub.publish(connection_signal)
                     if self.__app_connected and not self.__dfu_processing:
                         self.__checkAndPublishDFUNotification()
+                    self.__logger.info(
+                        'Connecting to device %s succeeded' % req.selected_device.mac)
             else:
                 self._logger.error('Connecting to device %s failed' % req.selected_device.mac)
                 res.result = 1
@@ -846,10 +856,18 @@ class BluetoothNode(Node, DefaultDelegate):
         if self.__bt_central.IsConnected() or\
                 self.__connecting or not self.__enable_self_connection:
             return
-        self.__logger.info('start to scan for reconnection')
+        self.__logger.info('checking reconnection')
         history_info_list = self.__getHistoryConnectionInfo()
         if history_info_list is None or len(history_info_list) == 0:
             return
+        need_to_scan = False
+        for device in history_info_list:
+            if not device['mac'] in self.__manually_disconnected_list:
+                need_to_scan = True
+                break
+        if not need_to_scan:
+            return
+        self.__logger.info('start to scan for reconnection')
         scan_req = BLEScan.Request()
         scan_res = BLEScan.Response()
         scan_req.scan_seconds = 3.0
@@ -857,6 +875,10 @@ class BluetoothNode(Node, DefaultDelegate):
         if len(self.__history_scan_intersection) != 0:
             self.__logger.info(
                 'find history device %s in scan result' % self.__history_scan_intersection[0].mac)
+            if self.__history_scan_intersection[0].mac in self.__manually_disconnected_list:
+                self.__logger.info(
+                    'but %s was disconnected manually' % self.__history_scan_intersection[0].mac)
+                return
             connect_req = BLEConnect.Request()
             connect_res = BLEConnect.Response()
             connect_req.selected_device = self.__history_scan_intersection[0]
