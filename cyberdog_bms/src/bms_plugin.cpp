@@ -217,13 +217,17 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
             message.batt_volt, message.batt_curr, message.batt_temp, message.batt_st);
           message = previous_message;
         } else {
-          INFO(
-            "[Bms]:The battery soc = %d, volt = %dmV, curr = %dmA, "
-            "temp = %d, st =%d", message.batt_soc, message.batt_volt, message.batt_curr,
-            message.batt_temp, message.batt_st);
           previous_message = message;
         }
       }
+      INFO_ONCE(
+        "[Bms]:fist data soc = %d, volt = %dmV, curr = %dmA, temp = %d, "
+        "st =%d", message.batt_soc, message.batt_volt, message.batt_curr,
+        message.batt_temp, message.batt_st);
+      INFO_MILLSECONDS(
+        1000, "[Bms]:The battery soc = %d, volt = %dmV, curr = %dmA, "
+        "temp = %d, st =%d", message.batt_soc, message.batt_volt, message.batt_curr,
+        message.batt_temp, message.batt_st);
       topic_pub_(message);
     };
 
@@ -241,15 +245,19 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
     if (!battery_->GetData()->data_received) {
       battery_->GetData()->data_received = true;
     }
-    // interval callback
-    const int kInterval = 800;
-    auto now = std::chrono::system_clock::now();
-    auto duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-      now - battery_->GetData()->time_start);
-    if (duration.count() >= kInterval) {
-      MsgCallback();
-      battery_->GetData()->time_start = std::chrono::system_clock::now();
+    if (!label.is_full) {
+      WARN("[Bms]:data is not full");
+    } else {
+      // interval callback
+      const int kInterval = 800;
+      auto now = std::chrono::system_clock::now();
+      auto duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+        now - battery_->GetData()->time_start);
+      if (duration.count() >= kInterval) {
+        MsgCallback();
+        battery_->GetData()->time_start = std::chrono::system_clock::now();
+      }
     }
   } else {
     WARN("unknown msg name %s", label.name.c_str());
