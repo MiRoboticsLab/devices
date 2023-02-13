@@ -45,7 +45,7 @@ class BluetoothNode(Node, DefaultDelegate):
         Node.__init__(self, node_name)
         DefaultDelegate.__init__(self)
         self.__logger = self.get_logger()  # ROS2 logger
-        self.__bt_central = bt_core.BluetoothCore()
+        self.__bt_central = bt_core.BluetoothCore(self.__logger)
         self.__notification_map_mutex = threading.Lock()
         self.__character_handle_dic = {}
         self.__battery_service_uuid = UUID(0x180F)
