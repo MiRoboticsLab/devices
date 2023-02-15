@@ -425,8 +425,12 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__tryToReleaseMutex(self.__notification_map_mutex)
 
     def handleNotification(self, cHandle, data):
-        self.get_logger().info(
-            'receive data from characteristic %d' % cHandle, throttle_duration_sec=2.0)
+        if cHandle == 22 or cHandle == 25:
+            self.get_logger().info(
+                'receive joystick data from characteristic %d' % cHandle,
+                throttle_duration_sec=2.0)
+        else:
+            self.get_logger().info('receive data from characteristic %d' % cHandle)
         self.__notification_map_mutex.acquire()
         if cHandle in self.__character_handle_dic:
             self.__character_handle_dic[cHandle](data)
