@@ -687,8 +687,10 @@ class BluetoothNode(Node, DefaultDelegate):
         return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
 
     def __currentConnectionsCB(self, req, res):
+        self.__logger.info('requesting current device')
         connection_info = self.__bt_central.GetPeripheralInfo()
         if connection_info is None:
+            self.__logger.info('not connected to any ble devices currently')
             return res
         info = BLEInfo()
         info.mac, info.name, info.addr_type = connection_info
@@ -696,6 +698,7 @@ class BluetoothNode(Node, DefaultDelegate):
         info.firmware_version = self.__firmware_version
         info.battery_level = self.__battery_level_float
         res.device_info_list.append(info)
+        self.__logger.info('current device is: %s' % info.mac)
         return res
 
     def __connectTimeoutCB(self):
