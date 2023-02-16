@@ -420,6 +420,8 @@ class BluetoothNode(Node, DefaultDelegate):
                         'firmware_version': self.__firmware_version}
                     self.__updateHistoryFile(new_connection)
                     self.__connected_mac = req.selected_device.mac
+                    if req.selected_device.mac in self.__manually_disconnected_list:
+                        self.__manually_disconnected_list.remove(req.selected_device.mac)
                     connection_signal = Bool()
                     connection_signal.data = True
                     self.__uwb_connection_signal_pub.publish(connection_signal)
