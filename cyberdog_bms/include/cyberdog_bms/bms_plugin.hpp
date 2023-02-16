@@ -69,7 +69,7 @@ public:
         uint16_t batt_curr;
         uint8_t batt_temp;
         uint8_t power_adapter_temp;
-        uint8_t wired_charging_temp;
+        uint8_t wireless_charging_temp;
         uint16_t batt_loop_number;
         uint8_t batt_health;
         uint16_t batt_st;
