@@ -360,36 +360,51 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__connecting = False
                     return res
                 if self.__uwb_mac_session_id_client.wait_for_service(timeout_sec=3.0):
-                    response = self.__uwb_mac_session_id_client.call(
+                    response = None
+                    self.__logger.info(
+                        'start acquiring session id from service get_uwb_mac_session_id')
+                    response_future = self.__uwb_mac_session_id_client.call_async(
                         GetUWBMacSessionID.Request())
-                    self.__uwb_connect_accepted = 3
-                    self.__logger.info('initializing uwb')
-                    if self.__connectUWB(
-                            True,
-                            response.session_id,
-                            response.master,
-                            response.slave1, response.slave2, response.slave3, response.slave4):
-                        wait_for_uwb_init_result = self.__waitForUWBResponse(True)
-                        if wait_for_uwb_init_result != 0:
-                            self.__logger.error('uwb init ack is not correct')
-                            res.result = wait_for_uwb_init_result
+                    wait_for_result = 0
+                    while wait_for_result < 20 and not response_future.done():
+                        sleep(0.2)
+                        wait_for_result += 1
+                    if response_future.done():
+                        self.__logger.info('session id acquired')
+                        response = response_future.result()
+                        self.__uwb_connect_accepted = 3
+                        self.__logger.info('initializing uwb')
+                        if self.__connectUWB(
+                                True,
+                                response.session_id,
+                                response.master,
+                                response.slave1, response.slave2,
+                                response.slave3, response.slave4):
+                            wait_for_uwb_init_result = self.__waitForUWBResponse(True)
+                            if wait_for_uwb_init_result != 0:
+                                self.__logger.error('uwb init ack is not correct')
+                                res.result = wait_for_uwb_init_result
+                            else:
+                                uwb_tracking_status = bytes()
+                                if self.__connected_tag_type == 16 and self.__task_status == 11:
+                                    uwb_tracking_status = b'\x00'
+                                else:
+                                    uwb_tracking_status = b'\x01'
+                                self.__logger.info(
+                                    'sending latest uwb tracking status: %d'
+                                    % uwb_tracking_status[0])
+                                if self.__uartCTL(b'\x06', uwb_tracking_status, True):
+                                    self.__logger.info('sent latest uwb status successfully')
+                                    res.result = 0
+                                else:
+                                    self.__logger.error('failed sending latest uwb status')
+                                    res.result = 2
                         else:
-                            uwb_tracking_status = bytes()
-                            if self.__connected_tag_type == 16 and self.__task_status == 11:
-                                uwb_tracking_status = b'\x00'
-                            else:
-                                uwb_tracking_status = b'\x01'
-                            self.__logger.info(
-                                'sending latest uwb tracking status: %d' % uwb_tracking_status[0])
-                            if self.__uartCTL(b'\x06', uwb_tracking_status, True):  # uwb status
-                                self.__logger.info('sent latest uwb status successfully')
-                                res.result = 0
-                            else:
-                                self.__logger.error('failed sending latest uwb status')
-                                res.result = 2
+                            self.__logger.error('not receice acknowledge from ble device')
+                            res.result = 2
                     else:
-                        self.__logger.error('not receice acknowledge from ble device')
-                        res.result = 2
+                        self.__logger.error('not receice service get_uwb_mac_session_id response')
+                        res.result = 3
                 else:
                     self.__logger.error('service get_uwb_mac_session_id is not available')
                     res.result = 3
