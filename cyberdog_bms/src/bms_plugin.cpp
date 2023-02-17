@@ -199,7 +199,8 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
       message.wireless_charging_temp = data->wireless_charging_temp;
       message.batt_loop_number = data->batt_loop_number;
       message.batt_health = data->batt_health;
-      message.batt_st = data->bms_state1;
+      message.batt_st = data->batt_st;
+      message.bms_state_one = data->bms_state1;
       message.power_normal = data->power_normal;
       message.power_wired_charging = data->power_wired_charging;
       message.power_finished_charging = data->power_finished_charging;
@@ -214,11 +215,11 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
       if (previous_message.batt_soc != message.batt_soc) {
         if ((soc_jump > 5) || (soc_jump < -5)) {
           ERROR(
-            "[Bms]:soc = %d, volt = %dmV, curr = %dmA, tem = %d, adap_tem =%d, wireles_tem =%d,"
-            "loop = %d, health = %d, st =%d", message.batt_soc, message.batt_volt,
-            message.batt_curr, message.batt_temp, message.power_adapter_temp,
-            message.wireless_charging_temp, message.batt_loop_number,
-            message.batt_health, message.batt_st);
+            "[Bms]:the soc has junped, soc = %d, volt = %dmV, curr = %dmA, tem = %d,"
+            "adap_tem =%d, wireles_tem =%d, loop = %d, health = %d, st =%d, st1 = %d",
+            message.batt_soc, message.batt_volt, message.batt_curr, message.batt_temp,
+            message.power_adapter_temp, message.wireless_charging_temp, message.batt_loop_number,
+            message.batt_health, message.batt_st, message.bms_state_one);
           message = previous_message;
         } else {
           previous_message = message;
@@ -226,16 +227,16 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
       }
       INFO_ONCE(
         "[Bms]:first data soc = %d, volt = %dmV, curr = %dmA, tem = %d, adap_tem =%d, "
-        "wireles_tem =%d, loop = %d, health = %d, st =%d", message.batt_soc,
+        "wireles_tem =%d, loop = %d, health = %d, st =%d, st1 = %d", message.batt_soc,
         message.batt_volt, message.batt_curr, message.batt_temp,
         message.power_adapter_temp, message.wireless_charging_temp, message.batt_loop_number,
-        message.batt_health, message.batt_st);
+        message.batt_health, message.batt_st, message.bms_state_one);
       INFO_MILLSECONDS(
         1000, "[Bms]:soc = %d, volt = %dmV, curr = %dmA, tem = %d, adap_tem =%d, "
-        "wireles_tem =%d, loop = %d, health = %d, st =%d", message.batt_soc,
+        "wireles_tem =%d, loop = %d, health = %d, st =%d, st1 = %d", message.batt_soc,
         message.batt_volt, message.batt_curr, message.batt_temp,
         message.power_adapter_temp, message.wireless_charging_temp, message.batt_loop_number,
-        message.batt_health, message.batt_st);
+        message.batt_health, message.batt_st, message.bms_state_one);
       topic_pub_(message);
     };
 
