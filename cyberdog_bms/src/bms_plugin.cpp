@@ -231,10 +231,10 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
       topic_pub_(message);
     };
 
-  if (label.name == "enable_on_ack") {
+  if (label.name == "bms_enable_on_ack") {
     battery_->GetData()->bms_enable_on_ack = data->bms_enable_on_ack;
     battery_->GetData()->enable_on_signal.Give();
-  } else if (label.name == "enable_off_ack") {
+  } else if (label.name == "bms_enable_off_ack") {
     battery_->GetData()->bms_enable_off_ack = data->bms_enable_off_ack;
     battery_->GetData()->enable_off_signal.Give();
   } else if (label.name == "battery_status") {
