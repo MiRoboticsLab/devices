@@ -63,8 +63,6 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__remote_y_characteristic_uuid = UUID('17b90103-3f76-7dba-4ad8-2f37edb7510b')
         self.__dfu_service_uuid = UUID(0xFE59)
         self.__dfu_characteristic_uuid = UUID('8ec90003-f315-4f60-9fb8-838830daea50')
-        self.__joy_x_char = None
-        self.__joy_y_char = None
         self.__connected_tag_type = 0  # 0 disconnected, 16 band, 17 dock
         self.__firmware_version = ''
         self.__uart_data_mutex = threading.Lock()
@@ -131,9 +129,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__poll_mutex = threading.Lock()
         self.__delete_history_server = self.create_service(
             SaveMap, 'delete_ble_devices_history', self.__deleteHistoryCB)
-        self.__joy_pub_timer = self.create_timer(
-            0.05, self.__joyPubTimerCB, callback_group=self.__siglethread_callback_group)
-        self.__joy_pub_timer.cancel()
+        self.__joy_polling_thread = threading.Thread(target=self.__joyPubPolling)
         self.__uwb_connection_signal_pub = self.create_publisher(Bool, 'uwb_connected', 2)
         self.__uwb_tracking = uwb_tracking.UWBTracking(self, self.__multithread_callback_group)
         self.__is_tracking = False
@@ -174,9 +170,11 @@ class BluetoothNode(Node, DefaultDelegate):
             callback_group=self.__siglethread_callback_group)
         self.__task_status = 101
         self.__notification_thread.start()
+        self.__joy_polling_thread.start()
 
     def __del__(self):
         self.__notification_thread.join()
+        self.__joy_polling_thread.join()
 
     def __scan_callback(self, req, res):
         self.__logger.info('__scan_callback')
@@ -242,7 +240,6 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__logger.warning('no ble peripheral is connected')
                 res.result = 3
             else:
-                self.__joy_pub_timer.cancel()
                 current_ble = self.__bt_central.GetPeripheralInfo()
                 if current_ble is not None:
                     self.__manually_disconnected_list.append(current_ble[0])
@@ -411,7 +408,6 @@ class BluetoothNode(Node, DefaultDelegate):
                 if res.result != 0:
                     self.__disconnectPeripheral()
                 else:
-                    self.__joy_pub_timer.reset()
                     new_connection = {
                         'mac': req.selected_device.mac,
                         'name': req.selected_device.name,
@@ -583,7 +579,6 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __disconnectPeripheral(self):
         self.__poll_mutex.acquire()
-        self.__joy_pub_timer.cancel()
         self.__notification_map_mutex.acquire()
         self.__character_handle_dic.clear()
         self.__tryToReleaseMutex(self.__notification_map_mutex)
@@ -833,38 +828,40 @@ class BluetoothNode(Node, DefaultDelegate):
                 del info_list[numb - j]
                 j += 1
 
-    def __joyPubTimerCB(self):
-        self.__joystick_mutex.acquire()
-        if self.__joystick_update:
-            joy_msg = Joy()
-            joy_msg.axes.append(self.__joystick_x)
-            joy_msg.axes.append(self.__joystick_y)
-            self.__joystick_pub.publish(joy_msg)
-            servo_cmd = MotionServoCmd()
-            servo_cmd.motion_id = self.__tread[self.__tread_index][0]
-            servo_cmd.cmd_type = 1
-            servo_cmd.step_height.append(0.05)
-            servo_cmd.step_height.append(0.05)
-            servo_cmd.vel_des = [0.0, 0.0, 0.0]
-            servo_cmd.cmd_source = 3
-            if abs(self.__joystick_y) > 10:
-                servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * self.__tread[
-                    self.__tread_index][1]
-                self.__remote_moving = True
-            if abs(self.__joystick_x) > 10:
-                servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * self.__tread[
-                    self.__tread_index][2]
-                self.__remote_moving = True
-            elif abs(self.__joystick_y) <= 10 and self.__remote_moving:
-                servo_cmd.cmd_type = 2
-                servo_cmd.step_height[0] = 0.0
-                servo_cmd.step_height[1] = 0.0
-            if self.__remote_moving:
-                self.__motion_servo_cmd_pub.publish(servo_cmd)
-            if servo_cmd.cmd_type == 2:
-                self.__remote_moving = False
-            self.__joystick_update = False
-        self.__tryToReleaseMutex(self.__joystick_mutex)
+    def __joyPubPolling(self):
+        while rclpy.ok():
+            self.__joystick_mutex.acquire()
+            if self.__joystick_update:
+                joy_msg = Joy()
+                joy_msg.axes.append(self.__joystick_x)
+                joy_msg.axes.append(self.__joystick_y)
+                self.__joystick_pub.publish(joy_msg)
+                servo_cmd = MotionServoCmd()
+                servo_cmd.motion_id = self.__tread[self.__tread_index][0]
+                servo_cmd.cmd_type = 1
+                servo_cmd.step_height.append(0.05)
+                servo_cmd.step_height.append(0.05)
+                servo_cmd.vel_des = [0.0, 0.0, 0.0]
+                servo_cmd.cmd_source = 3
+                if abs(self.__joystick_y) > 10:
+                    servo_cmd.vel_des[0] = self.__joystick_y / 50.0 * self.__tread[
+                        self.__tread_index][1]
+                    self.__remote_moving = True
+                if abs(self.__joystick_x) > 10:
+                    servo_cmd.vel_des[2] = -self.__joystick_x / 50.0 * self.__tread[
+                        self.__tread_index][2]
+                    self.__remote_moving = True
+                elif abs(self.__joystick_y) <= 10 and self.__remote_moving:
+                    servo_cmd.cmd_type = 2
+                    servo_cmd.step_height[0] = 0.0
+                    servo_cmd.step_height[1] = 0.0
+                if self.__remote_moving:
+                    self.__motion_servo_cmd_pub.publish(servo_cmd)
+                if servo_cmd.cmd_type == 2:
+                    self.__remote_moving = False
+                self.__joystick_update = False
+            self.__tryToReleaseMutex(self.__joystick_mutex)
+            sleep(0.05)
 
     def __activateDFU(self):
         dfu_handle = self.__bt_central.SetNotificationByUUID(  # indicate
@@ -880,7 +877,6 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__dfu_service_uuid,
             self.__dfu_characteristic_uuid,
             b'\x01', True)
-        self.__joy_pub_timer.cancel()
         sleep(1.0)
         self.__disconnectPeripheral()
         return result
