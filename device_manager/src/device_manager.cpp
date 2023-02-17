@@ -109,23 +109,29 @@ int32_t cyberdog::device::DeviceManager::OnActive()
 {
   INFO("device on active");
   if (!is_active) {
+    callback_group_ =
+      node_ptr->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+
     led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
       "led_execute",
       std::bind(
         &DeviceManager::LedServiceCallback, this,
-        std::placeholders::_1, std::placeholders::_2));
+        std::placeholders::_1, std::placeholders::_2),
+      rmw_qos_profile_services_default, callback_group_);
 
     bms_service_ = node_ptr->create_service<protocol::srv::BmsCmd>(
       "bms_cmd",
       std::bind(
         &DeviceManager::BmsControlCallback, this,
-        std::placeholders::_1, std::placeholders::_2));
+        std::placeholders::_1, std::placeholders::_2),
+      rmw_qos_profile_services_default, callback_group_);
 
     uwb_service_ = node_ptr->create_service<protocol::srv::GetUWBMacSessionID>(
       "get_uwb_mac_session_id",
       std::bind(
         &DeviceManager::UwbServiceCallback, this,
-        std::placeholders::_1, std::placeholders::_2));
+        std::placeholders::_1, std::placeholders::_2),
+      rmw_qos_profile_services_default, callback_group_);
     is_active = true;
   }
 
