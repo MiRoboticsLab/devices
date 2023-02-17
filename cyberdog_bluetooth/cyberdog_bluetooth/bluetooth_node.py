@@ -352,6 +352,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         'BTLEGattError: %s Disconnected unexpected while registering!' % e)
                     res.result = 1
                 if res.result == 1:
+                    self.__connect_timeout_timer.cancel()
                     self.__disconnectPeripheral()
                     self.__tryToReleaseMutex(self.__scan_mutex)
                     self.__connecting = False
@@ -426,6 +427,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__logger.info(
                         'Connecting to device %s succeeded' % req.selected_device.mac)
             else:
+                self.__connect_timeout_timer.cancel()
                 self._logger.error('Connecting to device %s failed' % req.selected_device.mac)
                 res.result = 1
         self.__tryToReleaseMutex(self.__scan_mutex)
