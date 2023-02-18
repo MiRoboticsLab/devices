@@ -175,7 +175,7 @@ class CyberdogWifi(Node):
                 sleep(1.0)
                 self.logger.info(
                     'Try to connect %s trial times: %d' % (request.ssid, trial_times))
-                timeout = 16 - trial_times
+                timeout = 28 - trial_times
                 connect_res = self.nmcliConnectWifi(request.ssid, request.pwd, timeout, hidden)
                 self.logger.info(connect_res)
                 response.result = return_connect_status(connect_res)
