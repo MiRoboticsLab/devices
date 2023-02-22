@@ -30,6 +30,7 @@
 #include <condition_variable>
 #include <utility>
 #include <tuple>
+#include <map>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -37,6 +38,7 @@
 #include "cyberdog_uwb/uwb_base.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
 #include "cyberdog_common/cyberdog_toml.hpp"
+#include "cyberdog_common/cyberdog_semaphore.hpp"
 #include "cyberdog_system/robot_code.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "embed_protocol/embed_protocol.hpp"
@@ -46,93 +48,6 @@ namespace device
 {
 namespace EP = cyberdog::embed;
 namespace SYS = cyberdog::system;
-struct UWBHeadData
-{
-  uint8_t head_data_array[16];
-  uint8_t head_tof_data_array[16];
-  uint8_t version[2];
-
-  // can0
-  uint8_t head_enable_initial_ack;
-  uint8_t head_enable_on_ack;
-  uint8_t head_enable_off_ack;
-  uint8_t head_tof_enable_initial_ack;
-  uint8_t head_tof_enable_on_ack;
-  uint8_t head_tof_enable_off_ack;
-};
-
-struct UWBRearData
-{
-  uint8_t rear_data_array[16];
-  uint8_t rear_tof_data_array[16];
-  uint8_t version[2];
-
-  // can1
-  uint8_t rear_enable_initial_ack;
-  uint8_t rear_enable_on_ack;
-  uint8_t rear_enable_off_ack;
-  uint8_t rear_tof_enable_initial_ack;
-  uint8_t rear_tof_enable_on_ack;
-  uint8_t rear_tof_enable_off_ack;
-};
-
-struct UWBConfig
-{
-  // front_back_threshold = 7
-  // left_right_threshold = 7
-
-  // [HeadUWB]
-  // AoA_F_NMAX = -48
-  // AoA_F_PMAX = 60.0
-  // AoA_B_NMAX = -60
-  // AoA_B_PMAX = 60.0
-
-  // [RearUWB]
-  // AoA_L_NMAX = -40
-  // AoA_L_PMAX = 60
-  // AoA_R_NMAX = -48
-  // AoA_R_PMAX = 48
-
-  double front_back_threshold;
-  double left_right_threshold;
-  double AoA_F_NMAX;
-  double AoA_F_PMAX;
-  double AoA_B_NMAX;
-  double AoA_B_PMAX;
-
-  double AoA_L_NMAX;
-  double AoA_L_PMAX;
-  double AoA_R_NMAX;
-  double AoA_R_PMAX;
-
-  uint32_t session_id;
-  uint16_t controller_mac;
-  uint16_t head_tof_mac;
-  uint16_t head_uwb_mac;
-  uint16_t rear_tof_mac;
-  uint16_t rear_uwb_mac;
-};
-
-struct UWBConnectionInfo
-{
-  uint32_t session_id;
-  uint16_t controller_mac;
-  uint16_t head_tof_mac;
-  uint16_t head_uwb_mac;
-  uint16_t rear_tof_mac;
-  uint16_t rear_uwb_mac;
-};
-
-struct WaitingForResponse
-{
-  explicit WaitingForResponse(int no)
-  : task_no_(no)
-  {}
-  std::mutex mt_;
-  std::condition_variable cv_;
-  const int task_no_;
-};
-
 
 // Converts from degrees to radians.
 constexpr double DegToRad(double deg) {return M_PI * deg / 180.;}
@@ -140,12 +55,13 @@ constexpr double DegToRad(double deg) {return M_PI * deg / 180.;}
 // Converts form radians to degrees.
 constexpr double RadToDeg(double rad) {return 180. * rad / M_PI;}
 
-
 class UWBCarpo : public cyberdog::device::UWBBase
 {
+  using Signal = cyberdog::common::Semaphore;
+  using TomlParse = common::CyberdogToml;
+  using Clock = std::chrono::system_clock;
+
 public:
-  UWBCarpo();
-  ~UWBCarpo();
   bool Config() override;
   bool Init(
     std::function<void(UwbSignleStatusMsg)>
@@ -156,64 +72,72 @@ public:
     const std::shared_ptr<protocol::srv::GetUWBMacSessionID::Request> info_request,
     std::shared_ptr<protocol::srv::GetUWBMacSessionID::Response> info_response) override;
   void SetConnectedState(bool connected) override;
-  bool RegisterTopic(
-    std::function<void(UwbSignleStatusMsg)> function_callback) override;
+  bool RegisterTopic(std::function<void(UwbSignleStatusMsg)> publisher) override;
 
   bool Open();
   bool Close();
-  bool Initialize();
-  bool GetVersion();
 
 public:
+  typedef struct UWB_CellCfg
+  {
+    std::string name;
+    std::string com_file;
+    uint16_t mac;
+    uint16_t index;
+  };
+  typedef struct UWBConfig
+  {
+    bool simulate;
+    bool use_static_mac;
+    double front_back_threshold;
+    double left_right_threshold;
+    double AoA_F_NMAX;
+    double AoA_F_PMAX;
+    double AoA_B_NMAX;
+    double AoA_B_PMAX;
+
+    double AoA_L_NMAX;
+    double AoA_L_PMAX;
+    double AoA_R_NMAX;
+    double AoA_R_PMAX;
+
+    uint32_t session_id;
+    uint16_t controller_mac;
+    std::vector<UWB_CellCfg> uwb_list;
+  };
   enum class UWB_Code : int32_t
   {
     kDemoError1 = 21
   };
-
-private:
-  std::shared_ptr<SYS::CyberdogCode<UWB_Code>> code_{nullptr};
-
-private:
-  void HandleCan0Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBRearData> data);
-  void HandleCan1Messages(std::string & name, std::shared_ptr<cyberdog::device::UWBHeadData> data);
-
-
-  void RunTask();
-
-  // CAN
-  bool InitializeCanCommunication();
-
-  // Dimulation Data for debug
-  void RunSimulation();
-
-  // Generate random number
-  int GenerateRandomNumber(int start, int end);
-
-  // Convert struct dat to ROS format
-  UwbRawStatusMsg ToROS();
-
-  // uwb raw data conver readable data
-  int ConvertAngle(const int & angle);
-  int ConvertRange(const int & rangle);
-
-  // AOA
-  inline float format_9_7(short data)  // NOLINT
+  typedef struct UWB_Msg
   {
-    return data * 1.0 / 128;
-  }
-
-  // RSSI
-  inline float format_8_8(short data)  // NOLINT
-  {
-    return data * 1.0 / 256;
-  }
-
-  std::vector<float> FrontPose(const float & dist, const float & angle);
-  std::vector<float> BackPose(const float & dist, const float & angle);
-  std::vector<float> RightPose(const float & dist, const float & angle);
-  std::vector<float> LeftPose(const float & dist, const float & angle);  // NOLINT
-
-  enum class Type
+    union {
+      uint8_t data[16];
+      struct
+      {
+        uint16_t distance;
+        int16_t angle;
+        uint8_t nLos;
+        uint8_t reserved0;
+        int16_t rssi_1;
+        int16_t rssi_2;
+        uint8_t reserved1[6];
+      };
+    } __attribute__((packed));
+    // can0
+    uint8_t enable_initial_ack;
+    uint8_t enable_on_ack;
+    uint8_t enable_off_ack;
+    Signal enable_initial_signal;
+    Signal enable_on_signal;
+    Signal enable_off_signal;
+    Signal data_signal;
+    std::atomic<bool> data_received;
+    std::atomic<bool> waiting_data;
+    uint16_t mac;
+    uint16_t index;
+  } UWB_Msg;
+  enum class Type : int32_t
   {
     HeadUWB  = 0,
     RearUWB,
@@ -222,69 +146,43 @@ private:
     Unknown
   };
 
-  bool LoadUWBTomlConfig();
-  UWBConfig & GetUWBConfig();
-
-  void SetData(const Type & type, const UwbSignleStatusMsg & data);
-  void Debug2String(const Type & type, const geometry_msgs::msg::PoseStamped & uwb_posestamped);
-  void Debug2String(const UwbSignleStatusMsg & uwb_msg);
-  bool UwbRawStatusMsg2Ros();
-
-  std::shared_ptr<cyberdog::embed::Protocol<UWBHeadData>> head_can_ptr_ {nullptr};
-  std::shared_ptr<cyberdog::embed::Protocol<UWBRearData>> rear_can_ptr_ {nullptr};
-  std::shared_ptr<std::thread> uwb_thread_ {nullptr};
-
-  std::mutex mutex_;
-  UwbRawStatusMsg ros_uwb_status_;
-  std::shared_mutex raw_data_mutex_0_, raw_data_mutex_1_;
-  std::function<void(UwbSignleStatusMsg)> status_function_;
-
+private:
+  bool simulation_ {false};
+  std::shared_ptr<SYS::CyberdogCode<UWB_Code>> code_{nullptr};
+  std::map<std::string, std::shared_ptr<EP::Protocol<UWB_Msg>>> uwb_map_;
+  std::map<std::string, int> uwb_index_map_;
+  std::atomic<bool> is_working_{false};
+  std::function<void(UwbSignleStatusMsg)> topic_pub_;
   // uwb config parameters
   UWBConfig uwb_config_;
-  toml::value params_toml_;
+  UwbRawStatusMsg ros_uwb_status_;
+  std::atomic<uint8_t> data_flag_;
+  std::thread simulator_thread_;
 
-  // turn on initial flag
-  bool head_enable_initial_ {false};
-  bool head_tof_enable_initial_ {false};
-  bool rear_enable_initial_ {false};
-  bool rear_tof_enable_initial_ {false};
+private:
+  bool LoadUWBTomlConfig();
+  bool Initialize();
+  bool InitCAN_Com();
+  void UWB_MsgCallback(EP::DataLabel & label, std::shared_ptr<UWB_Msg> data);
+  bool TryPublish();
+  bool IsSingleStarted(const std::string & name);
+  bool IsSingleClosed(const std::string & name);
+  bool CheckClosed(int times, const std::string & name);
+  // Dimulation Data for debug
+  void SimulationThread();
+  // Generate random number
+  int GenerateRandomNumber(int start, int end);
 
-  // turn on flag
-  bool head_turn_on_ {false};
-  bool rear_turn_on_ {false};
-  bool head_tof_turn_on_ {false};
-  bool rear_tof_turn_on_ {false};
-
-  // version flag
-  bool head_version_ {false};
-  bool head_tof_version_ {false};
-  bool rear_version_ {false};
-  bool rear_tof_version_ {false};
-
-  bool simulation_ {false};
-  bool initialized_finished_ {false};
-  bool enable_initialized_finished_ {false};
-  bool use_uwb_ {false};
-  bool use_static_mac_ {false};
-  UWBConnectionInfo uwb_connect_info_ {0x00000100, 0x0000, 0x0001, 0x0002, 0x0003, 0x0004};
-
-  // geometry_msgs/msg/pose_stamped
-  // std::deque<geometry_msgs::msg::PoseStamped> pose_queue_;
-  std::deque<UwbSignleStatusMsg> queue_;
-  std::atomic_bool activated_ {false};
-  bool threading_ {false};
-  std::unique_ptr<std::thread> checking_thread_;
-  std::queue<int> checking_task_queue_;
-  WaitingForResponse wait_open_res_ {1}, wait_close_res_ {2}, wait_init_res_ {0};
-  WaitingForResponse task_checking_ {-1};
-  bool initializing_ {false};
-  void checkResponse();
-  bool ifFailThenRetry(
-    WaitingForResponse & wfr, int trial_times, int64_t milisec,
-    const std::vector<std::tuple<bool *, std::string, bool, std::vector<uint8_t> *>> & checks,
-    bool negative = false);
-  bool raw_data_updated[2] {false, false};
-
+  // AOA
+  inline float format_9_7(short data)  // NOLINT
+  {
+    return data * 1.0 / 128;
+  }
+  // RSSI
+  inline float format_8_8(short data)  // NOLINT
+  {
+    return data * 1.0 / 256;
+  }
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device
