@@ -591,7 +591,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__tryToReleaseMutex(self.__joystick_mutex)
 
     def __disconnectPeripheral(self):
-        self.__poll_mutex.acquire()
+        self.__poll_mutex.acquire(blocking=False)
         self.__notification_map_mutex.acquire()
         self.__character_handle_dic.clear()
         self.__tryToReleaseMutex(self.__notification_map_mutex)
