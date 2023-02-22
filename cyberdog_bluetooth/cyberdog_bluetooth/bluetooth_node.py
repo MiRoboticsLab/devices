@@ -178,6 +178,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __scan_callback(self, req, res):
         self.__logger.info('__scan_callback')
+        res.code = 1600
         if abs(req.scan_seconds) < 0.001:  # get history device info
             self.__logger.info('request history connections')
             history_info_list = self.__getHistoryConnectionInfo()
@@ -231,6 +232,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if self.__connecting:
             self.__logger.info('is connecting!')
             res.result = 1
+            res.code = 1627
             return res
         self.__connecting = True
         self.__scan_mutex.acquire()
@@ -239,6 +241,7 @@ class BluetoothNode(Node, DefaultDelegate):
             if not self.__bt_central.IsConnected():
                 self.__logger.warning('no ble peripheral is connected')
                 res.result = 3
+                res.code = 1623
             else:
                 current_ble = self.__bt_central.GetPeripheralInfo()
                 if current_ble is not None:
@@ -248,6 +251,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 # self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
                 res.result = 0
+                res.code = 1600
                 self.__logger.info('disconnect complete')
         else:  # connect to device
             self.__logger.info('request connection')
@@ -259,6 +263,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         res.result = 0
                         self.__tryToReleaseMutex(self.__scan_mutex)
                         self.__connecting = False
+                        res.code = 1600
                         return res
                     else:
                         self.__uwb_disconnect_accepted = 3
@@ -285,6 +290,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__disconnectPeripheral()
                         self.__tryToReleaseMutex(self.__scan_mutex)
                         self.__connecting = False
+                        res.code = 1624
                         return res
                     tx_handle = self.__bt_central.SetNotificationByUUID(  # TX char
                         self.__UART_service_uuid,
@@ -309,6 +315,7 @@ class BluetoothNode(Node, DefaultDelegate):
                                 self.__disconnectPeripheral()
                                 self.__tryToReleaseMutex(self.__scan_mutex)
                                 self.__connecting = False
+                                res.code = 1625
                                 return res
                             self.__publishBatteryLevel(battery_first_time_reading)
                             self.__registNotificationCallback(
@@ -356,6 +363,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     self.__disconnectPeripheral()
                     self.__tryToReleaseMutex(self.__scan_mutex)
                     self.__connecting = False
+                    res.code = 1621
                     return res
                 if self.__uwb_mac_session_id_client.wait_for_service(timeout_sec=3.0):
                     response = None
@@ -408,6 +416,7 @@ class BluetoothNode(Node, DefaultDelegate):
                     res.result = 3
                 if res.result != 0:
                     self.__disconnectPeripheral()
+                    res.code = res.result + 1620
                 else:
                     new_connection = {
                         'mac': req.selected_device.mac,
@@ -426,10 +435,12 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__checkAndPublishDFUNotification()
                     self.__logger.info(
                         'Connecting to device %s succeeded' % req.selected_device.mac)
+                    res.code = 1600
             else:
                 self.__connect_timeout_timer.cancel()
                 self._logger.error('Connecting to device %s failed' % req.selected_device.mac)
                 res.result = 1
+                res.code = 1626
         self.__tryToReleaseMutex(self.__scan_mutex)
         self.__connecting = False
         return res
@@ -702,6 +713,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __currentConnectionsCB(self, req, res):
         self.__logger.info('requesting current device')
+        res.code = 1600
         connection_info = self.__bt_central.GetPeripheralInfo()
         if connection_info is None:
             self.__logger.info('not connected to any ble devices currently')
@@ -724,8 +736,10 @@ class BluetoothNode(Node, DefaultDelegate):
     def __batteryLevelServerCB(self, req, res):
         res.connected = self.__bt_central.IsConnected()
         if not res.connected:
+            res.code = 1625
             return res
         res.persentage = self.__battery_level_float
+        res.code = 1600
         return res
 
     def __firmwareVersionServerCB(self, req, res):
