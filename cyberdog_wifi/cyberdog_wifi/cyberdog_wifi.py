@@ -205,9 +205,9 @@ class CyberdogWifi(Node):
                 self.connected_ssid = request.ssid
             self.logger.info('The response result is %d' % response.result)
             if response.result == 7:
-                response.code = 1500
+                response.code = 1300
             else:
-                response.code = response.result + 1520
+                response.code = response.result + 1320
         return response
     
     def timer_callback(self):
