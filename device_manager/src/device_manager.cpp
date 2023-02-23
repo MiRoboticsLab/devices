@@ -112,12 +112,14 @@ int32_t cyberdog::device::DeviceManager::OnActive()
     callback_group_ =
       node_ptr->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
+    callback_group_led =
+      node_ptr->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     led_service_ = node_ptr->create_service<protocol::srv::LedExecute>(
       "led_execute",
       std::bind(
         &DeviceManager::LedServiceCallback, this,
         std::placeholders::_1, std::placeholders::_2),
-      rmw_qos_profile_services_default, callback_group_);
+      rmw_qos_profile_services_default, callback_group_led);
 
     bms_service_ = node_ptr->create_service<protocol::srv::BmsCmd>(
       "bms_cmd",
