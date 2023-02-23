@@ -95,14 +95,39 @@ bool cyberdog::device::LedCarpo::Init()
   temp_vector[1] = this->system_headled.r_value;
   temp_vector[2] = this->system_headled.g_value;
   temp_vector[3] = this->system_headled.b_value;
-  INFO("send headled system default cmd");
+  INFO("send head led system default cmd");
   this->head_can_->Operate("enable_on", temp_vector);
-  INFO("send tail system default cmd");
+  time_t time_delay = time(nullptr);
+  while (this->head_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
+    std::this_thread::sleep_for(std::chrono::microseconds(3000));
+    INFO(
+      " difftime = %2f ",
+      difftime(time(nullptr), time_delay));
+  }
+  if (this->head_operate_result == false) {
+    ERROR("head led response timeout");
+  } else {
+    INFO("head led operate successfully ");
+    this->head_operate_result = false;
+  }
   temp_vector[0] = this->system_tailled.effect;
   temp_vector[1] = this->system_tailled.r_value;
   temp_vector[2] = this->system_tailled.g_value;
   temp_vector[3] = this->system_tailled.b_value;
+  INFO("send tail led system default cmd");
   this->tail_can_->Operate("enable_on", temp_vector);
+  while (this->tail_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
+    std::this_thread::sleep_for(std::chrono::microseconds(3000));
+    INFO(
+      " difftime = %2f ",
+      difftime(time(nullptr), time_delay));
+  }
+  if (this->tail_operate_result == false) {
+    ERROR("tail led response timeout");
+  } else {
+    INFO("tail led operate successfully ");
+    this->tail_operate_result = false;
+  }
   return true;
 }
 void cyberdog::device::LedCarpo::shutdown()
@@ -416,8 +441,9 @@ void cyberdog::device::LedCarpo::Play(
   }
   // Play by priority
   INFO("Play by priority");
-  find_cmd(info_request);
-  info_response->code = play_by_priority(info_request);
+  Request_Attribute operatecmd;
+  find_cmd(info_request, operatecmd);
+  info_response->code = play_by_priority(operatecmd);
 }
 
 int32_t cyberdog::device::LedCarpo::request_legal(
@@ -510,7 +536,8 @@ int32_t cyberdog::device::LedCarpo::request_legal(
 
 void cyberdog::device::LedCarpo::find_cmd(
   const
-  std::shared_ptr<protocol::srv::LedExecute::Request> info_request)
+  std::shared_ptr<protocol::srv::LedExecute::Request> info_request,
+  Request_Attribute & operatecmd)
 {
   // priority
   uint64_t index = -1;
@@ -539,23 +566,25 @@ void cyberdog::device::LedCarpo::find_cmd(
     }
   }
   // operate
-  this->operatecmd = it->second[index];
-  INFO("the client %s gets permission to execute led", this->operatecmd.client.c_str());
+  operatecmd = it->second[index];
+  INFO("the client %s gets permission to execute led", operatecmd.client.c_str());
   INFO(
     "execute cmd: priority: %s" ", occupation: %d" ",client: %s" ", target: %d"
     ", mode : %d" ", effect: %d" ", r_value: %d" ", g_value: %d"
-    ", b_value: %d ", this->operatecmd.priority.c_str(),
-    static_cast<int>(this->operatecmd.occupation),
-    this->operatecmd.client.c_str(), static_cast<int>(this->operatecmd.target),
-    static_cast<int>(this->operatecmd.mode),
-    static_cast<int>(this->operatecmd.effect), static_cast<int>(this->operatecmd.r_value),
-    static_cast<int>(this->operatecmd.g_value),
-    static_cast<int>(this->operatecmd.b_value));
+    ", b_value: %d ", operatecmd.priority.c_str(),
+    static_cast<int>(operatecmd.occupation),
+    operatecmd.client.c_str(), static_cast<int>(operatecmd.target),
+    static_cast<int>(operatecmd.mode),
+    static_cast<int>(operatecmd.effect), static_cast<int>(operatecmd.r_value),
+    static_cast<int>(operatecmd.g_value),
+    static_cast<int>(operatecmd.b_value));
 }
 
-void cyberdog::device::LedCarpo::mini_led_cmd(std::vector<uint8_t> & temp_vector)
+void cyberdog::device::LedCarpo::mini_led_cmd(
+  std::vector<uint8_t> & temp_vector,
+  Request_Attribute & operatecmd)
 {
-  switch (this->operatecmd.effect) {
+  switch (operatecmd.effect) {
     case LedExecuteRequest::MINI_OFF: {
         temp_vector[0] = 0x00;  // off canid
         temp_vector[1] = 0;
@@ -565,44 +594,44 @@ void cyberdog::device::LedCarpo::mini_led_cmd(std::vector<uint8_t> & temp_vector
       }
     case LedExecuteRequest::CIRCULAR_BREATH: {
         temp_vector[0] = 0x01;
-        temp_vector[1] = this->operatecmd.r_value;
-        temp_vector[2] = this->operatecmd.g_value;
-        temp_vector[3] = this->operatecmd.b_value;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
         break;
       }
     case LedExecuteRequest::CIRCULAR_RING: {
         temp_vector[0] = 0x02;
-        temp_vector[1] = this->operatecmd.r_value;
-        temp_vector[2] = this->operatecmd.g_value;
-        temp_vector[3] = this->operatecmd.b_value;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
         break;
       }
     case LedExecuteRequest::RECTANGLE_COLOR: {
         temp_vector[0] = 0x21;
-        temp_vector[1] = this->operatecmd.r_value;
-        temp_vector[2] = this->operatecmd.g_value;
-        temp_vector[3] = this->operatecmd.b_value;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
         break;
       }
     case LedExecuteRequest::CENTRE_COLOR: {
         temp_vector[0] = 0x22;
-        temp_vector[1] = this->operatecmd.r_value;
-        temp_vector[2] = this->operatecmd.g_value;
-        temp_vector[3] = this->operatecmd.b_value;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
         break;
       }
     case LedExecuteRequest::THREE_CIRCULAR: {
         temp_vector[0] = 0x23;
-        temp_vector[1] = this->operatecmd.r_value;
-        temp_vector[2] = this->operatecmd.g_value;
-        temp_vector[3] = this->operatecmd.b_value;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
         break;
       }
     case LedExecuteRequest::COLOR_ONE_BY_ONE: {
         temp_vector[0] = 0x24;
-        temp_vector[1] = this->operatecmd.r_value;
-        temp_vector[2] = this->operatecmd.g_value;
-        temp_vector[3] = this->operatecmd.b_value;
+        temp_vector[1] = operatecmd.r_value;
+        temp_vector[2] = operatecmd.g_value;
+        temp_vector[3] = operatecmd.b_value;
         break;
       }
     default:
@@ -611,17 +640,19 @@ void cyberdog::device::LedCarpo::mini_led_cmd(std::vector<uint8_t> & temp_vector
 }
 
 
-void cyberdog::device::LedCarpo::rgb_led_cmd(std::vector<uint8_t> & temp_vector)
+void cyberdog::device::LedCarpo::rgb_led_cmd(
+  std::vector<uint8_t> & temp_vector,
+  Request_Attribute & operatecmd)
 {
-  if (this->operatecmd.mode == LedExecuteRequest::USER_DEFINED) {
+  if (operatecmd.mode == LedExecuteRequest::USER_DEFINED) {
     INFO("rgb led USER_DEFINED mode");
-    temp_vector[0] = this->operatecmd.effect;
-    temp_vector[1] = this->operatecmd.r_value;
-    temp_vector[2] = this->operatecmd.g_value;
-    temp_vector[3] = this->operatecmd.b_value;
+    temp_vector[0] = operatecmd.effect;
+    temp_vector[1] = operatecmd.r_value;
+    temp_vector[2] = operatecmd.g_value;
+    temp_vector[3] = operatecmd.b_value;
   } else {
     INFO("rgb led SYSTEM_PREDEFINED mode");
-    switch (this->operatecmd.effect) {
+    switch (operatecmd.effect) {
       // OFF
       case LedExecuteRequest::RGB_OFF: {
           temp_vector[0] = 0x00;
@@ -785,26 +816,25 @@ void cyberdog::device::LedCarpo::rgb_led_cmd(std::vector<uint8_t> & temp_vector)
 }
 
 int32_t cyberdog::device::LedCarpo::play_by_priority(
-  const
-  std::shared_ptr<protocol::srv::LedExecute::Request> info_request)
+  Request_Attribute & operatecmd)
 {
   std::vector<uint8_t> temp_vector(4);
-  switch (info_request->target) {
+  switch (operatecmd.target) {
     case LedExecuteRequest::HEAD_LED: {
-        rgb_led_cmd(temp_vector);
+        rgb_led_cmd(temp_vector, operatecmd);
         INFO("head led send can cmd");
         this->head_can_->Operate("enable_on", temp_vector);
         break;
       }
     case LedExecuteRequest::TAIL_LED: {
-        rgb_led_cmd(temp_vector);
+        rgb_led_cmd(temp_vector, operatecmd);
         INFO("tail led send can cmd");
         this->tail_can_->Operate("enable_on", temp_vector);
         break;
       }
     case LedExecuteRequest::MINI_LED: {
         INFO("mini led send can cmd");
-        mini_led_cmd(temp_vector);
+        mini_led_cmd(temp_vector, operatecmd);
         this->mini_can_->Operate("enable_on", temp_vector);
         break;
       }
@@ -812,19 +842,60 @@ int32_t cyberdog::device::LedCarpo::play_by_priority(
       break;
   }
   time_t time_delay = time(nullptr);
-  while (this->operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
-    std::this_thread::sleep_for(std::chrono::microseconds(30000));
-    INFO(
-      " difftime = %2f ",
-      difftime(time(nullptr), time_delay));
-  }
-  if (this->operate_result == false) {
-    ERROR("led response timeout");
-    return LedExecuteResponse::TIMEOUT;
-  } else {
-    INFO("led operate successfully ");
-    this->operate_result = false;
-    return LedExecuteResponse::SUCCEED;
+  switch (operatecmd.target) {
+    case LedExecuteRequest::HEAD_LED: {
+        INFO("1_head_operate_result: %d", static_cast<int>(this->head_operate_result));
+        while (this->head_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
+          std::this_thread::sleep_for(std::chrono::microseconds(3000));
+          INFO(
+            " difftime = %2f ",
+            difftime(time(nullptr), time_delay));
+        }
+        if (this->head_operate_result == false) {
+          ERROR("head led response timeout");
+          return LedExecuteResponse::TIMEOUT;
+        } else {
+          INFO("head led operate successfully ");
+          this->head_operate_result = false;
+          return LedExecuteResponse::SUCCEED;
+        }
+      }
+    case LedExecuteRequest::TAIL_LED: {
+        INFO("1_tail_operate_result: %d", static_cast<int>(this->tail_operate_result));
+        while (this->tail_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
+          std::this_thread::sleep_for(std::chrono::microseconds(3000));
+          INFO(
+            " difftime = %2f ",
+            difftime(time(nullptr), time_delay));
+        }
+        if (this->tail_operate_result == false) {
+          ERROR("tail led response timeout");
+          return LedExecuteResponse::TIMEOUT;
+        } else {
+          INFO("tail led operate successfully ");
+          this->tail_operate_result = false;
+          return LedExecuteResponse::SUCCEED;
+        }
+      }
+    case LedExecuteRequest::MINI_LED: {
+        INFO("mini_operate_result: %d", static_cast<int>(this->mini_operate_result));
+        while (this->mini_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
+          std::this_thread::sleep_for(std::chrono::microseconds(3000));
+          INFO(
+            " difftime = %2f ",
+            difftime(time(nullptr), time_delay));
+        }
+        if (this->mini_operate_result == false) {
+          ERROR("mini led response timeout");
+          return LedExecuteResponse::TIMEOUT;
+        } else {
+          INFO("mini led operate successfully ");
+          this->mini_operate_result = false;
+          return LedExecuteResponse::SUCCEED;
+        }
+      }
+    default:
+      break;
   }
 }
 
@@ -833,7 +904,8 @@ void cyberdog::device::LedCarpo::head_led_callback(
 {
   (void)data;
   if (name == "enable_on_ack") {
-    this->operate_result = true;
+    INFO("head_operate_result: %d", static_cast<int>(this->head_operate_result));
+    this->head_operate_result = true;
     INFO("head led get enable_on_ack callback.");
   }
 }
@@ -843,7 +915,8 @@ void cyberdog::device::LedCarpo::tail_led_callback(
 {
   (void)data;
   if (name == "enable_on_ack") {
-    this->operate_result = true;
+    INFO("tail_operate_result: %d", static_cast<int>(this->tail_operate_result));
+    this->tail_operate_result = true;
     INFO("tail led get enable_on_ack callback.");
   }
 }
@@ -853,7 +926,8 @@ void cyberdog::device::LedCarpo::mini_led_callback(
 {
   (void)data;
   if (name == "enable_on_ack") {
-    this->operate_result = true;
+    INFO("mini_operate_result: %d", static_cast<int>(this->mini_operate_result));
+    this->mini_operate_result = true;
     INFO("mini led get enable_on_ack callback.");
   }
 }
