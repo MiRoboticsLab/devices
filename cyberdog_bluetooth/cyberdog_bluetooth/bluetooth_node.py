@@ -169,6 +169,7 @@ class BluetoothNode(Node, DefaultDelegate):
             AlgoTaskStatus, 'algo_task_status', self.__taskStatusCB, 10,
             callback_group=self.__siglethread_callback_group)
         self.__task_status = 101
+        self.__intermission_mutex = threading.Lock()
         self.__notification_thread.start()
         self.__joy_polling_thread.start()
 
@@ -201,10 +202,13 @@ class BluetoothNode(Node, DefaultDelegate):
         elif not self.__bt_central.IsConnected() and not self.__connecting:  # scan device info
             self.__logger.info('request scan')
             if self.__scan_mutex.acquire(blocking=False):
+                self.__intermission_mutex.acquire()
+                self.__tryToReleaseMutex(self.__intermission_mutex)
                 self.__logger.info('start scanning')
                 self.__bt_central.Scan(req.scan_seconds)
                 self.__getLatestScanResult()
                 self.__removeHistoryFromList(self.__local_scan_result_list)
+                self.__startIntermission(1.5)
                 self.__tryToReleaseMutex(self.__scan_mutex)
             else:  # got scan request while scanning
                 self._logger.warning('another thread is scanning, wait for the result')
@@ -239,7 +243,7 @@ class BluetoothNode(Node, DefaultDelegate):
             res.code = 1628
             return res
         if self.__connecting:
-            self.__logger.info('is connecting!')
+            self.__logger.warning('is connecting!')
             res.result = 1
             res.code = 1627
             return res
@@ -248,7 +252,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if req.selected_device.mac == '' or req.selected_device.mac is None:  # disconnect
             self.__logger.info('request disconnection')
             if not self.__bt_central.IsConnected():
-                self.__logger.warning('no ble peripheral is connected')
+                self.__logger.warning('no ble peripherals are connected')
                 res.result = 3
                 res.code = 1623
             else:
@@ -262,7 +266,10 @@ class BluetoothNode(Node, DefaultDelegate):
                 res.result = 0
                 res.code = 1600
                 self.__logger.info('disconnect complete')
+                self.__startIntermission(2.5)
         else:  # connect to device
+            self.__intermission_mutex.acquire()
+            self.__tryToReleaseMutex(self.__intermission_mutex)
             self.__logger.info('request connection')
             if self.__bt_central.IsConnected():
                 connection_info = self.__bt_central.GetPeripheralInfo()
@@ -663,7 +670,7 @@ class BluetoothNode(Node, DefaultDelegate):
         while not got_uwb_response:
             got_uwb_response = self.__timeout
             self.__poll_mutex.acquire()
-            wait_status = self.__bt_central.WaitForNotifications(0.01)
+            wait_status = self.__bt_central.WaitForNotifications(0.1)
             self.__tryToReleaseMutex(self.__poll_mutex)
             if wait_status == 0:
                 self.__uart_data_mutex.acquire()
@@ -1062,3 +1069,12 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__disconnectPeripheral()
                 self.__logger.info('Unpaired current device')
             self.__logger.info('Unpaired device %s' % mac)
+
+    def __intervalTimerCB(self):
+        self.__logger.info('Intermission is off')
+        self.__tryToReleaseMutex(self.__intermission_mutex)
+
+    def __startIntermission(self, sec: float):
+        self.__intermission_mutex.acquire()
+        threading.Timer(sec, self.__intervalTimerCB).start()
+        self.__logger.info('Intermission is on')
