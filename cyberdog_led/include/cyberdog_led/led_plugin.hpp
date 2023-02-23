@@ -28,6 +28,7 @@
 #include "embed_protocol/embed_protocol.hpp"
 #include "cyberdog_system/robot_code.hpp"
 #include "cyberdog_led/led_base.hpp"
+#include "cyberdog_common/cyberdog_semaphore.hpp"
 
 
 namespace cyberdog
@@ -74,19 +75,23 @@ private:
   std::vector<Request_Attribute> headled_attrs;
   std::vector<Request_Attribute> tailled_attrs;
   std::vector<Request_Attribute> miniled_attrs;
-  Request_Attribute operatecmd;
+  // Request_Attribute operatecmd;
   Request_Attribute system_headled;
   Request_Attribute system_tailled;
   Request_Attribute system_miniled;
   std::vector<uint8_t> red;
   std::vector<uint8_t> yellow;
   std::vector<uint8_t> blue;
-  bool operate_result = false;
-  void rgb_led_cmd(std::vector<uint8_t> & temp_vector);
-  void mini_led_cmd(std::vector<uint8_t> & temp_vector);
-  void find_cmd(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
+  bool head_operate_result = false;
+  bool tail_operate_result = false;
+  bool mini_operate_result = false;
+  void rgb_led_cmd(std::vector<uint8_t> & temp_vector, Request_Attribute & operatecmd);
+  void mini_led_cmd(std::vector<uint8_t> & temp_vector, Request_Attribute & operatecmd);
+  void find_cmd(
+    const std::shared_ptr<protocol::srv::LedExecute::Request> info_request,
+    Request_Attribute & operatecmd);
   int32_t request_legal(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
-  int32_t play_by_priority(const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
+  int32_t play_by_priority(Request_Attribute & operatecmd);
   bool request_priority();
   bool request_load_priority(
     const std::shared_ptr<protocol::srv::LedExecute::Request> info_request);
