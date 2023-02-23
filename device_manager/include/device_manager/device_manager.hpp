@@ -86,6 +86,7 @@ private:
   std::shared_ptr<cyberdog::system::CyberdogCode<DeviceErrorCode>> code_ptr_ {nullptr};
   rclcpp::executors::MultiThreadedExecutor executor;
   rclcpp::CallbackGroup::SharedPtr callback_group_{nullptr};
+  rclcpp::CallbackGroup::SharedPtr callback_group_led{nullptr};
   bool is_active {false};
 
 private:

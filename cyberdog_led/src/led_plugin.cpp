@@ -844,7 +844,7 @@ int32_t cyberdog::device::LedCarpo::play_by_priority(
   time_t time_delay = time(nullptr);
   switch (operatecmd.target) {
     case LedExecuteRequest::HEAD_LED: {
-        INFO("1_head_operate_result: %d", static_cast<int>(this->head_operate_result));
+        INFO("orin head_operate_result: %d", static_cast<int>(this->head_operate_result));
         while (this->head_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
           std::this_thread::sleep_for(std::chrono::microseconds(3000));
           INFO(
@@ -861,7 +861,7 @@ int32_t cyberdog::device::LedCarpo::play_by_priority(
         }
       }
     case LedExecuteRequest::TAIL_LED: {
-        INFO("1_tail_operate_result: %d", static_cast<int>(this->tail_operate_result));
+        INFO("orin tail_operate_result: %d", static_cast<int>(this->tail_operate_result));
         while (this->tail_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
           std::this_thread::sleep_for(std::chrono::microseconds(3000));
           INFO(
@@ -878,7 +878,7 @@ int32_t cyberdog::device::LedCarpo::play_by_priority(
         }
       }
     case LedExecuteRequest::MINI_LED: {
-        INFO("mini_operate_result: %d", static_cast<int>(this->mini_operate_result));
+        INFO("orin mini_operate_result: %d", static_cast<int>(this->mini_operate_result));
         while (this->mini_operate_result == false && difftime(time(nullptr), time_delay) < 2.0f) {
           std::this_thread::sleep_for(std::chrono::microseconds(3000));
           INFO(
@@ -904,7 +904,7 @@ void cyberdog::device::LedCarpo::head_led_callback(
 {
   (void)data;
   if (name == "enable_on_ack") {
-    INFO("head_operate_result: %d", static_cast<int>(this->head_operate_result));
+    INFO("callback head_operate_result: %d", static_cast<int>(this->head_operate_result));
     this->head_operate_result = true;
     INFO("head led get enable_on_ack callback.");
   }
@@ -915,7 +915,7 @@ void cyberdog::device::LedCarpo::tail_led_callback(
 {
   (void)data;
   if (name == "enable_on_ack") {
-    INFO("tail_operate_result: %d", static_cast<int>(this->tail_operate_result));
+    INFO("callback tail_operate_result: %d", static_cast<int>(this->tail_operate_result));
     this->tail_operate_result = true;
     INFO("tail led get enable_on_ack callback.");
   }
@@ -926,7 +926,7 @@ void cyberdog::device::LedCarpo::mini_led_callback(
 {
   (void)data;
   if (name == "enable_on_ack") {
-    INFO("mini_operate_result: %d", static_cast<int>(this->mini_operate_result));
+    INFO("callback mini_operate_result: %d", static_cast<int>(this->mini_operate_result));
     this->mini_operate_result = true;
     INFO("mini led get enable_on_ack callback.");
   }
