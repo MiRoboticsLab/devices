@@ -179,6 +179,10 @@ class BluetoothNode(Node, DefaultDelegate):
     def __scan_callback(self, req, res):
         self.__logger.info('__scan_callback')
         res.code = 1600
+        if self.__dfu_processing:
+            self.__logger.warning('dfu processing!')
+            res.code = 1628
+            return res
         if abs(req.scan_seconds) < 0.001:  # get history device info
             self.__logger.info('request history connections')
             history_info_list = self.__getHistoryConnectionInfo()
@@ -229,6 +233,11 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __connect_callback(self, req, res):
         self.__logger.info('__connect_callback')
+        if self.__dfu_processing:
+            self.__logger.warning('dfu processing!')
+            res.result = 1
+            res.code = 1628
+            return res
         if self.__connecting:
             self.__logger.info('is connecting!')
             res.result = 1
@@ -591,7 +600,8 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__tryToReleaseMutex(self.__joystick_mutex)
 
     def __disconnectPeripheral(self):
-        self.__poll_mutex.acquire(blocking=False)
+        if not self.__poll_mutex.acquire(blocking=True, timeout=0.75):
+            self.__logger.warning('Unable to acquire __poll_mutex')
         self.__notification_map_mutex.acquire()
         self.__character_handle_dic.clear()
         self.__tryToReleaseMutex(self.__notification_map_mutex)
@@ -606,7 +616,7 @@ class BluetoothNode(Node, DefaultDelegate):
     def __notificationTimerCB(self):
         notified = 0
         self.__poll_mutex.acquire()
-        notified = self.__bt_central.WaitForNotifications(0.05)
+        notified = self.__bt_central.WaitForNotifications(0.5)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if notified == 3:
             self.__disconnectUnexpectedly()
@@ -799,6 +809,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __deleteHistoryCB(self, req, res):
         res.result = self.__deleteHistory(req.map_url)
+        self.__unpair(req.map_url)
         return res
 
     def __tryToReleaseMutex(self, mutex):
@@ -1044,3 +1055,10 @@ class BluetoothNode(Node, DefaultDelegate):
             elif msg.task_status != 11 and self.__task_status == 11:
                 self.__addUartCTL(b'\x06', b'\x01')  # uwb tracking is off
         self.__task_status = msg.task_status
+
+    def __unpair(self, mac: str):
+        if not self.__connecting and not self.__dfu_processing:
+            if not self.__bt_central.Unpair(mac):
+                self.__disconnectPeripheral()
+                self.__logger.info('Unpaired current device')
+            self.__logger.info('Unpaired device %s' % mac)

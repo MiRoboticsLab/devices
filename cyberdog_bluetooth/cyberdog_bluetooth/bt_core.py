@@ -14,8 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError, \
-    DefaultDelegate, Peripheral, ScanEntry, Scanner, UUID
+import os
+
+from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
+    BTLEManagementError, DefaultDelegate, Peripheral, ScanEntry, Scanner, UUID
 
 
 class ScanDelegate(DefaultDelegate):
@@ -315,6 +317,29 @@ class BluetoothCore:
             return None
         return characteristic_handle
 
+    def Unpair(self, addr: str):
+        if self.__connected and addr == self.__peripheral.addr:
+            try:
+                self.__peripheral.unpair()
+            except BTLEManagementError as e:
+                self.__logger.error(
+                    'BTLEManagementError:', e,
+                    'BLE device is disconnected unexpected while pairing')
+                return False
+            except BTLEInternalError as e:
+                self.__logger.error(
+                    'BTLEInternalError:', e,
+                    'BLE device is disconnected unexpected while pairing')
+                return False
+            except BTLEDisconnectError as e:
+                self.__logger.error(
+                    'BTLEDisconnectError:', e,
+                    'BLE device is disconnected unexpected while pairing')
+                return False
+        else:
+            os.system('echo "remove %s" | bluetoothctl' % addr)
+        return True
+
     def __setNotficationByDescriptorList(self, descriptor_list: list, enable=True, indicate=False):
         descriptor_handle_for_notification = None
         for descriptor in descriptor_list:
@@ -342,9 +367,6 @@ class BluetoothCore:
         try:
             self.__peripheral.connect(peripheral_info.mac, peripheral_info.addrType)
         except BTLEDisconnectError as e:
-            print(
-                'BTLEDisconnectError:', e,
-                'BLE device is disconnected unexpected while connecting')
             self.__logger.error(
                 'BTLEDisconnectError: %s Disconnected unexpected while connecting!' % e)
             return False
