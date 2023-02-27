@@ -111,6 +111,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__history_updated = True
         self.__history_connection_buffer = []
         self.__history_scan_intersection = []
+        self.__history_reading_mutex = threading.Lock()
         self.__disconnect_unexpectedly_pub = self.create_publisher(
             Bool, 'bluetooth_disconnected_unexpected', 2)
         self.__current_connections_server = self.create_service(
@@ -698,15 +699,16 @@ class BluetoothNode(Node, DefaultDelegate):
         return result
 
     def __getHistoryConnectionInfo(self):
-        if self.__history_updated:
-            self.__logger.info('update history list')
-            self.__history_connection_buffer = yaml_parser.YamlParser.GetYamlData(
-                self.__history_ble_list_file)
-            self.__history_updated = False
-        return self.__history_connection_buffer
+        with self.__history_reading_mutex:
+            if self.__history_updated:
+                self.__logger.info('update history list')
+                self.__history_connection_buffer = yaml_parser.YamlParser.GetYamlData(
+                    self.__history_ble_list_file)
+                self.__history_updated = False
+            return self.__history_connection_buffer
 
     def __updateHistoryFile(self, new_ble_info):
-        history_list = yaml_parser.YamlParser.GetYamlData(self.__history_ble_list_file)
+        history_list = self.__getHistoryConnectionInfo()
         if history_list is None:
             history_list = []
         i = 0
@@ -725,8 +727,10 @@ class BluetoothNode(Node, DefaultDelegate):
         elif found == 2:
             return True
         history_list.append(new_ble_info)
-        self.__history_updated = True
-        return yaml_parser.YamlParser.GenerateYamlDoc(history_list, self.__history_ble_list_file)
+        with self.__history_reading_mutex:
+            self.__history_updated = True
+            return yaml_parser.YamlParser.GenerateYamlDoc(
+                history_list, self.__history_ble_list_file)
 
     def __currentConnectionsCB(self, req, res):
         self.__logger.info('requesting current device')
@@ -808,9 +812,10 @@ class BluetoothNode(Node, DefaultDelegate):
         if found:
             self.__logger.info('delete device %s from history' % mac)
             del history_info_list[i]
-            self.__history_updated = True
-            return yaml_parser.YamlParser.GenerateYamlDoc(
-                history_info_list, self.__history_ble_list_file)
+            with self.__history_reading_mutex:
+                self.__history_updated = True
+                return yaml_parser.YamlParser.GenerateYamlDoc(
+                    history_info_list, self.__history_ble_list_file)
         self.__logger.warning('not found the mac you want to delete')
         return False
 
