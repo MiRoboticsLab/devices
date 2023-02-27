@@ -344,13 +344,6 @@ class BluetoothNode(Node, DefaultDelegate):
                             self.__logger.info('registering joyx')
                             self.__registNotificationCallback(
                                 joy_x_handle, self.__joystickXCB)
-                        joy_y_handle = self.__bt_central.SetNotificationByUUID(  # joystick y char
-                            self.__remote_service_uuid,
-                            self.__remote_y_characteristic_uuid, True)
-                        if joy_y_handle is not None:
-                            self.__logger.info('registering joyy')
-                            self.__registNotificationCallback(
-                                joy_y_handle, self.__joystickYCB)
                     elif self.__connected_tag_type == 17:  # dock
                         self.__battery_level_float = 1.0
                         self.__joystick_x = 0.0
@@ -593,17 +586,10 @@ class BluetoothNode(Node, DefaultDelegate):
         return res
 
     def __joystickXCB(self, data):
-        self.__joystickCB(True, data)
-
-    def __joystickYCB(self, data):
-        self.__joystickCB(False, data)
-
-    def __joystickCB(self, x_or_y: bool, data):
         self.__joystick_mutex.acquire()
-        if x_or_y:
-            self.__joystick_x = struct.unpack('f', data)[0]
-        else:
-            self.__joystick_y = struct.unpack('f', data)[0]
+        float_x_y = struct.unpack('ff', data)
+        self.__joystick_x = float_x_y[0]
+        self.__joystick_y = float_x_y[1]
         self.__joystick_update = True
         self.__tryToReleaseMutex(self.__joystick_mutex)
 
