@@ -96,6 +96,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__notification_thread = threading.Thread(target=self.__notificationThreading)
         self.__joystick_x = 0.0
         self.__joystick_y = 0.0
+        self.__xy_united = True
         self.__joystick_mutex = threading.Lock()
         self.__joystick_update = False
         self.__motion_servo_cmd_pub = self.create_publisher(
@@ -344,6 +345,14 @@ class BluetoothNode(Node, DefaultDelegate):
                             self.__logger.info('registering joyx')
                             self.__registNotificationCallback(
                                 joy_x_handle, self.__joystickXCB)
+                        joy_y_handle = self.__bt_central.SetNotificationByUUID(  # joystick y char
+                            self.__remote_service_uuid,
+                            self.__remote_y_characteristic_uuid, True)
+                        if joy_y_handle is not None:
+                            self.__xy_united = False
+                            self.__logger.info('registering joyy')
+                            self.__registNotificationCallback(
+                                joy_y_handle, self.__joystickYCB)
                     elif self.__connected_tag_type == 17:  # dock
                         self.__battery_level_float = 1.0
                         self.__joystick_x = 0.0
@@ -586,10 +595,22 @@ class BluetoothNode(Node, DefaultDelegate):
         return res
 
     def __joystickXCB(self, data):
+        self.__joystickCB(True, data)
+
+    def __joystickYCB(self, data):
+        self.__joystickCB(False, data)
+
+    def __joystickCB(self, x_or_y: bool, data):
         self.__joystick_mutex.acquire()
-        float_x_y = struct.unpack('ff', data)
-        self.__joystick_x = float_x_y[0]
-        self.__joystick_y = float_x_y[1]
+        if x_or_y:
+            if self.__xy_united:
+                float_x_y = struct.unpack('ff', data)
+                self.__joystick_x = float_x_y[0]
+                self.__joystick_y = float_x_y[1]
+            else:
+                self.__joystick_x = struct.unpack('f', data)[0]
+        else:
+            self.__joystick_y = struct.unpack('f', data)[0]
         self.__joystick_update = True
         self.__tryToReleaseMutex(self.__joystick_mutex)
 
