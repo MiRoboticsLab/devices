@@ -166,6 +166,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__dfu_timer.cancel()
         self.__bt_dfu_obj = None
         self.__dfu_processing = False
+        self.__dfu_last_step = False
         self.__uwb_tracking_state_sub = self.create_subscription(
             AlgoTaskStatus, 'algo_task_status', self.__taskStatusCB, 10,
             callback_group=self.__siglethread_callback_group)
@@ -181,7 +182,7 @@ class BluetoothNode(Node, DefaultDelegate):
     def __scan_callback(self, req, res):
         self.__logger.info('__scan_callback')
         res.code = 1600
-        if self.__dfu_processing:
+        if self.__dfu_processing and not self.__dfu_last_step:
             self.__logger.warning('dfu processing!')
             res.code = 1628
             return res
@@ -1023,7 +1024,9 @@ class BluetoothNode(Node, DefaultDelegate):
             con_info.mac = self.__connected_mac
             con_req.selected_device = con_info
             self.__connecting = False
+            self.__dfu_last_step = True
             self.__connect_callback(con_req, con_res)
+            self.__dfu_last_step = False
             self.__connecting = True
             if con_res.result == 0:
                 info = 'successfully upgraded'
