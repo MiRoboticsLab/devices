@@ -516,6 +516,7 @@ class DFUFileChecker:
                     result_list.append(file_name)
                 elif device_type == 17 and self.__power_perfix in file_name:
                     result_list.append(file_name)
+        print('result_list: ', result_list)
         if len(result_list) == 0:
             return ''
         max_date = 0
@@ -535,4 +536,6 @@ class DFUFileChecker:
             return ''
         if max_date > int(date):
             return self.__directory + max_candidate
+        else:
+            os.remove(self.__directory + max_candidate)
         return ''
