@@ -183,7 +183,7 @@ class BluetoothNode(Node, DefaultDelegate):
     def __scan_callback(self, req, res):
         self.__logger.info('__scan_callback')
         res.code = 1600
-        if self.__dfu_processing and not self.__dfu_last_step:
+        if self.__dfu_processing:
             self.__logger.warning('dfu processing!')
             res.code = 1628
             return res
@@ -240,7 +240,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __connect_callback(self, req, res):
         self.__logger.info('__connect_callback')
-        if self.__dfu_processing:
+        if self.__dfu_processing and not self.__dfu_last_step:
             self.__logger.warning('dfu processing!')
             res.result = 1
             res.code = 1628
@@ -661,6 +661,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__notificationTimerCB()
 
     def __disconnectUnexpectedly(self):
+        self.__logger.error('__disconnectUnexpectedly')
         self.__tryToReleaseMutex(self.__poll_mutex)
         self.__disconnectPeripheral()
         disconnect_msg = Bool()
@@ -911,19 +912,26 @@ class BluetoothNode(Node, DefaultDelegate):
             sleep(0.05)
 
     def __activateDFU(self):
+        if not self.__poll_mutex.acquire(blocking=True, timeout=0.75):
+            self.__logger.warning('Unable to acquire __poll_mutex')
+            return False
         dfu_handle = self.__bt_central.SetNotificationByUUID(  # indicate
             self.__dfu_service_uuid,
             self.__dfu_characteristic_uuid, True, True)
+        if dfu_handle is None:
+            self.__logger.error('failed to set indication of dfu')
+            return False
         self.__logger.info('dfu handle: %d' % dfu_handle)
         self.__uwb_disconnect_accepted = 3
         result = self.__connectUWB(False)
         self.__logger.info('deactivate uwb')
-        self.__waitForUWBResponse(False)
+        # self.__waitForUWBResponse(False)
         self.__logger.info('start to write dfu_characteristic')
         result = self.__bt_central.Write(
             self.__dfu_service_uuid,
             self.__dfu_characteristic_uuid,
             b'\x01', True)
+        self.__tryToReleaseMutex(self.__poll_mutex)
         sleep(1.0)
         self.__disconnectPeripheral()
         return result
@@ -984,7 +992,14 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__connecting = True
         self.__dfu_processing = True
         self.__logger.info('activate dfu')
-        self.__activateDFU()  # active dfu mode and disconnect current peripheral
+        if not self.__activateDFU():  # active dfu mode and disconnect current peripheral
+            msg = 'failed to set indication of dfu'
+            self.__logger.error(msg)
+            res.success = False
+            res.message = msg
+            self.__connecting = False
+            self.__dfu_processing = False
+            return req
         sleep(1.0)
         self.__logger.info('create dfu object')
         self.__bt_dfu_obj = bt_dfu.BtDeviceFirmwareUpdate(
@@ -1028,12 +1043,14 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__publishProgress(progress)
             self.__bt_dfu_obj.AbortDFUMode()
             self.__logger.info('disconnect dfu')
+            self.__bt_dfu_obj.RemoveUnzipedFiles()
             self.__bt_dfu_obj.DisconnectToDFU()
+            self.__bt_dfu_obj = None
             info = 'wait for restarting'
             self.__logger.info(info)
             progress = (9, 0.96, info)
             self.__publishProgress(progress)
-            sleep(5)
+            sleep(4)
             info = 'reconnecting to new firmware device'
             self.__logger.info(info)
             progress = (9, 0.965, info)
@@ -1054,20 +1071,19 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__logger.info(info)
                 progress = (1, 1.0, 'successfully upgraded')
                 self.__publishProgress(progress)
-                self.__bt_dfu_obj.RemoveZipFile()
                 self.__firmware_candidate = ''
             else:
                 info = 'failed upgrading'
                 self.__logger.error(info)
                 progress = (10, 1.0, info)
                 self.__publishProgress(progress)
-            self.__bt_dfu_obj.RemoveUnzipedFiles()
         else:
             info = 'failed upgrading'
             self.__logger.error(info)
-        self.__bt_dfu_obj = None
+            self.__bt_dfu_obj = None
         self.__dfu_processing = False
         self.__connecting = False
+        self.__logger.info('dfu process complete')
 
     def __taskStatusCB(self, msg):
         if self.__bt_central.IsConnected() and not self.__connecting and\
