@@ -182,13 +182,14 @@ class CyberdogWifi(Node):
                 if response.result == RESULT_ERR_PWD:
                     self.logger.warning('password is error, stop connecting')
                     break
-                elif response.result == RESULT_NO_SSID and trial_times == 0:
+                elif response.result == RESULT_NO_SSID and trial_times < 2:
                     self.logger.info('Rescan wifi list')
                     self.rescanWifi(request.ssid)
                     sleep(3.0)
                 elif response.result == RESULT_NO_SSID:
-                    self.logger.warning('ssid not found')
-                    sleep(1.0)
+                    self.logger.warning('ssid not found, delete recorded connections')
+                    self.deleteAllRecordedConnections()
+                    sleep(2.0)
                 elif response.result == RESULT_OTHER or response.result == RESULT_INTERRUPT:
                     self.logger.warning('Not able to connect to ssid %s now' % request.ssid)
                     break
@@ -209,6 +210,12 @@ class CyberdogWifi(Node):
             else:
                 response.code = response.result + 1320
         return response
+
+    def deleteAllRecordedConnections(self):
+        for connection in self.connection_list:
+            cmd = 'sudo nmcli connection delete "' + connection + '"'
+            self.logger.info(cmd)
+            runCommand(cmd)
     
     def timer_callback(self):
         """publish wifi status periodically"""
