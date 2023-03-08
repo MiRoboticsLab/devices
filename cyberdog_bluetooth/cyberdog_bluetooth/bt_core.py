@@ -340,6 +340,9 @@ class BluetoothCore:
             os.system('echo "remove %s" | bluetoothctl' % addr)
         return True
 
+    def SetPeripheralName(self, name: str):
+        self.__peripheral_name = name
+
     def __setNotficationByDescriptorList(self, descriptor_list: list, enable=True, indicate=False):
         descriptor_handle_for_notification = None
         for descriptor in descriptor_list:

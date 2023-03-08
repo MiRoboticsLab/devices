@@ -297,8 +297,10 @@ class BluetoothNode(Node, DefaultDelegate):
                     req.selected_device.addr_type):
                 self.__bt_central.SetNotificationDelegate(self)
                 try:
+                    self.__poll_mutex.acquire()
                     self.__getTagType()
                     self.__getTagFirmwareVersion()
+                    self.__tryToReleaseMutex(self.__poll_mutex)
                     self.__logger.info(
                         'device type %d firmware version %s' % (
                             self.__connected_tag_type, self.__firmware_version))
@@ -311,6 +313,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__connecting = False
                         res.code = 1624
                         return res
+                    self.__poll_mutex.acquire()
                     tx_handle = self.__bt_central.SetNotificationByUUID(  # TX char
                         self.__UART_service_uuid,
                         self.__TX_characteristic_uuid, True)
@@ -358,6 +361,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__battery_level_float = 1.0
                         self.__joystick_x = 0.0
                         self.__joystick_y = 0.0
+                    self.__tryToReleaseMutex(self.__poll_mutex)
                 except BTLEDisconnectError as e:
                     self.__logger.error(
                         'BTLEDisconnectError: %s Disconnected unexpected while registering!' % e)
@@ -400,33 +404,39 @@ class BluetoothNode(Node, DefaultDelegate):
                         response = response_future.result()
                         self.__uwb_connect_accepted = 3
                         self.__logger.info('initializing uwb')
+                        self.__poll_mutex.acquire()
                         if self.__connectUWB(
                                 True,
                                 response.session_id,
                                 response.master,
                                 response.slave1, response.slave2,
                                 response.slave3, response.slave4):
+                            self.__tryToReleaseMutex(self.__poll_mutex)
                             wait_for_uwb_init_result = self.__waitForUWBResponse(True)
                             if wait_for_uwb_init_result != 0:
                                 self.__logger.error('uwb init ack is not correct')
                                 res.result = wait_for_uwb_init_result
                             else:
                                 uwb_tracking_status = bytes()
-                                if self.__connected_tag_type == 16 and self.__task_status == 11:
-                                    uwb_tracking_status = b'\x00'
-                                else:
-                                    uwb_tracking_status = b'\x01'
-                                self.__logger.info(
-                                    'sending latest uwb tracking status: %d'
-                                    % uwb_tracking_status[0])
-                                if self.__uartCTL(b'\x06', uwb_tracking_status, True):
-                                    self.__logger.info('sent latest uwb status successfully')
-                                    res.result = 0
-                                else:
-                                    self.__logger.error('failed sending latest uwb status')
-                                    res.result = 2
+                                if self.__connected_tag_type == 16:
+                                    if self.__task_status == 11:
+                                        uwb_tracking_status = b'\x00'
+                                    else:
+                                        uwb_tracking_status = b'\x01'
+                                    self.__logger.info(
+                                        'sending latest uwb tracking status: %d'
+                                        % uwb_tracking_status[0])
+                                    self.__poll_mutex.acquire()
+                                    if self.__uartCTL(b'\x06', uwb_tracking_status, True):
+                                        self.__logger.info('sent latest uwb status successfully')
+                                        res.result = 0
+                                    else:
+                                        self.__logger.error('failed sending latest uwb status')
+                                        res.result = 2
+                                    self.__tryToReleaseMutex(self.__poll_mutex)
                         else:
-                            self.__logger.error('not receice acknowledge from ble device')
+                            self.__tryToReleaseMutex(self.__poll_mutex)
+                            self.__logger.error('not receive acknowledge from ble device')
                             res.result = 2
                     else:
                         self.__logger.error('not receice service get_uwb_mac_session_id response')
@@ -644,7 +654,10 @@ class BluetoothNode(Node, DefaultDelegate):
             return
         cmd, payload = self.__uart_ctrl_queue.get()
         self.__queue_mutex.release()
-        if not self.__uartCTL(cmd, payload, True):
+        self.__poll_mutex.acquire()
+        result = self.__uartCTL(cmd, payload, True)
+        self.__tryToReleaseMutex(self.__poll_mutex)
+        if not result:
             self.__disconnectUnexpectedly()
 
     def __addUartCTL(self, cmd, payload):
@@ -780,12 +793,31 @@ class BluetoothNode(Node, DefaultDelegate):
         return res
 
     def __changeBLEDeviceName(self, req, res):
+        if not self.__bt_central.IsConnected():
+            res.result = False
+            return res
+        self.__poll_mutex.acquire()
         if self.__bt_central.Write(
                 self.__tag_info_service_uuid, self.__device_name_characteristic_uuid,
                 bytes(req.map_url, encoding='utf-8'), True):
-            res.result = True
+            requ = BLEScan.Request()
+            resp = BLEScan.Response()
+            self.__currentConnectionsCB(requ, resp)
+            if len(resp.device_info_list) != 0:
+                new_info = {}
+                new_info['mac'] = resp.device_info_list[0].mac
+                new_info['name'] = req.map_url
+                new_info['addr_type'] = resp.device_info_list[0].addr_type
+                new_info['firmware_version'] = resp.device_info_list[0].firmware_version
+                new_info['device_type'] = resp.device_info_list[0].device_type
+                self.__updateHistoryFile(new_info)
+                self.__bt_central.SetPeripheralName(req.map_url)
+                res.result = True
+            else:
+                res.result = False
         else:
             res.result = False
+        self.__tryToReleaseMutex(self.__poll_mutex)
         return res
 
     def __joyPollingCB(self, handel, x_or_y):
