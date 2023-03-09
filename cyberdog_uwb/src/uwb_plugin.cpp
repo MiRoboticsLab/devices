@@ -127,7 +127,6 @@ bool UWBCarpo::Open()
 {
   // int32_t return_code = code_->GetKeyCode(SYS::KeyCode::kOK);
   bool status_ok = true;
-
   if (!simulation_) {
     for (auto & uwb : uwb_map_) {
       if (uwb.second->GetData()->data_received) {
@@ -220,7 +219,6 @@ bool UWBCarpo::Close()
 
 bool UWBCarpo::Initialize()
 {
-  uint32_t index = 0;
   INFO("NOW UWBCarpo::Initialize");
   // get random UWBConnectInfo
   if (!uwb_config_.use_static_mac) {
@@ -550,91 +548,60 @@ bool UWBCarpo::LoadUWBTomlConfig()
 
 bool UWBCarpo::TryPublish()
 {
+  static UwbSignleStatusMsg uwb_pre;
+
   UwbSignleStatusMsg ros_msg;
-  ros_msg.header.frame_id = "none";
   constexpr auto eps = std::numeric_limits<float>::epsilon();
 
   auto & uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
   auto & uwb_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
   auto & uwb_left = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
   auto & uwb_right = ros_uwb_status_.data[static_cast<int>(Type::RearTOF)];
+  ros_msg = uwb_front;
+  ros_msg.header.frame_id = "head_tof";
+  if (ros_msg.rssi_1 > -1 || ros_msg.rssi_2 > -1) {
+    INFO("uwb front rssi_1[%d] rssi_2[%d]", ros_msg.rssi_1, ros_msg.rssi_2);
+    return false;
+  }
+  if (ros_msg.rssi_1 < uwb_back.rssi_1) {
+    ros_msg = uwb_back;
+    ros_msg.header.frame_id = "head_uwb";
+  }
+  if (ros_msg.rssi_1 < uwb_left.rssi_1) {
+    ros_msg = uwb_left;
+    ros_msg.header.frame_id = "rear_uwb";
+  }
+  if (ros_msg.rssi_1 < uwb_right.rssi_1) {
+    ros_msg = uwb_right;
+    ros_msg.header.frame_id = "rear_tof";
+  }
 
-  double diff = std::fabs(uwb_front.rssi_1 - uwb_back.rssi_1);
-  // constexpr double front_back_threshold = 7.0;
-  if (diff > uwb_config_.front_back_threshold) {
-    // constexpr double AoA_F_NMAX = -48.0f;
-    // constexpr double AoA_F_PMAX = 60.0f;
-    if (uwb_front.rssi_1 > uwb_back.rssi_1) {
-      // Head UWB
-      if (uwb_front.angle > uwb_config_.AoA_F_NMAX &&
-        uwb_front.angle < uwb_config_.AoA_F_PMAX) // NOLINT
-      {
-        ros_msg = uwb_front;
-        ros_msg.header.frame_id = "head_tof";
-      } else if (uwb_front.angle > uwb_config_.AoA_F_PMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(uwb_front.angle, uwb_config_.AoA_F_PMAX, eps))
-      {
-        // Rear TOF
-        ros_msg = uwb_right;
-        ros_msg.header.frame_id = "rear_tof";
-      } else if (uwb_front.angle < uwb_config_.AoA_F_NMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(uwb_front.angle, uwb_config_.AoA_F_NMAX, eps))
-      {
-        // Rear UWB
-        ros_msg = uwb_left;
-        ros_msg.header.frame_id = "rear_uwb";
-      }
-    } else {
-      // constexpr double AoA_B_NMAX = -60.0f;
-      // constexpr double AoA_B_PMAX = 60.0f;
-
-      if (uwb_back.angle > uwb_config_.AoA_B_NMAX &&
-        uwb_back.angle < uwb_config_.AoA_B_PMAX)
-      {
-        // Head TOF
-        ros_msg = uwb_back;
-        ros_msg.header.frame_id = "head_uwb";
-      } else if (uwb_back.angle > uwb_config_.AoA_B_PMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(uwb_back.angle, uwb_config_.AoA_B_PMAX, eps))    // NOLINT
-      {
-        // Rear UWB
-        ros_msg = uwb_left;
-        ros_msg.header.frame_id = "rear_uwb";
-      } else if (uwb_back.angle < uwb_config_.AoA_B_NMAX ||  // NOLINT
-        helper_functions::rel_eq<double>(uwb_back.angle, uwb_config_.AoA_B_NMAX, eps))    // NOLINT
-      {
-        // Rear TOF
-        ros_msg = uwb_right;
-        ros_msg.header.frame_id = "rear_tof";
-      }
-    }
+  if (uwb_pre.rssi_1 > -1 || uwb_pre.rssi_2 > -1) {
+    uwb_pre = ros_msg;
+    INFO("uwb_pre init rssi_1[%d] rssi_2[%d]", uwb_pre.rssi_1, uwb_pre.rssi_2);
   } else {
-    // constexpr double left_right_threshold = 7.0;
-    double diff = std::fabs(uwb_left.rssi_1 - uwb_right.rssi_1);
-
-    if (diff > uwb_config_.left_right_threshold) {
-      // rear uwb
-      if (uwb_left.rssi_1 > uwb_right.rssi_1) {
-        ros_msg = uwb_left;
-        ros_msg.header.frame_id = "rear_uwb";
-      } else {
-        // rear tof
-        ros_msg = uwb_right;
-        ros_msg.header.frame_id = "rear_tof";
-      }
+    if ((uwb_pre.header.frame_id == "head_tof" &&
+      ros_msg.header.frame_id != "head_uwb") ||
+      (uwb_pre.header.frame_id == "head_uwb" &&
+      ros_msg.header.frame_id != "head_tof") ||
+      (uwb_pre.header.frame_id == "rear_uwb" &&
+      ros_msg.header.frame_id != "rear_tof") ||
+      (uwb_pre.header.frame_id == "rear_tof" &&
+      ros_msg.header.frame_id != "rear_uwb"))
+    {
+      // 过滤间隔标签跳转
+      uwb_pre = ros_msg;
+    } else {
+      ros_msg = uwb_pre;
     }
   }
 
-  if (ros_msg.header.frame_id != "none") {
-    struct timespec time_stu;
-    clock_gettime(CLOCK_REALTIME, &time_stu);
-    ros_msg.header.stamp.nanosec = time_stu.tv_nsec;
-    ros_msg.header.stamp.sec = time_stu.tv_sec;
-    topic_pub_(ros_msg);
-    return true;
-  }
-
-  return false;
+  struct timespec time_stu;
+  clock_gettime(CLOCK_REALTIME, &time_stu);
+  ros_msg.header.stamp.nanosec = time_stu.tv_nsec;
+  ros_msg.header.stamp.sec = time_stu.tv_sec;
+  topic_pub_(ros_msg);
+  return true;
 }
 
 bool UWBCarpo::CheckClosed(int times, const std::string & name)
