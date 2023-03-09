@@ -296,10 +296,13 @@ class BluetoothNode(Node, DefaultDelegate):
                     req.selected_device.name,
                     req.selected_device.addr_type):
                 self.__bt_central.SetNotificationDelegate(self)
+                device_name = ''
                 try:
                     self.__poll_mutex.acquire()
                     self.__getTagType()
                     self.__getTagFirmwareVersion()
+                    device_name = self.__getTagName()
+                    self.__bt_central.SetPeripheralName(device_name)
                     self.__tryToReleaseMutex(self.__poll_mutex)
                     self.__logger.info(
                         'device type %d firmware version %s' % (
@@ -450,7 +453,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 else:
                     new_connection = {
                         'mac': req.selected_device.mac,
-                        'name': req.selected_device.name,
+                        'name': device_name,
                         'addr_type': req.selected_device.addr_type,
                         'device_type': self.__connected_tag_type,
                         'firmware_version': self.__firmware_version}
@@ -566,6 +569,20 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__firmware_version = self.__bt_central.ReadCharacteristic(
             software_version_char).decode('UTF-8')
         return self.__firmware_version
+
+    def __getTagName(self):
+        tag_info_service = self.__bt_central.GetService(self.__tag_info_service_uuid)
+        if tag_info_service is None:
+            self.__logger.warning('This device has no info service!')
+            return ''
+        name_char = self.__bt_central.GetCharacteristic(
+            tag_info_service, self.__device_name_characteristic_uuid)
+        if name_char is None:
+            self.__logger.warning('Not able to get device name!')
+            return ''
+        device_name = self.__bt_central.ReadCharacteristic(
+            name_char).decode('UTF-8')
+        return device_name
 
     def __uartCB(self, data):
         self.__logger.info('receive uart data: %s' % data)
@@ -796,6 +813,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if not self.__bt_central.IsConnected():
             res.result = False
             return res
+        self.__logger.info('request changing name')
         self.__poll_mutex.acquire()
         if self.__bt_central.Write(
                 self.__tag_info_service_uuid, self.__device_name_characteristic_uuid,
@@ -803,15 +821,41 @@ class BluetoothNode(Node, DefaultDelegate):
             requ = BLEScan.Request()
             resp = BLEScan.Response()
             self.__currentConnectionsCB(requ, resp)
+            new_name = ''
+            try:
+                new_name = self.__getTagName()
+            except BTLEDisconnectError as e:
+                self.__connected = False
+                self.__peripheral_name = ''
+                self.__logger.error(
+                    'BTLEDisconnectError: %s Exeption while reading name!' % e)
+                self.__disconnectUnexpectedly()
+                res.result = False
+                return res
+            except AttributeError as e:
+                self.__connected = False
+                self.__peripheral_name = ''
+                self.__logger.error('AttributeError: %s Exeption while reading name!' % e)
+                self.__disconnectUnexpectedly()
+                res.result = False
+                return res
+            except BTLEGattError as e:
+                self.__connected = False
+                self.__peripheral_name = ''
+                self.__logger.error('BTLEGattError: %s Exeption while reading name!' % e)
+                self.__disconnectUnexpectedly()
+                res.result = False
+                return res
             if len(resp.device_info_list) != 0:
                 new_info = {}
                 new_info['mac'] = resp.device_info_list[0].mac
-                new_info['name'] = req.map_url
+                new_info['name'] = new_name
                 new_info['addr_type'] = resp.device_info_list[0].addr_type
                 new_info['firmware_version'] = resp.device_info_list[0].firmware_version
                 new_info['device_type'] = resp.device_info_list[0].device_type
                 self.__updateHistoryFile(new_info)
-                self.__bt_central.SetPeripheralName(req.map_url)
+                self.__bt_central.SetPeripheralName(new_name)
+                self.__logger.info('Name has been changed to %s' % new_name)
                 res.result = True
             else:
                 res.result = False
@@ -1077,15 +1121,14 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__logger.info('disconnect dfu')
             self.__bt_dfu_obj.RemoveUnzipedFiles()
             self.__bt_dfu_obj.DisconnectToDFU()
-            self.__bt_dfu_obj = None
             info = 'wait for restarting'
             self.__logger.info(info)
             progress = (9, 0.96, info)
             self.__publishProgress(progress)
-            sleep(4)
+            sleep(5)
             info = 'reconnecting to new firmware device'
             self.__logger.info(info)
-            progress = (9, 0.965, info)
+            progress = (9, 0.97, info)
             self.__publishProgress(progress)
             con_req = BLEConnect.Request()
             con_res = BLEConnect.Response()
@@ -1104,6 +1147,7 @@ class BluetoothNode(Node, DefaultDelegate):
                 progress = (1, 1.0, 'successfully upgraded')
                 self.__publishProgress(progress)
                 self.__firmware_candidate = ''
+                self.__bt_dfu_obj.RemoveZipFile()
             else:
                 info = 'failed upgrading'
                 self.__logger.error(info)
@@ -1112,7 +1156,7 @@ class BluetoothNode(Node, DefaultDelegate):
         else:
             info = 'failed upgrading'
             self.__logger.error(info)
-            self.__bt_dfu_obj = None
+        self.__bt_dfu_obj = None
         self.__dfu_processing = False
         self.__connecting = False
         self.__logger.info('dfu process complete')
