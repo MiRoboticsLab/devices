@@ -523,7 +523,8 @@ class DFUFileChecker:
         max_candidate = ''
         try:
             for candidate in result_list:
-                candidate_date = int(candidate[-12: -4])
+                data_index = candidate.find('_20', 34) + 1
+                candidate_date = int(candidate[data_index: data_index + 8])
                 if candidate_date > max_date:
                     max_date = candidate_date
                     if max_candidate != '':
