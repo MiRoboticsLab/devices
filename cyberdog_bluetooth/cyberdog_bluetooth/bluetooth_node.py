@@ -825,23 +825,12 @@ class BluetoothNode(Node, DefaultDelegate):
             try:
                 new_name = self.__getTagName()
             except BTLEDisconnectError as e:
-                self.__connected = False
-                self.__peripheral_name = ''
                 self.__logger.error(
                     'BTLEDisconnectError: %s Exeption while reading name!' % e)
                 self.__disconnectUnexpectedly()
                 res.result = False
                 return res
-            except AttributeError as e:
-                self.__connected = False
-                self.__peripheral_name = ''
-                self.__logger.error('AttributeError: %s Exeption while reading name!' % e)
-                self.__disconnectUnexpectedly()
-                res.result = False
-                return res
             except BTLEGattError as e:
-                self.__connected = False
-                self.__peripheral_name = ''
                 self.__logger.error('BTLEGattError: %s Exeption while reading name!' % e)
                 self.__disconnectUnexpectedly()
                 res.result = False
