@@ -1142,9 +1142,11 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__logger.error(info)
                 progress = (10, 1.0, info)
                 self.__publishProgress(progress)
+                self.__bt_dfu_obj.DisconnectToDFU()
         else:
             info = 'failed upgrading'
             self.__logger.error(info)
+            self.__bt_dfu_obj.DisconnectToDFU()
         self.__bt_dfu_obj = None
         self.__dfu_processing = False
         self.__connecting = False
