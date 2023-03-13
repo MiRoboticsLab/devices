@@ -242,6 +242,8 @@ class CyberdogWifi(Node):
         index = 0
         while index < num:
             one_line_str_list = str_list[index].split()
+            if len(one_line_str_list) < 1:
+                continue
             ssid = one_line_str_list[0]
             i = 1
             while i < len(one_line_str_list) - 3:
