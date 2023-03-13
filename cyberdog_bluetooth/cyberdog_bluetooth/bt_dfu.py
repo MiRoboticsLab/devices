@@ -17,7 +17,6 @@
 import binascii
 import os
 import threading
-from time import sleep
 import zipfile
 
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
@@ -71,19 +70,11 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         self.__character_handle_dic = {}
         self.__ctrl_notify_event = threading.Event()
         self.__ctrl_notify_data = bytes()
-        # self.__notification_thread = threading.Thread(target=self.__notificationThreading)
-        self.__threading = True
         self.__connecting = False
         self.__pkt_payload_size = 20
         self.__pkt_receipt_interval = 0  # 10
         self.__trial_time = 5
         self.__progress_publisher = progress
-        # self.__notification_thread.start()
-
-    def __del__(self):
-        self.__threading = False
-        self.DisconnectToDFU()
-        # self.__notification_thread.join()
 
     def ConnectToDFU(self):
         self.__connecting = True
@@ -481,17 +472,6 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         self.__logger.info('receive data from ctrl point: %s' % data)
         self.__ctrl_notify_data = data
         self.__ctrl_notify_event.set()
-
-    def __notificationThreading(self):
-        while self.__threading:
-            if self.__bt_central.IsConnected() and not self.__connecting:
-                wait_result = 0
-                with self.__threading_mutex:
-                    wait_result = self.__bt_central.WaitForNotifications(1.0)
-                if wait_result == 3:
-                    self.DisconnectToDFU()
-            else:
-                sleep(0.05)
 
 
 class DFUFileChecker:
