@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
+// Copyright (c) 2023 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -195,7 +195,7 @@ int TouchSensorHandler::openInput(void)
       }
     } else {
       // printf(" input device open failed(%s)(%d)\n", devname, fd);
-      INFO("[device:touch]: opendir error code: %d,%s", errno, strerror(errno));
+      INFO("[device:touch]: file open error code: %d,%s", errno, strerror(errno));
       INFO(" input device open failed(%s)(%d)", devname, fd);
     }
   }
