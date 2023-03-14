@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
+// Copyright (c) 2023 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,22 +36,19 @@ bool TouchCarpo::Init(std::function<void(TouchStatusMsg)> function_callback, boo
 {
   const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kTouch;
   code_ = std::make_shared<SYS::CyberdogCode<TouchCode>>(kModuleCode);
-  touch_handler_ = std::make_shared<TouchSensorHandler>();
-  touch_thread_ = std::thread(std::bind(&TouchCarpo::RunTouchTask, this));
-  initialized_finished_ = RegisterTopic(function_callback);
   simulation_ = simulation;
-
+  RegisterTopic(function_callback);
+  touch_handler_ = std::make_shared<TouchSensorHandler>();
   if (!simulation_) {
-    initialized_finished_ = touch_handler_->getFd() < 0 ? false : true;
+    if (touch_handler_->getFd() < 0) {
+      ERROR("[TouchCarpo]: %s", "Function Init() error.");
+      return false;
+    }
   }
 
-  if (!initialized_finished_) {
-    WARN("[TouchCarpo]: %s", "Function Init() error.");
-    return initialized_finished_;
-  }
-
+  touch_thread_ = std::thread(std::bind(&TouchCarpo::RunTouchTask, this));
   INFO("[TouchCarpo]: %s", "TouchCarpo initialize success.");
-  return initialized_finished_;
+  return true;
 }
 
 bool TouchCarpo::LowPower()
@@ -76,11 +73,6 @@ bool TouchCarpo::RegisterTopic(std::function<void(TouchStatusMsg)> function_call
 
 void TouchCarpo::RunTouchTask()
 {
-  if (!initialized_finished_) {
-    WARN("[TouchCarpo]: %s", "touch sensor handler create failed!");
-    return;
-  }
-
   int ret = -1;
   int ret_count, count = 1;
   struct input_event * touch_event = (struct input_event *)

@@ -16,7 +16,6 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 set(CAMKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c+=11 -pthread")
-
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
@@ -24,6 +23,7 @@ find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(protocol REQUIRED)
 find_package(cyberdog_common REQUIRED)
+find_package(cyberdog_system REQUIRED)
 
 add_library(${PROJECT_NAME}
   src/touch_plugin.cpp
@@ -39,6 +39,7 @@ ament_target_dependencies(
   pluginlib
   protocol
   cyberdog_common
+  cyberdog_system
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE "TOUCH_PLUGIN_BUILDING_LIBRARY")
