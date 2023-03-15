@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
+// Copyright (c) 2023-2023 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 
 #ifndef CYBERDOG_BMS__BMS_PLUGIN_HPP_
 #define CYBERDOG_BMS__BMS_PLUGIN_HPP_
@@ -124,7 +125,7 @@ private:
   bool simulator_ {false};
   std::shared_ptr<EP::Protocol<BatteryMsg>> battery_ {nullptr};
   std::atomic<bool> is_working_ = false;
-  std::function<void(BmsStatusMsg)> topic_pub_;
+  std::function<void(BmsStatusMsg)> topic_pub_ = nullptr;
   std::thread simulator_thread_;
   std::shared_ptr<SYS::CyberdogCode<BMS_Code>> code_{nullptr};
 
