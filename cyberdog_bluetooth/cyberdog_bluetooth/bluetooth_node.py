@@ -21,7 +21,7 @@ import threading
 from time import sleep
 
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
-    DefaultDelegate, UUID
+    BTLEManagementError, DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
 from protocol.msg import AlgoTaskStatus, BLEDFUProgress, BLEInfo, MotionServoCmd
 from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
@@ -208,7 +208,13 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__intermission_mutex.acquire()
                 self.__tryToReleaseMutex(self.__intermission_mutex)
                 self.__logger.info('start scanning')
-                self.__bt_central.Scan(req.scan_seconds)
+                try:
+                    self.__bt_central.Scan(req.scan_seconds)
+                except BTLEManagementError as e:
+                    self.__logger.error('BTLEManagementError: %s Exception while scanning!' % e)
+                    res.code = 1629
+                    self.__tryToReleaseMutex(self.__scan_mutex)
+                    return res
                 self.__getLatestScanResult()
                 self.__removeHistoryFromList(self.__local_scan_result_list)
                 self.__startIntermission(1.5)
