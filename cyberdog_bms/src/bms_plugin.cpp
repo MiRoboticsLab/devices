@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
+// Copyright (c) 2023-2023 Beijing Xiaomi Mobile Software Co., Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -237,22 +237,24 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
         message.batt_volt, message.batt_curr, message.batt_temp,
         message.power_adapter_temp, message.wireless_charging_temp, message.batt_loop_number,
         message.batt_health, message.batt_st, message.bms_state_one);
-      topic_pub_(message);
+      if (topic_pub_ != nullptr) {
+        topic_pub_(message);
+      } else {
+        ERROR("[Bms]:publisher is nullptr!");
+      }
     };
 
   if (label.name == "bms_enable_on_ack") {
-    battery_->GetData()->bms_enable_on_ack = data->bms_enable_on_ack;
-    battery_->GetData()->enable_on_signal.Give();
+    data->enable_on_signal.Give();
   } else if (label.name == "bms_enable_off_ack") {
-    battery_->GetData()->bms_enable_off_ack = data->bms_enable_off_ack;
-    battery_->GetData()->enable_off_signal.Give();
+    data->enable_off_signal.Give();
   } else if (label.name == "battery_status") {
-    if (battery_->GetData()->waiting_data) {
-      battery_->GetData()->battery_status_signal.Give();
+    if (data->waiting_data) {
+      data->battery_status_signal.Give();
     }
 
-    if (!battery_->GetData()->data_received) {
-      battery_->GetData()->data_received = true;
+    if (!data->data_received) {
+      data->data_received = true;
     }
     if (!label.is_full) {
       WARN("[Bms]:data is not full");
@@ -262,10 +264,10 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
       auto now = std::chrono::system_clock::now();
       auto duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(
-        now - battery_->GetData()->time_start);
+        now - data->time_start);
       if (duration.count() >= kInterval) {
         MsgCallback();
-        battery_->GetData()->time_start = std::chrono::system_clock::now();
+        data->time_start = std::chrono::system_clock::now();
       }
     }
   } else {
