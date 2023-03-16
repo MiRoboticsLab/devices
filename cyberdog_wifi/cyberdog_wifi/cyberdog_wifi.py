@@ -231,6 +231,9 @@ class CyberdogWifi(Node):
             msg.is_connected = False
             msg.ssid = self.connected_ssid = ''
             msg.strength = 0
+        self.logger.info(
+            'ssid: %s, ip: %s, strength: %d' % (msg.ssid, msg.ip, msg.strength),
+            throttle_duration_sec=10.0)
         self.pub_rssi.publish(msg)
 
     def updateConnectionList(self):
