@@ -1038,6 +1038,11 @@ class BluetoothNode(Node, DefaultDelegate):
             connect_res = BLEConnect.Response()
             connect_req.selected_device = self.__history_scan_intersection[0]
             self.__connect_callback(connect_req, connect_res)
+            if connect_res.result == 0:
+                disconnect_msg = Bool()
+                disconnect_msg.data = False
+                self.__disconnect_unexpectedly_pub.publish(disconnect_msg)
+                self.__logger.info('Successfully auto reconnected.')
 
     def __appConnectionCB(self, msg):
         if self.__app_connected == msg.data:
