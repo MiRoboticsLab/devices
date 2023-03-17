@@ -186,13 +186,16 @@ class CyberdogWifi(Node):
                     self.logger.info('Rescan wifi list')
                     self.rescanWifi(request.ssid)
                     sleep(3.0)
-                elif response.result == RESULT_NO_SSID:
+                elif response.result == RESULT_NO_SSID and trial_times < 3:
                     self.logger.warning('ssid not found, delete recorded connections')
                     self.deleteAllRecordedConnections()
                     sleep(2.0)
+                elif response.result == RESULT_NO_SSID:
+                    self.logger.warning('ssid not found')
+                    break
                 elif response.result == RESULT_OTHER or response.result == RESULT_INTERRUPT:
                     self.logger.warning('Not able to connect to ssid %s now' % request.ssid)
-                    break
+                    sleep(3.0)
                 elif response.result == RESULT_HIDDEN_SSID:
                     self.logger.warning('Need to wait more time for connecting hidden ssid')
                     sleep(1.0)
