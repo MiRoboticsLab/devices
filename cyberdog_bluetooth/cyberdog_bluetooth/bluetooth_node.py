@@ -1065,6 +1065,25 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__dfu_notification_pub.publish(msg)
 
     def __updateFirmwareCB(self, req, res):
+        self.__logger.info('__updateFirmwareCB')
+        if self.__connecting:
+            msg = 'dfu is not permited when connecting'
+            self.__logger.error(msg)
+            res.success = False
+            res.message = msg
+            return req
+        elif not self.__bt_central.IsConnected():
+            msg = 'dfu is not permited when disconnected'
+            self.__logger.error(msg)
+            res.success = False
+            res.message = msg
+            return req
+        elif self.__dfu_processing:
+            msg = "dfu is processing, don't activate again"
+            self.__logger.error(msg)
+            res.success = False
+            res.message = msg
+            return req
         self.__connecting = True
         self.__dfu_processing = True
         self.__logger.info('activate dfu')
@@ -1083,20 +1102,29 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__firmware_candidate,
             self.get_logger(), self.__publishProgress)
         self.__logger.info('start to connect to dfu device')
-        if self.__bt_dfu_obj.ConnectToDFU():
-            msg = 'dfu device connected'
-            self.__logger.info(msg)
-            res.success = True
-            res.message = msg
-            self.__dfu_timer.reset()
-        else:
-            msg = 'failed to connect to dfu'
-            self.__logger.error(msg)
-            res.success = False
-            res.message = msg
-            self.__bt_dfu_obj.DisconnectToDFU()
-            self.__dfu_processing = False
-            self.__connecting = False
+        trial_time = 3
+        while trial_time > 0:
+            connected = self.__bt_dfu_obj.ConnectToDFU()
+            if connected:
+                msg = 'dfu device connected'
+                self.__logger.info(msg)
+                res.success = True
+                res.message = msg
+                self.__dfu_timer.reset()
+                return res
+            else:
+                if trial_time == 1:
+                    break
+                sleep(1.0)
+                trial_time -= 1
+                self.__logger.info('retry connecting to dfu')
+        msg = 'failed to connect to dfu'
+        self.__logger.error(msg)
+        res.success = False
+        res.message = msg
+        self.__bt_dfu_obj.DisconnectToDFU()
+        self.__dfu_processing = False
+        self.__connecting = False
         return res
 
     def __publishProgress(self, progress):
@@ -1125,7 +1153,7 @@ class BluetoothNode(Node, DefaultDelegate):
             self.__logger.info(info)
             progress = (9, 0.96, info)
             self.__publishProgress(progress)
-            sleep(5)
+            sleep(8.0)
             info = 'reconnecting to new firmware device'
             self.__logger.info(info)
             progress = (9, 0.97, info)
@@ -1136,19 +1164,28 @@ class BluetoothNode(Node, DefaultDelegate):
             con_info.addr_type = 'random'
             con_info.mac = self.__connected_mac
             con_req.selected_device = con_info
-            self.__connecting = False
-            self.__dfu_last_step = True
-            self.__connect_callback(con_req, con_res)
-            self.__dfu_last_step = False
-            self.__connecting = True
-            if con_res.result == 0:
-                info = 'successfully upgraded'
-                self.__logger.info(info)
-                progress = (1, 1.0, 'successfully upgraded')
-                self.__publishProgress(progress)
-                self.__firmware_candidate = ''
-                self.__bt_dfu_obj.RemoveZipFile()
-            else:
+            trial_time = 3
+            while trial_time > 0:
+                self.__connecting = False
+                self.__dfu_last_step = True
+                self.__connect_callback(con_req, con_res)
+                self.__dfu_last_step = False
+                self.__connecting = True
+                if con_res.result == 0:
+                    info = 'successfully upgraded'
+                    self.__logger.info(info)
+                    progress = (1, 1.0, 'successfully upgraded')
+                    self.__publishProgress(progress)
+                    self.__firmware_candidate = ''
+                    self.__bt_dfu_obj.RemoveZipFile()
+                    break
+                else:
+                    if trial_time == 1:
+                        break
+                    sleep(1.0)
+                    trial_time -= 1
+                    self.__logger.info('retry connecting to new firmware')
+            if con_res.result != 0:
                 info = 'failed upgrading'
                 self.__logger.error(info)
                 progress = (10, 1.0, info)
