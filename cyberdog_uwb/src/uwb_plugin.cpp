@@ -52,6 +52,11 @@ bool UWBCarpo::Init(
     ERROR("Load UWB config failed!");
     return false;
   }
+  ros_msg_now_.header.frame_id = "none";
+  ros_msg_pre_   = ros_msg_now_;
+  uwb_angle_pre_ = 720;
+  for(int i=0;i<4;i++)uwb_rssi_flag_[i] = 0;
+
 
   RegisterTopic(function_callback);
 
@@ -226,7 +231,7 @@ bool UWBCarpo::Initialize()
     uwb_config_.session_id = GenerateRandomNumber(0xFF, 0x7FFFFF00);
     uwb_config_.controller_mac = GenerateRandomNumber(0x00FF, 0x3F00);
     uint16_t start = 0x3F00;
-    for (int i = 0; i < uwb_config_.uwb_list.size(); i++) {
+    for (unsigned int i = 0; i < uwb_config_.uwb_list.size(); i++) {
       uwb_config_.uwb_list[i].mac = GenerateRandomNumber(start + 1, start + 0x3000);
       start += 0x3000;
     }
@@ -546,63 +551,427 @@ bool UWBCarpo::LoadUWBTomlConfig()
   return true;
 }
 
-bool UWBCarpo::TryPublish()
+
+
+bool UWBCarpo::CoordinateConvert(const UwbSignleStatusMsg& msg_data)
 {
-  static UwbSignleStatusMsg uwb_pre;
+  float angle = 0;
+  float angle_deg = 0;
 
-  UwbSignleStatusMsg ros_msg;
-  constexpr auto eps = std::numeric_limits<float>::epsilon();
+  angle_deg = RadToDeg(msg_data.angle);
 
-  auto & uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
-  auto & uwb_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
-  auto & uwb_left = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
-  auto & uwb_right = ros_uwb_status_.data[static_cast<int>(Type::RearTOF)];
-  ros_msg = uwb_front;
-  ros_msg.header.frame_id = "head_tof";
-  if (ros_msg.rssi_1 > -1 || ros_msg.rssi_2 > -1) {
-    INFO("uwb front rssi_1[%d] rssi_2[%d]", ros_msg.rssi_1, ros_msg.rssi_2);
+  if(msg_data.header.frame_id == "head_tof")
+  {
+    if(angle_deg >=0 )
+    {
+      angle = angle_deg;
+    }
+    else
+    {
+      angle = 360 + angle_deg;
+    }
+  }
+  if(msg_data.header.frame_id == "rear_tof")
+  {
+    angle = 90 + angle_deg;
+  }
+  if(msg_data.header.frame_id == "head_uwb")
+  {
+      angle = 180 + angle_deg;
+  }
+  if(msg_data.header.frame_id == "rear_uwb")
+  {
+      angle = 270 + angle_deg;
+  }
+  if(uwb_angle_pre_ > 540)
+  {
+    uwb_angle_pre_ = angle;
     return false;
   }
-  if (ros_msg.rssi_1 < uwb_back.rssi_1) {
+  
+  uwb_angle_now_ = angle;
+
+  if(fabs(angle - uwb_angle_pre_) >= 270)
+  {
+    if(angle > uwb_angle_pre_)
+    {
+      uwb_angle_ = 0.5*(angle - 360) + 0.5 * uwb_angle_pre_;
+    }
+    else
+    {
+      uwb_angle_ = 0.5*(angle + 360) + 0.5 * uwb_angle_pre_;
+    }
+  }
+  else
+  {
+    uwb_angle_ = 0.5 * angle + 0.5 * uwb_angle_pre_;
+  }
+  if(uwb_angle_ > 360) uwb_angle_ = uwb_angle_ - 360;
+  if(uwb_angle_ < 0) uwb_angle_ = 360 + uwb_angle_;
+
+  uwb_angle_pre_ = uwb_angle_;
+
+  return true;
+}
+bool UWBCarpo::CoordinateReConvert(UwbSignleStatusMsg& msg_data)
+{
+  if(uwb_angle_> 0 && uwb_angle_ <= 45)
+  {
+    msg_data.angle = DegToRad(uwb_angle_);
+    msg_data.header.frame_id = "head_tof";
+  }
+  else if(uwb_angle_ > 45 && uwb_angle_ <= 135)
+  {
+    msg_data.angle = DegToRad(uwb_angle_ - 90);
+    msg_data.header.frame_id = "rear_tof";
+  }
+  else if(uwb_angle_ > 135 && uwb_angle_ <= 225)
+  {
+    msg_data.angle = DegToRad(uwb_angle_ - 180);
+    msg_data.header.frame_id = "head_uwb";
+  }
+  else if(uwb_angle_ > 225 && uwb_angle_ <= 315)
+  {
+    msg_data.angle = DegToRad(uwb_angle_ -270);
+    msg_data.header.frame_id = "rear_uwb";
+  }
+  else if(uwb_angle_ > 315 &&  uwb_angle_ <= 360)
+  {
+    msg_data.angle = DegToRad(uwb_angle_ - 360);
+    msg_data.header.frame_id = "head_tof";
+  }
+  else
+  {
+    WARN("======Angle out of range: angle=%f",uwb_angle_);
+    return false;
+  }
+  return true;
+}
+
+
+bool UWBCarpo::TryPublish()
+{
+
+  int i,j,count;
+  UwbSignleStatusMsg ros_msg;
+  UwbSignleStatusMsg ros_msg_pub;
+
+  struct UwbRankDataTag
+  {
+    //struct UwbRaw_ uwb_data;
+    UwbSignleStatusMsg uwb_data;
+    uint8_t uwb_rank_rssi;
+    uint8_t uwb_rank_dist;
+    uint8_t uwb_rank_sum;
+    uint8_t index;
+  };
+  UwbRankDataTag uwb_rank_data[4];
+  
+  for(i=0; i<kDefaultUWB_Count; i++)
+  {
+    uwb_rank_data[i].index = i;
+    uwb_rank_data[i].uwb_rank_rssi = 0;
+    uwb_rank_data[i].uwb_rank_dist = 0;
+    uwb_rank_data[i].uwb_rank_sum = 0;
+  }
+
+  const auto  uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
+  const auto  uwb_back  = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
+  const auto  uwb_left  = ros_uwb_status_.data[static_cast<int>(Type::RearUWB)];
+  const auto  uwb_right = ros_uwb_status_.data[static_cast<int>(Type::RearTOF)];
+
+  uwb_rank_data[0].uwb_data = uwb_front;
+  uwb_rank_data[1].uwb_data = uwb_back;
+  uwb_rank_data[2].uwb_data = uwb_left;
+  uwb_rank_data[3].uwb_data = uwb_right;
+
+
+  // RSSI 排序1-4  距离排序1-4， 同时取名次最高的，如果有相同名次以RSSI高的为进一步判断, 如果nLos不为0 直接判断最差
+ 
+  //rssi 排序 降序  rssi越大越好
+	for (i = 0; i < kDefaultUWB_Count-1; i++)
+	{
+		count = 0;
+		for (j = 0; j < kDefaultUWB_Count -1 - i; j++)
+		{
+			if (uwb_rank_data[j].uwb_data.rssi_1 < uwb_rank_data[j+1].uwb_data.rssi_1)
+			{
+				auto temp = uwb_rank_data[j];
+				uwb_rank_data[j]   = uwb_rank_data[j+1];
+				uwb_rank_data[j+1] = temp;
+				count = 1;
+			}
+		}
+		if (count == 0) // already order
+		{
+      break;
+    }
+	}
+  // 设定rssi_flag 名次数值
+  for( i=0; i< kDefaultUWB_Count; i++)
+  {
+    // if(uwb_rank_data[i].uwb_data.n_los == 0)
+    // {
+    //   uwb_rank_data[i].uwb_rank_rssi = i;
+    // }
+    // else
+    // {
+    //   uwb_rank_data[i].uwb_rank_rssi = kDefaultUWB_Count;
+    // }
+    uwb_rank_data[i].uwb_rank_rssi = i;
+  }
+
+  //dist 排序 升序  距离越小越好
+	for (i = 0; i < kDefaultUWB_Count-1; i++)
+	{
+		count = 0;
+		for (j = 0; j < kDefaultUWB_Count -1 - i; j++)
+		{
+			if(uwb_rank_data[j].uwb_data.dist > uwb_rank_data[j+1].uwb_data.dist)
+			{
+				auto temp = uwb_rank_data[j];
+				uwb_rank_data[j]   = uwb_rank_data[j+1];
+				uwb_rank_data[j+1] = temp;
+				count = 1;
+			}
+		}
+		if (count == 0) // already order
+		{
+      break;
+    }
+	}
+  // 设定dist_flag 名次数值
+  for( i=0; i< kDefaultUWB_Count; i++)
+  {
+    // if(uwb_rank_data[i].uwb_data.n_los == 0)
+    // {
+    //   uwb_rank_data[i].uwb_rank_dist = i;
+    // }
+    // else
+    // {
+    //   uwb_rank_data[i].uwb_rank_dist = kDefaultUWB_Count;
+    // }
+    uwb_rank_data[i].uwb_rank_dist = i;
+  }
+  // 名次求和
+  for(i=0; i< kDefaultUWB_Count; i++ )
+  {
+    uwb_rank_data[i].uwb_rank_sum = uwb_rank_data[i].uwb_rank_rssi + uwb_rank_data[i].uwb_rank_dist;
+  }
+
+  // 获取求和排序升序，相同的数值对 rssi越大越好 
+  for (i = 0; i < kDefaultUWB_Count-1; i++)
+	{
+		count = 0;
+		for (j = 0; j < kDefaultUWB_Count -1 - i; j++)
+		{
+			if (uwb_rank_data[j].uwb_rank_sum > uwb_rank_data[j+1].uwb_rank_sum)
+			{
+				auto temp = uwb_rank_data[j];
+				uwb_rank_data[j]   = uwb_rank_data[j+1];
+				uwb_rank_data[j+1] = temp;
+				count = 1;
+			}
+      if(uwb_rank_data[j].uwb_rank_sum == uwb_rank_data[j+1].uwb_rank_sum)
+      {
+        if(uwb_rank_data[j].uwb_data.rssi_1 < uwb_rank_data[j+1].uwb_data.rssi_1)
+        {
+          auto temp = uwb_rank_data[j];
+          uwb_rank_data[j]   = uwb_rank_data[j+1];
+          uwb_rank_data[j+1] = temp;
+          count = 1;
+        }
+      }
+		}
+		if (count == 0) // already order
+		{
+      break;
+    }
+	}
+  ros_msg = uwb_rank_data[0].uwb_data;
+  switch(uwb_rank_data[0].index)
+  {
+    case 0: ros_msg.header.frame_id = "head_tof";
+      break;
+    case 1: ros_msg.header.frame_id = "head_uwb";
+      break;
+    case 2: ros_msg.header.frame_id = "rear_uwb";
+      break;
+    case 3: ros_msg.header.frame_id = "rear_tof";
+      break;
+    default:ros_msg.header.frame_id = "none";
+      ++uwb_data_valid_count_;
+      break;
+  }
+  // 人为判断几乎正前方
+  if(uwb_front.rssi_1 - uwb_back.rssi_1 > 4 && uwb_front.dist < uwb_back.dist && fabs(uwb_left.rssi_1 - uwb_right.rssi_1) < 4)
+  {
+    ros_msg = uwb_front;
+    ros_msg.header.frame_id = "head_tof";
+  }
+  // 人为判断几乎正后方
+  if(uwb_back.rssi_1 - uwb_front.rssi_1 > 4 && uwb_back.dist < uwb_front.dist && fabs(uwb_left.rssi_1 - uwb_right.rssi_1) < 4)
+  {
     ros_msg = uwb_back;
     ros_msg.header.frame_id = "head_uwb";
   }
-  if (ros_msg.rssi_1 < uwb_left.rssi_1) {
-    ros_msg = uwb_left;
-    ros_msg.header.frame_id = "rear_uwb";
-  }
-  if (ros_msg.rssi_1 < uwb_right.rssi_1) {
-    ros_msg = uwb_right;
-    ros_msg.header.frame_id = "rear_tof";
-  }
-
-  if (uwb_pre.rssi_1 > -1 || uwb_pre.rssi_2 > -1) {
-    uwb_pre = ros_msg;
-    INFO("uwb_pre init rssi_1[%d] rssi_2[%d]", uwb_pre.rssi_1, uwb_pre.rssi_2);
-  } else {
-    if ((uwb_pre.header.frame_id == "head_tof" &&
-      ros_msg.header.frame_id != "head_uwb") ||
-      (uwb_pre.header.frame_id == "head_uwb" &&
-      ros_msg.header.frame_id != "head_tof") ||
-      (uwb_pre.header.frame_id == "rear_uwb" &&
-      ros_msg.header.frame_id != "rear_tof") ||
-      (uwb_pre.header.frame_id == "rear_tof" &&
-      ros_msg.header.frame_id != "rear_uwb"))
+  
+  // 同一标签连续超过2次判定跳转
+  if(ros_msg.header.frame_id == "head_tof")
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::HeadTOF)] < 2)
     {
-      // 过滤间隔标签跳转
-      uwb_pre = ros_msg;
+      uwb_rssi_flag_[static_cast<int>(Type::HeadTOF)]++;
+      ++uwb_data_valid_count_;
+    }
+    else 
+    {
+      ros_msg_now_ = ros_msg;
+      uwb_data_valid_count_ = 0;
+    }
+  }
+  else
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::HeadTOF)] > 0 && ros_msg.header.frame_id != "none")
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::HeadTOF)]--;
+    }
+  }
+  if(ros_msg.header.frame_id == "head_uwb")
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::HeadUWB)] < 2)
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::HeadUWB)]++;
+      ++uwb_data_valid_count_;
+    }
+    else
+    {
+      ros_msg_now_ = ros_msg;
+      uwb_data_valid_count_ = 0;
+    }
+  }
+  else
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::HeadUWB)] > 0 && ros_msg.header.frame_id != "none")
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::HeadUWB)]--;
+    }
+  }
+  if(ros_msg.header.frame_id == "rear_uwb")
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::RearUWB)] < 2)
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::RearUWB)]++;
+      ++uwb_data_valid_count_;
+    }
+    else
+    {
+      ros_msg_now_ = ros_msg;
+      uwb_data_valid_count_ = 0;
+    }
+  }
+  else
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::RearUWB)] > 0 && ros_msg.header.frame_id != "none")
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::RearUWB)]--;
+    }
+  }
+  if(ros_msg.header.frame_id == "rear_tof")
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::RearTOF)] < 2)
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::RearTOF)]++;
+      ++uwb_data_valid_count_;
+    }
+    else
+    {
+      ros_msg_now_ = ros_msg;
+      uwb_data_valid_count_ = 0;
+    }
+  }
+  else
+  {
+    if(uwb_rssi_flag_[static_cast<int>(Type::RearTOF)] > 0 && ros_msg.header.frame_id != "none")
+    {
+      uwb_rssi_flag_[static_cast<int>(Type::RearTOF)]--;
+    }
+  }
+  
+
+  // 过滤间隔标签跳转
+  if(ros_msg_pre_.header.frame_id == "none")
+  {
+    ros_msg_pre_ = ros_msg_now_;
+    ++uwb_data_valid_count_;
+  }
+  else
+  {
+    if((ros_msg_pre_.header.frame_id == "head_tof" && ros_msg_now_.header.frame_id != "head_uwb") ||
+      (ros_msg_pre_.header.frame_id == "head_uwb"  && ros_msg_now_.header.frame_id != "head_tof") ||
+      (ros_msg_pre_.header.frame_id == "rear_uwb"  && ros_msg_now_.header.frame_id != "rear_tof") ||
+      (ros_msg_pre_.header.frame_id == "rear_tof"  && ros_msg_now_.header.frame_id != "rear_uwb"))
+    {
+      ros_msg_pre_ = ros_msg_now_;
     } else {
-      ros_msg = uwb_pre;
+      // 新标签存在间隔跳转，清除本次，
+      if(ros_msg_now_.header.frame_id == "head_tof")uwb_rssi_flag_[static_cast<int>(Type::HeadTOF)] = 0;
+      if(ros_msg_now_.header.frame_id == "head_uwb")uwb_rssi_flag_[static_cast<int>(Type::HeadUWB)] = 0;
+      if(ros_msg_now_.header.frame_id == "rear_uwb")uwb_rssi_flag_[static_cast<int>(Type::RearUWB)] = 0;
+      if(ros_msg_now_.header.frame_id == "rear_tof")uwb_rssi_flag_[static_cast<int>(Type::RearTOF)] = 0;
+      // 保留上次
+      if(ros_msg_pre_.header.frame_id == "head_tof")uwb_rssi_flag_[static_cast<int>(Type::HeadTOF)] = 2;
+      if(ros_msg_pre_.header.frame_id == "head_uwb")uwb_rssi_flag_[static_cast<int>(Type::HeadUWB)] = 2;
+      if(ros_msg_pre_.header.frame_id == "rear_uwb")uwb_rssi_flag_[static_cast<int>(Type::RearUWB)] = 2;
+      if(ros_msg_pre_.header.frame_id == "rear_tof")uwb_rssi_flag_[static_cast<int>(Type::RearTOF)] = 2;
+      ros_msg_now_ = ros_msg_pre_;
+      ++uwb_data_valid_count_;
     }
   }
 
-  struct timespec time_stu;
-  clock_gettime(CLOCK_REALTIME, &time_stu);
-  ros_msg.header.stamp.nanosec = time_stu.tv_nsec;
-  ros_msg.header.stamp.sec = time_stu.tv_sec;
-  topic_pub_(ros_msg);
-  return true;
+  // 同一坐标系下加入角度滤波
+  ros_msg_pub = ros_msg_now_;
+  if(ros_msg_pre_.header.frame_id != "none")
+  {
+    if(CoordinateConvert(ros_msg_now_))
+    {
+      if(false == CoordinateReConvert(ros_msg_pub))
+      {
+        ++uwb_data_valid_count_;
+      }
+    }
+    else
+    {
+      ++uwb_data_valid_count_;
+    }
+  }
+  else
+  {
+    ++uwb_data_valid_count_;
+  }
+  
+
+  if (ros_msg_pub.header.frame_id != "none")
+  {
+    if(uwb_data_valid_count_ > 100)
+    {
+      uwb_data_valid_count_ = 0;
+      INFO("======uwb no new data within latest almost 100 times.");
+      return false;
+    }
+    else
+    {
+      struct timespec time_stu;
+      clock_gettime(CLOCK_REALTIME, &time_stu);
+      ros_msg_pub.header.stamp.nanosec = time_stu.tv_nsec;
+      ros_msg_pub.header.stamp.sec = time_stu.tv_sec;
+      topic_pub_(ros_msg_pub);
+      return true;
+    }
+  }
+  return false;
 }
+
 
 bool UWBCarpo::CheckClosed(int times, const std::string & name)
 {
