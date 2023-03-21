@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Copyright (c) 2022 Xiaomi Corporation
+# Copyright (c) 2023 Xiaomi Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -136,13 +136,47 @@ class BluetoothCore:
     def GetService(self, uuid):
         try:
             return self.__peripheral.getServiceByUUID(uuid)
-        except BTLEGattError:
+        except IndexError:
+            self.__logger.error('Characteristic index error')
+            return None
+        except BTLEDisconnectError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            self.__logger.error(
+                'BTLEDisconnectError: %s Exeption while getCharacteristics!' % e)
+            return None
+        except BTLEGattError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            self.__logger.error(
+                'BTLEGattError: %s Exeption while getCharacteristics!' % e)
+            return None
+        except BTLEManagementError as e:
+            self.__logger.error(
+                'BTLEManagementError: %s Exeption while getCharacteristics!' % e)
             return None
 
     def GetCharacteristic(self, service, uuid):
         try:
             return service.getCharacteristics(uuid)[0]
         except IndexError:
+            self.__logger.error('Characteristic index error')
+            return None
+        except BTLEDisconnectError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            self.__logger.error(
+                'BTLEDisconnectError: %s Exeption while getCharacteristics!' % e)
+            return None
+        except BTLEGattError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            self.__logger.error(
+                'BTLEGattError: %s Exeption while getCharacteristics!' % e)
+            return None
+        except BTLEManagementError as e:
+            self.__logger.error(
+                'BTLEManagementError: %s Exeption while getCharacteristics!' % e)
             return None
 
     def GetCharacteristicByUUID(self, srv_uuid, char_uuid):
@@ -204,7 +238,24 @@ class BluetoothCore:
     def WriteByChracteristicUUID(self, characteristic_uuid, value: bytes, withResponse=False):
         if not self.__connect:
             return False
-        characteristics = self.__peripheral.getCharacteristics(uuid=characteristic_uuid)
+        try:
+            characteristics = self.__peripheral.getCharacteristics(uuid=characteristic_uuid)
+        except BTLEDisconnectError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            self.__logger.error(
+                'BTLEDisconnectError: %s Exeption while getCharacteristics!' % e)
+            return False
+        except BTLEGattError as e:
+            self.__connected = False
+            self.__peripheral_name = ''
+            self.__logger.error(
+                'BTLEGattError: %s Exeption while getCharacteristics!' % e)
+            return False
+        except BTLEManagementError as e:
+            self.__logger.error(
+                'BTLEManagementError: %s Exeption while getCharacteristics!' % e)
+            return False
         if characteristics is not None and len(characteristics) != 0:
             return self.__writeByCharacteristic(characteristics[0], value, withResponse)
         self.__logger.error('Not found characteristic')
@@ -242,12 +293,14 @@ class BluetoothCore:
         except AttributeError as e:
             self.__connected = False
             self.__peripheral_name = ''
-            self.__logger.error('AttributeError: %s Exeption while writing!' % e)
+            self.__logger.error(
+                'AttributeError: %s Exeption while writing!' % e)
             return False
         except BTLEGattError as e:
             self.__connected = False
             self.__peripheral_name = ''
-            self.__logger.error('BTLEGattError: %s Exeption while writing!' % e)
+            self.__logger.error(
+                'BTLEGattError: %s Exeption while writing!' % e)
             return False
         return True
 
@@ -323,18 +376,15 @@ class BluetoothCore:
                 self.__peripheral.unpair()
             except BTLEManagementError as e:
                 self.__logger.error(
-                    'BTLEManagementError:', e,
-                    'BLE device is disconnected unexpected while pairing')
+                    'BTLEManagementError: %s Disconnected unexpected while unpairing!' % e)
                 return False
             except BTLEInternalError as e:
                 self.__logger.error(
-                    'BTLEInternalError:', e,
-                    'BLE device is disconnected unexpected while pairing')
+                    'BTLEInternalError: %s Disconnected unexpected while unpairing!' % e)
                 return False
             except BTLEDisconnectError as e:
                 self.__logger.error(
-                    'BTLEDisconnectError:', e,
-                    'BLE device is disconnected unexpected while pairing')
+                    'BTLEDisconnectError: %s Disconnected unexpected while unpairing!' % e)
                 return False
         else:
             os.system('echo "remove %s" | bluetoothctl' % addr)
