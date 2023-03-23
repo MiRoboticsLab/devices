@@ -24,7 +24,8 @@ from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
     BTLEManagementError, DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
 from protocol.msg import AlgoTaskStatus, BLEDFUProgress, BLEInfo, MotionServoCmd
-from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
+from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID,\
+    SelfCheckStatus
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
@@ -173,6 +174,10 @@ class BluetoothNode(Node, DefaultDelegate):
             callback_group=self.__siglethread_callback_group)
         self.__task_status = 101
         self.__intermission_mutex = threading.Lock()
+        self.__self_check_sub = self.create_subscription(
+            SelfCheckStatus, 'self_check_status', self.__selfCheckCB, 10,
+            callback_group=self.__siglethread_callback_group)
+        self.__self_check_status_code = -1
         self.__notification_thread.start()
         self.__joy_polling_thread.start()
 
@@ -1009,7 +1014,8 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __autoReconnect(self):
         if self.__bt_central.IsConnected() or\
-                self.__connecting or not self.__enable_self_connection:
+                self.__connecting or not self.__enable_self_connection or\
+                self.__self_check_status_code != 0:
             return
         self.__logger.info('checking reconnection')
         history_info_list = self.__getHistoryConnectionInfo()
@@ -1224,3 +1230,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__intermission_mutex.acquire()
         threading.Timer(sec, self.__intervalTimerCB).start()
         self.__logger.info('Intermission is on')
+
+    def __selfCheckCB(self, msg):
+        self.__self_check_status_code = msg.code
+        self.__logger.info('Update self check status code %d' % self.__self_check_status_code)
