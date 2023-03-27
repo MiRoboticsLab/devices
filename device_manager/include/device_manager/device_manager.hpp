@@ -87,6 +87,7 @@ private:
   rclcpp::executors::MultiThreadedExecutor executor;
   rclcpp::CallbackGroup::SharedPtr callback_group_{nullptr};
   rclcpp::CallbackGroup::SharedPtr callback_group_led{nullptr};
+  rclcpp::CallbackGroup::SharedPtr callback_group_uwb{nullptr};
   bool is_active {false};
 
 private:

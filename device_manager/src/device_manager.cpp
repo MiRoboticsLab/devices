@@ -128,18 +128,22 @@ int32_t cyberdog::device::DeviceManager::OnActive()
         std::placeholders::_1, std::placeholders::_2),
       rmw_qos_profile_services_default, callback_group_);
 
+    callback_group_uwb =
+      node_ptr->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
     uwb_service_ = node_ptr->create_service<protocol::srv::GetUWBMacSessionID>(
       "get_uwb_mac_session_id",
       std::bind(
         &DeviceManager::UwbServiceCallback, this,
         std::placeholders::_1, std::placeholders::_2),
-      rmw_qos_profile_services_default, callback_group_);
+      rmw_qos_profile_services_default, callback_group_uwb);
+    uwb_connection_state_ = node_ptr->create_subscription<std_msgs::msg::Bool>(
+      "uwb_connected", 5,
+      std::bind(
+        &DeviceManager::UwbConnectedCallback, this,
+        std::placeholders::_1));
     is_active = true;
   }
-
-  uwb_connection_state_ = node_ptr->create_subscription<std_msgs::msg::Bool>(
-    "uwb_connected", 5,
-    std::bind(&DeviceManager::UwbConnectedCallback, this, std::placeholders::_1));
   return code_ptr_->GetKeyCode(cyberdog::system::KeyCode::kOK);
 }
 
