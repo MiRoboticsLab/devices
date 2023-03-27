@@ -29,7 +29,7 @@ cyberdog::device::DeviceManager::DeviceManager(const std::string & name)
   heart_beats_ptr_ = std::make_unique<cyberdog::machine::HeartBeatsActuator>("device");
   code_ptr_ = std::make_shared<cyberdog::system::CyberdogCode<DeviceErrorCode>>(
     cyberdog::system::ModuleCode::kDeviceManager);
-    if (!is_active) {
+  if (!is_active) {
     callback_group_ =
       node_ptr->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
