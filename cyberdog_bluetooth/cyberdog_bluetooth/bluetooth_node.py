@@ -23,9 +23,8 @@ from time import sleep
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
     BTLEManagementError, DefaultDelegate, UUID
 from nav2_msgs.srv import SaveMap
-from protocol.msg import AlgoTaskStatus, BLEDFUProgress, BLEInfo, MotionServoCmd
-from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID,\
-    SelfCheckStatus
+from protocol.msg import AlgoTaskStatus, BLEDFUProgress, BLEInfo, MotionServoCmd, SelfCheckStatus
+from protocol.srv import BLEConnect, BLEScan, GetBLEBatteryLevel, GetUWBMacSessionID
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
@@ -1232,5 +1231,6 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__logger.info('Intermission is on')
 
     def __selfCheckCB(self, msg):
-        self.__self_check_status_code = msg.code
-        self.__logger.info('Update self check status code %d' % self.__self_check_status_code)
+        if self.__self_check_status_code != msg.code:
+            self.__self_check_status_code = msg.code
+            self.__logger.info('Update self check status code %d' % self.__self_check_status_code)
