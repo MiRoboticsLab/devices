@@ -300,6 +300,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         # res.result = self.__waitForUWBResponse(False)
                         res.result = 0
                         self.__disconnectPeripheral()
+            self.__bt_central.RemoveUnRecordedDevices(self.__getHistoryConnectionInfo())
             self.__connect_timeout_timer.reset()
             if self.__bt_central.ConnectToBLE(
                     req.selected_device.mac,
