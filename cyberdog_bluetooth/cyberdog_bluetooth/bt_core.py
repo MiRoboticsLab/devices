@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import os
+import subprocess
 
 from bluepy.btle import BTLEDisconnectError, BTLEGattError, BTLEInternalError,\
     BTLEManagementError, DefaultDelegate, Peripheral, ScanEntry, Scanner, UUID
@@ -439,3 +440,37 @@ class BluetoothCore:
         self.__connected = True
         self.__peripheral_name = peripheral_info.name
         return True
+
+    def __runCommand(self, cmd: str):
+        self.__logger.info('run command: %s' % cmd)
+        output = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output.wait()  # wait for cmd done
+        tmp = str(output.stdout.read(), encoding='utf-8')
+        return tmp
+
+    def RemoveUnRecordedDevices(self, devices):
+        if devices is None or len(devices) == 0:
+            return
+        mac_list = []
+        for info in devices:
+            mac_list.append(info['mac'].upper())
+        raw_result = self.__runCommand('echo list | bluetoothctl | grep Device')
+        str_list = raw_result.split('\n')
+        device_num = len(str_list)
+        if device_num < 2:
+            self.__logger.error('No bluetooth devices founded in system')
+            return
+        device_num -= 1
+        i = 0
+        while i < device_num:
+            found_i = str_list[i].find('Device ')
+            if found_i == -1:
+                i += 1
+                continue
+            mac = str_list[i][found_i + 7: found_i + 24]
+            if mac not in mac_list:
+                self.__logger.warning(
+                    '%s is not recorded in known file, remove it from system' % mac)
+                self.Unpair(mac)
+            i += 1
