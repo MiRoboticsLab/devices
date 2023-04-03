@@ -84,7 +84,7 @@ class BluetoothNode(Node, DefaultDelegate):
             GetUWBMacSessionID, 'get_uwb_mac_session_id',
             callback_group=self.__multithread_callback_group)
         self.__response_timeout_timer = self.create_timer(
-            10.0, self.__responseTimeoutCB, callback_group=self.__multithread_callback_group)
+            2.0, self.__responseTimeoutCB, callback_group=self.__multithread_callback_group)
         self.__response_timeout_timer.cancel()
         self.__timeout = False
         self.__battery_volume_pub = self.create_publisher(BatteryState, 'band_battery', 2)
@@ -418,19 +418,29 @@ class BluetoothNode(Node, DefaultDelegate):
                         response = response_future.result()
                         self.__uwb_connect_accepted = 3
                         self.__logger.info('initializing uwb')
-                        self.__poll_mutex.acquire()
-                        if self.__connectUWB(
+                        uwb_initialized = False
+                        trial_time = 0
+                        self.__logger.info('try to init uwb %d' % trial_time)
+                        while trial_time < 3:
+                            self.__poll_mutex.acquire()
+                            sent_init = self.__connectUWB(
                                 True,
                                 response.session_id,
                                 response.master,
                                 response.slave1, response.slave2,
-                                response.slave3, response.slave4):
+                                response.slave3, response.slave4)
                             self.__tryToReleaseMutex(self.__poll_mutex)
+                            if not sent_init:
+                                self.__logger.error('Failed to send init uwb cmd')
+                                break
                             wait_for_uwb_init_result = self.__waitForUWBResponse(True)
                             if wait_for_uwb_init_result != 0:
                                 self.__logger.error('uwb init ack is not correct')
                                 res.result = wait_for_uwb_init_result
+                                trial_time += 1
+                                self.__logger.warning('try to init uwb %d' % trial_time)
                             else:
+                                uwb_initialized = True
                                 uwb_tracking_status = bytes()
                                 if self.__connected_tag_type == 16:
                                     if self.__task_status == 11:
@@ -448,7 +458,8 @@ class BluetoothNode(Node, DefaultDelegate):
                                         self.__logger.error('failed sending latest uwb status')
                                         res.result = 2
                                     self.__tryToReleaseMutex(self.__poll_mutex)
-                        else:
+                                    break
+                        if not uwb_initialized:
                             self.__tryToReleaseMutex(self.__poll_mutex)
                             self.__logger.error('not receive acknowledge from ble device')
                             res.result = 2
