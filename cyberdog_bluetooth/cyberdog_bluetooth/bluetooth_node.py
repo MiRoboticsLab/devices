@@ -250,6 +250,8 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __connect_callback(self, req, res):
         self.__logger.info('__connect_callback')
+        res.result = 0
+        res.code = 1600
         if self.__dfu_processing and not self.__dfu_last_step:
             self.__logger.warning('dfu processing!')
             res.result = 1
@@ -298,7 +300,6 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__uwb_disconnect_accepted = 3
                         self.__connectUWB(False)
                         # res.result = self.__waitForUWBResponse(False)
-                        res.result = 0
                         self.__disconnectPeripheral()
             self.__bt_central.RemoveUnRecordedDevices(self.__getHistoryConnectionInfo())
             self.__connect_timeout_timer.reset()
