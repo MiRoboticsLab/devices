@@ -42,6 +42,9 @@
 #include "cyberdog_system/robot_code.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "embed_protocol/embed_protocol.hpp"
+
+#include "AlgoEKF.h"
+
 namespace cyberdog
 {
 namespace device
@@ -166,6 +169,9 @@ private:
   float uwb_angle_pre_;
   float uwb_angle_now_;
   uint32_t uwb_data_valid_count_;
+  AlgoEKF algo_ekf_;
+  struct timespec time_now_,time_pre_;
+  float square_deviation_threshold_;
 
 private:
   bool LoadUWBTomlConfig();

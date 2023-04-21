@@ -59,6 +59,8 @@ bool UWBCarpo::Init(
   for (int i = 0; i < 4; i++) {
     uwb_rssi_flag_[i] = 0;
   }
+  time_now_.tv_sec = 0;
+  time_pre_.tv_sec = 0;
 
 
   RegisterTopic(function_callback);
@@ -549,6 +551,11 @@ bool UWBCarpo::LoadUWBTomlConfig()
     return false;
   }
 
+  if (!TomlParse::Get(params_toml, "square_deviation_threshold_", square_deviation_threshold_)) {
+    ERROR("toml file[%s] get [square_deviation_threshold_] failed!", path.c_str());
+    return false;
+  }
+
   INFO("[%s] success!", __func__);
 
   return true;
@@ -625,7 +632,7 @@ bool UWBCarpo::CoordinateReConvert(UwbSignleStatusMsg & msg_data)
   return true;
 }
 
-
+#if 0
 bool UWBCarpo::TryPublish()
 {
   int i, j, count;
@@ -906,6 +913,74 @@ bool UWBCarpo::TryPublish()
   }
   return false;
 }
+#else
+bool UWBCarpo::TryPublish()
+{
+  UwbSignleStatusMsg ros_msg_pub;
+  double dt;
+ 
+  const auto uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
+
+  // get a valid init data to init EFK
+  if(algo_ekf_.initialized == 0)
+  {
+    if(uwb_front.dist > 0.3 && (uwb_front.n_los ==0) && fabs(RadToDeg(uwb_front.angle)) < 30)
+    {
+      INFO("======get valid data threshold=%f",square_deviation_threshold_);
+      algo_ekf_.EKF_init(uwb_front.dist, uwb_front.angle, 0.01, 0.5);
+      algo_ekf_.initialized = 1;
+      clock_gettime(CLOCK_REALTIME, &time_pre_);
+    }
+    return false;
+  }
+  else
+  {
+    clock_gettime(CLOCK_REALTIME, &time_now_);
+    if(time_now_.tv_nsec < time_pre_.tv_nsec)
+    {
+      dt = (time_now_.tv_sec - time_pre_.tv_sec -1) + (time_now_.tv_nsec - time_pre_.tv_nsec + 1000000000)/1000000000.f;
+    }
+    else
+    {
+      dt = (time_now_.tv_sec - time_pre_.tv_sec) + (time_now_.tv_nsec - time_pre_.tv_nsec)/1000000000.f;
+    }
+    time_pre_ = time_now_;
+    algo_ekf_.EKF_pridect(dt);// dt
+    algo_ekf_.EKF_update(uwb_front.dist, uwb_front.angle, square_deviation_threshold_);
+  }
+
+  ros_msg_pub = uwb_front;
+  ros_msg_pub.header.frame_id = "head_tof";
+  ros_msg_pub.dist  = algo_ekf_.X[0];
+  ros_msg_pub.angle = algo_ekf_.X[1];
+
+
+//INFO("======%s dist=%d angle=%f rssi_1=%f rssi_2=%f nlos=%d",
+  // INFO("====== %f %f %f %f %f %s %f %f %f %f %f %f",
+  //               uwb_front.dist,
+  //               uwb_front.angle, 
+  //               uwb_front.rssi_1, 
+  //               uwb_front.rssi_2, 
+  //               uwb_front.n_los,
+  //               ros_msg_pub.header.frame_id.c_str(), 
+  //               ros_msg_pub.dist,
+  //               ros_msg_pub.angle, 
+  //               ros_msg_pub.rssi_1, 
+  //               ros_msg_pub.rssi_2, 
+  //               ros_msg_pub.n_los,
+  //               dt);
+
+  if (ros_msg_pub.header.frame_id != "none") {
+      struct timespec time_stu;
+      clock_gettime(CLOCK_REALTIME, &time_stu);
+      ros_msg_pub.header.stamp.nanosec = time_stu.tv_nsec;
+      ros_msg_pub.header.stamp.sec = time_stu.tv_sec;
+      topic_pub_(ros_msg_pub);
+      return true;
+  }
+  return false;
+}
+#endif
 
 
 bool UWBCarpo::CheckClosed(int times, const std::string & name)
