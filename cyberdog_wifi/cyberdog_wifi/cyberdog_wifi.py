@@ -229,7 +229,10 @@ class CyberdogWifi(Node):
             if msg.strength > 100: #exception
                 return
             msg.ssid = self.connected_ssid
-            msg.is_connected = True
+            if self.connected_ssid != '':
+                msg.is_connected = True
+            else:
+                msg.is_connected = False
         else:
             msg.is_connected = False
             msg.ssid = self.connected_ssid = ''
