@@ -53,7 +53,7 @@ bool UWBCarpo::Init(
     ERROR("Load UWB config failed!");
     return false;
   }
- 
+
   time_now_.tv_sec = 0;
   time_pre_.tv_sec = 0;
 
@@ -557,7 +557,6 @@ bool UWBCarpo::LoadUWBTomlConfig()
 }
 
 
-
 bool UWBCarpo::TryPublish()
 {
   UwbSignleStatusMsg ros_msg_pub;
@@ -566,9 +565,8 @@ bool UWBCarpo::TryPublish()
   const auto uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
 
   // get a valid init data to init EFK
-  if(algo_ekf_.initialized == 0) {
-    if(uwb_front.dist > 0.3 && (uwb_front.n_los ==0) && fabs(RadToDeg(uwb_front.angle)) < 30)
-    {
+  if (algo_ekf_.initialized == 0) {
+    if (uwb_front.dist > 0.3 && (uwb_front.n_los == 0) && fabs(RadToDeg(uwb_front.angle)) < 30) {
       INFO("======get valid data threshold=%f", square_deviation_threshold_);
       algo_ekf_.EKF_init(uwb_front.dist, uwb_front.angle, 0.01, 0.5);
       algo_ekf_.initialized = 1;
@@ -577,31 +575,31 @@ bool UWBCarpo::TryPublish()
     return false;
   } else {
     clock_gettime(CLOCK_REALTIME, &time_now_);
-    if(time_now_.tv_nsec < time_pre_.tv_nsec){
-      dt = (time_now_.tv_sec - time_pre_.tv_sec -1) + 
-           (time_now_.tv_nsec - time_pre_.tv_nsec + 1000000000)/1000000000.f;
+    if (time_now_.tv_nsec < time_pre_.tv_nsec) {
+      dt = (time_now_.tv_sec - time_pre_.tv_sec - 1) +
+        (time_now_.tv_nsec - time_pre_.tv_nsec + 1000000000) / 1000000000.f;
     } else {
-      dt = (time_now_.tv_sec - time_pre_.tv_sec) + 
-           (time_now_.tv_nsec - time_pre_.tv_nsec)/1000000000.f;
+      dt = (time_now_.tv_sec - time_pre_.tv_sec) +
+        (time_now_.tv_nsec - time_pre_.tv_nsec) / 1000000000.f;
     }
     time_pre_ = time_now_;
-    algo_ekf_.EKF_pridect(dt);// dt
+    algo_ekf_.EKF_pridect(dt);  // dt
     algo_ekf_.EKF_update(uwb_front.dist, uwb_front.angle, square_deviation_threshold_);
   }
 
   ros_msg_pub = uwb_front;
   ros_msg_pub.header.frame_id = "head_tof";
-  ros_msg_pub.dist  = algo_ekf_.X[0];
+  ros_msg_pub.dist = algo_ekf_.X[0];
   ros_msg_pub.angle = algo_ekf_.X[1];
 
 
   if (ros_msg_pub.header.frame_id != "none") {
-      struct timespec time_stu;
-      clock_gettime(CLOCK_REALTIME, &time_stu);
-      ros_msg_pub.header.stamp.nanosec = time_stu.tv_nsec;
-      ros_msg_pub.header.stamp.sec = time_stu.tv_sec;
-      topic_pub_(ros_msg_pub);
-      return true;
+    struct timespec time_stu;
+    clock_gettime(CLOCK_REALTIME, &time_stu);
+    ros_msg_pub.header.stamp.nanosec = time_stu.tv_nsec;
+    ros_msg_pub.header.stamp.sec = time_stu.tv_sec;
+    topic_pub_(ros_msg_pub);
+    return true;
   }
   return false;
 }
