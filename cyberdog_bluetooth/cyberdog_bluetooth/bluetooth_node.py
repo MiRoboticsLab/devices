@@ -626,11 +626,16 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__uwb_tracking.StartTracking()
                 self.__is_tracking = True
         elif data[7] == 0x05:  # tread switching
-            self.__tread_index = (self.__tread_index + 1) % 3
-            tread_msg = Int8()
-            tread_msg.data = self.__tread_index
-            self.__tread_pub.publish(tread_msg)
-            self.__logger.info('updated tread from bluetooth: %d' % self.__tread_index)
+            task_status = self.__uwb_tracking.IsTrackingTaskActivated()
+            if task_status == 11:
+                self.__logger.info('change keep distance')
+                self.__uwb_tracking.PubKeepDistance()
+            else:
+                self.__tread_index = (self.__tread_index + 1) % 3
+                tread_msg = Int8()
+                tread_msg.data = self.__tread_index
+                self.__tread_pub.publish(tread_msg)
+                self.__logger.info('updated tread from bluetooth: %d' % self.__tread_index)
         elif data[7] == 0x06:
             self.__logger.info('uwb connection status: %d' % data[9])
         self.__tryToReleaseMutex(self.__uart_data_mutex)
