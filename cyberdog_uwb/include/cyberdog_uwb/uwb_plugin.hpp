@@ -31,6 +31,7 @@
 #include <utility>
 #include <tuple>
 #include <map>
+#include <atomic>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -190,6 +191,8 @@ private:
   {
     return data * 1.0 / 256;
   }
+  uint16_t obj_flag_;
+  std::atomic<uint16_t> obj_check_;
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device
