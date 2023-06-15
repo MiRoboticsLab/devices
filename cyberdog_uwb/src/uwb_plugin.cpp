@@ -564,6 +564,7 @@ bool UWBCarpo::TryPublish()
   double dt;
 
   const auto uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
+  const auto uwb_back  = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
 
   // get a valid init data to init EFK
   if(algo_ekf_.initialized == 0) {
@@ -590,10 +591,22 @@ bool UWBCarpo::TryPublish()
   }
 
   ros_msg_pub = uwb_front;
-  ros_msg_pub.header.frame_id = "head_tof";
+
+  if(uwb_front.rssi_1 - uwb_back.rssi_1 > 1.8)
+  {
+      ros_msg_pub.header.frame_id = "head_tof";
+      INFO(">>>>>> in front %f %f %f %f %d",uwb_front.rssi_1, uwb_back.rssi_1, uwb_front.dist, uwb_back.dist,uwb_head_rssi_count_);
+      uwb_head_rssi_count_ = 0;
+  } else {
+    if(uwb_head_rssi_count_++ > 6)
+    {
+      ros_msg_pub.header.frame_id = "none";
+      INFO("<<<<<< out of front %f %f %f %f %d",uwb_front.rssi_1, uwb_back.rssi_1, uwb_front.dist, uwb_back.dist,uwb_head_rssi_count_);
+    }     
+  }
+
   ros_msg_pub.dist  = algo_ekf_.X[0];
   ros_msg_pub.angle = algo_ekf_.X[1];
-
 
   if (ros_msg_pub.header.frame_id != "none") {
       struct timespec time_stu;

@@ -165,6 +165,7 @@ private:
   AlgoEKF algo_ekf_;
   struct timespec time_now_, time_pre_;
   float square_deviation_threshold_;
+  int uwb_head_rssi_count_;
 
 private:
   bool LoadUWBTomlConfig();
