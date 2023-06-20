@@ -596,7 +596,7 @@ bool UWBCarpo::TryPublish()
   double dt;
 
   const auto uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
-  const auto uwb_back  = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
+  const auto uwb_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
 
   // get a valid init data to init EFK
   if (algo_ekf_.initialized == 0) {
@@ -622,22 +622,19 @@ bool UWBCarpo::TryPublish()
   }
 
   ros_msg_pub_ = uwb_front;
-  ros_msg_pub_.dist  = algo_ekf_.X[0];
+  ros_msg_pub_.dist = algo_ekf_.X[0];
   ros_msg_pub_.angle = algo_ekf_.X[1];
 
-  if(uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold)
-  {
-    if(uwb_rear_rssi_count_ ++ > 8)
-    {
+  if (uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold) {
+    if (uwb_rear_rssi_count_++ > 8) {
       ros_msg_pub_.header.frame_id = "head_tof";
       uwb_head_rssi_count_ = 0;
     }
   } else {
-    if(uwb_rear_rssi_count_++ > 8)
-    {
+    if (uwb_rear_rssi_count_++ > 8) {
       uwb_head_rssi_count_ = 0;
       ros_msg_pub_.header.frame_id = "none";
-    }     
+    }
   }
 
   if (ros_msg_pub_.header.frame_id != "none") {
