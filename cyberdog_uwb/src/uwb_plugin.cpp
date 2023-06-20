@@ -59,6 +59,7 @@ bool UWBCarpo::Init(
 
   time_now_.tv_sec = 0;
   time_pre_.tv_sec = 0;
+  ros_msg_pub_.header.frame_id = "none";
 
   RegisterTopic(function_callback);
 
@@ -592,10 +593,10 @@ bool UWBCarpo::LoadUWBTomlConfig()
 
 bool UWBCarpo::TryPublish()
 {
-  UwbSignleStatusMsg ros_msg_pub;
   double dt;
 
   const auto uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
+  const auto uwb_back = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
 
   // get a valid init data to init EFK
   if (algo_ekf_.initialized == 0) {
@@ -620,18 +621,28 @@ bool UWBCarpo::TryPublish()
     algo_ekf_.EKF_update(uwb_front.dist, uwb_front.angle, square_deviation_threshold_);
   }
 
-  ros_msg_pub = uwb_front;
-  ros_msg_pub.header.frame_id = "head_tof";
-  ros_msg_pub.dist = algo_ekf_.X[0];
-  ros_msg_pub.angle = algo_ekf_.X[1];
+  ros_msg_pub_ = uwb_front;
+  ros_msg_pub_.dist = algo_ekf_.X[0];
+  ros_msg_pub_.angle = algo_ekf_.X[1];
 
+  if (uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold) {
+    if (uwb_rear_rssi_count_++ > 8) {
+      ros_msg_pub_.header.frame_id = "head_tof";
+      uwb_head_rssi_count_ = 0;
+    }
+  } else {
+    if (uwb_rear_rssi_count_++ > 8) {
+      uwb_head_rssi_count_ = 0;
+      ros_msg_pub_.header.frame_id = "none";
+    }
+  }
 
-  if (ros_msg_pub.header.frame_id != "none") {
+  if (ros_msg_pub_.header.frame_id != "none") {
     struct timespec time_stu;
     clock_gettime(CLOCK_REALTIME, &time_stu);
-    ros_msg_pub.header.stamp.nanosec = time_stu.tv_nsec;
-    ros_msg_pub.header.stamp.sec = time_stu.tv_sec;
-    topic_pub_(ros_msg_pub);
+    ros_msg_pub_.header.stamp.nanosec = time_stu.tv_nsec;
+    ros_msg_pub_.header.stamp.sec = time_stu.tv_sec;
+    topic_pub_(ros_msg_pub_);
     return true;
   }
   return false;
