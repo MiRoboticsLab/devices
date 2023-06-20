@@ -31,6 +31,7 @@
 #include <utility>
 #include <tuple>
 #include <map>
+#include <atomic>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -166,6 +167,8 @@ private:
   struct timespec time_now_, time_pre_;
   float square_deviation_threshold_;
   int uwb_head_rssi_count_;
+  int uwb_rear_rssi_count_;
+  UwbSignleStatusMsg ros_msg_pub_;
 
 private:
   bool LoadUWBTomlConfig();
@@ -191,6 +194,8 @@ private:
   {
     return data * 1.0 / 256;
   }
+  uint16_t obj_flag_;
+  std::atomic<uint16_t> obj_check_;
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device

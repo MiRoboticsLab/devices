@@ -18,6 +18,7 @@ from protocol.action import Navigation
 from protocol.srv import AlgoTaskStatus, StopAlgoTask
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from std_msgs.msg import Empty
 
 
 class UWBTracking:
@@ -31,6 +32,7 @@ class UWBTracking:
         self.__tracking_activating = 999  # 101 for IDLE, 11 for uwb, 999 for unavailable
         self.__task_status_client = node.create_client(
             AlgoTaskStatus, 'algo_task_status', callback_group=multithread_callback_group)
+        self.__keep_distance_pub = node.create_publisher(Empty, 'keep_distance_level', 10)
 
     def StopTracking(self):
         if not self.__stop_task_client.wait_for_service(timeout_sec=3.0):
@@ -61,3 +63,7 @@ class UWBTracking:
             self.__tracking_activating = 999
         print('UWB tracking status is', self.__tracking_activating)
         return self.__tracking_activating
+
+    def PubKeepDistance(self):
+        msg = Empty()
+        self.__keep_distance_pub.publish(msg)

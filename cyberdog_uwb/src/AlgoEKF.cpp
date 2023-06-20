@@ -25,29 +25,29 @@
 //
 AlgoEKF::AlgoEKF()
 {
-  static const double dv[16]{0.01, 0.0, 0.0,  0.0, 0.0, 0.01, 0.0, 0.0,
-                             0.0,  0.0, 0.01, 0.0, 0.0, 0.0,  0.0, 0.01};
+  static const double dv[16]{0.01, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0,
+    0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.01};
   static const double dv1[16]{0.060820812668254558,
-                              0.0,
-                              0.048712226664389985,
-                              0.0,
-                              0.0,
-                              0.060820812668254558,
-                              0.0,
-                              0.048712226664389985,
-                              0.048712226664389985,
-                              0.0,
-                              0.24923931000597038,
-                              0.0,
-                              0.0,
-                              0.048712226664389985,
-                              0.0,
-                              0.24923931000597038};
-  static const double dv3[16]{1.0,      0.0, 0.0, 0.0, 0.0, 1.0,      0.0, 0.0,
-                              0.047364, 0.0, 1.0, 0.0, 0.0, 0.047364, 0.0, 1.0};
+    0.0,
+    0.048712226664389985,
+    0.0,
+    0.0,
+    0.060820812668254558,
+    0.0,
+    0.048712226664389985,
+    0.048712226664389985,
+    0.0,
+    0.24923931000597038,
+    0.0,
+    0.0,
+    0.048712226664389985,
+    0.0,
+    0.24923931000597038};
+  static const double dv3[16]{1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+    0.047364, 0.0, 1.0, 0.0, 0.0, 0.047364, 0.0, 1.0};
   static const double dv2[8]{
-      0.20273604222751521, 0.0, 0.16237408888129995, 0.0, 0.0,
-      0.20273604222751521, 0.0, 0.16237408888129995};
+    0.20273604222751521, 0.0, 0.16237408888129995, 0.0, 0.0,
+    0.20273604222751521, 0.0, 0.16237408888129995};
   static const signed char iv[8]{1, 0, 0, 1, 0, 0, 0, 0};
   R[0] = 0.3;
   R[1] = 0.0;
@@ -85,11 +85,12 @@ AlgoEKF::~AlgoEKF() = default;
 //                double R_var
 // Return Type  : void
 //
-void AlgoEKF::EKF_init(double dis_init, double theta_init, double Q_var,
-                       double R_var)
+void AlgoEKF::EKF_init(
+  double dis_init, double theta_init, double Q_var,
+  double R_var)
 {
   static const double dv[16]{0.1, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0,
-                             0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1};
+    0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1};
   static const signed char iv[8]{1, 0, 0, 1, 0, 0, 0, 0};
   for (int i{0}; i < 8; i++) {
     H[i] = iv[i];
@@ -164,14 +165,14 @@ void AlgoEKF::EKF_pridect(double dt)
   A[14] = 0.0;
   A[15] = 1.0;
   dt_idx_0_tmp =
-      ((dt_idx_0_tmp * 0.004 + dt_idx_0_tmp * 0.001) + dt * 0.0) + dt * 0.0;
+    ((dt_idx_0_tmp * 0.004 + dt_idx_0_tmp * 0.001) + dt * 0.0) + dt * 0.0;
   d = X[0];
   d1 = X[1];
   d2 = X[2];
   d3 = X[3];
   for (int i{0}; i < 4; i++) {
     dv[i] = (((A[i] * d + A[i + 4] * d1) + A[i + 8] * d2) + A[i + 12] * d3) +
-            dt_idx_0_tmp;
+      dt_idx_0_tmp;
   }
   for (int i{0}; i < 4; i++) {
     X[i] = dv[i];
@@ -182,8 +183,8 @@ void AlgoEKF::EKF_pridect(double dt)
     for (int i1{0}; i1 < 4; i1++) {
       P_tmp = i1 << 2;
       dv1[i + P_tmp] =
-          ((d * P[P_tmp] + d1 * P[P_tmp + 1]) + d2 * P[P_tmp + 2]) +
-          d3 * P[P_tmp + 3];
+        ((d * P[P_tmp] + d1 * P[P_tmp + 1]) + d2 * P[P_tmp + 2]) +
+        d3 * P[P_tmp + 3];
     }
   }
   for (int i{0}; i < 4; i++) {
@@ -194,8 +195,8 @@ void AlgoEKF::EKF_pridect(double dt)
     for (int i1{0}; i1 < 4; i1++) {
       P_tmp = i + (i1 << 2);
       P[P_tmp] =
-          (((d * A[i1] + d1 * A[i1 + 4]) + d2 * A[i1 + 8]) + d3 * A[i1 + 12]) +
-          Q[P_tmp];
+        (((d * A[i1] + d1 * A[i1 + 4]) + d2 * A[i1 + 8]) + d3 * A[i1 + 12]) +
+        Q[P_tmp];
     }
   }
 }
@@ -237,8 +238,8 @@ void AlgoEKF::EKF_update(double dis, double theta, double threshold)
       y_tmp[i1 + (i << 2)] = d1;
       x_tmp = i1 << 2;
       dv[i2] = ((H[i] * P[x_tmp] + H[i + 2] * P[x_tmp + 1]) +
-                H[i + 4] * P[x_tmp + 2]) +
-               H[i + 6] * P[x_tmp + 3];
+        H[i + 4] * P[x_tmp + 2]) +
+        H[i + 6] * P[x_tmp + 3];
     }
     e[i] = Z[i] - d;
   }
@@ -251,8 +252,8 @@ void AlgoEKF::EKF_update(double dis, double theta, double threshold)
       i2 = i1 << 2;
       x_tmp = i + (i1 << 1);
       x[x_tmp] = (((d * y_tmp[i2] + d1 * y_tmp[i2 + 1]) + d2 * y_tmp[i2 + 2]) +
-                  d3 * y_tmp[i2 + 3]) +
-                 R[x_tmp];
+        d3 * y_tmp[i2 + 3]) +
+        R[x_tmp];
     }
   }
   if (std::abs(x[1]) > std::abs(x[0])) {
@@ -270,9 +271,10 @@ void AlgoEKF::EKF_update(double dis, double theta, double threshold)
     b_tmp_idx_2 = -x[2] / x[0] * t;
   }
   if (((e[0] * b_tmp_idx_0 + e[1] * b_tmp_idx_1) * e[0] +
-           (e[0] * b_tmp_idx_2 + e[1] * t) * e[1] <=
-       threshold) ||
-      (update_flag == 0.0)) {
+    (e[0] * b_tmp_idx_2 + e[1] * t) * e[1] <=
+    threshold) ||
+    (update_flag == 0.0))
+  {
     double dv1[16];
     for (int i{0}; i < 4; i++) {
       d = P[i];
@@ -282,8 +284,8 @@ void AlgoEKF::EKF_update(double dis, double theta, double threshold)
       for (int i1{0}; i1 < 2; i1++) {
         i2 = i1 << 2;
         dv[i + i2] =
-            ((d * y_tmp[i2] + d1 * y_tmp[i2 + 1]) + d2 * y_tmp[i2 + 2]) +
-            d3 * y_tmp[i2 + 3];
+          ((d * y_tmp[i2] + d1 * y_tmp[i2 + 1]) + d2 * y_tmp[i2 + 2]) +
+          d3 * y_tmp[i2 + 3];
       }
       d = dv[i + 4];
       d1 = dv[i];
@@ -307,8 +309,8 @@ void AlgoEKF::EKF_update(double dis, double theta, double threshold)
         i2 = i1 << 2;
         x_tmp = i + i2;
         dv2[x_tmp] =
-            P[x_tmp] -
-            (((d * P[i2] + d1 * P[i2 + 1]) + d2 * P[i2 + 2]) + d3 * P[i2 + 3]);
+          P[x_tmp] -
+          (((d * P[i2] + d1 * P[i2 + 1]) + d2 * P[i2 + 2]) + d3 * P[i2 + 3]);
       }
     }
     std::copy(&dv2[0], &dv2[16], &P[0]);

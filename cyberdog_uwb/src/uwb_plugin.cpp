@@ -19,6 +19,7 @@
 #include <utility>
 #include <algorithm>
 #include <tuple>
+#include <set>
 
 #include "cyberdog_uwb/uwb_plugin.hpp"
 #include "cyberdog_uwb/float_comparisons.hpp"
@@ -47,16 +48,18 @@ bool UWBCarpo::Init(
 {
   simulation_ = simulation;
   ros_uwb_status_.data.resize(kDefaultUWB_Count);
+  obj_flag_ = 0;
+  obj_check_ = 0;
   const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
   code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
   if (!LoadUWBTomlConfig()) {
     ERROR("Load UWB config failed!");
     return false;
   }
- 
+
   time_now_.tv_sec = 0;
   time_pre_.tv_sec = 0;
-
+  ros_msg_pub_.header.frame_id = "none";
 
   RegisterTopic(function_callback);
 
@@ -134,6 +137,13 @@ bool UWBCarpo::Open()
   bool status_ok = true;
   if (!simulation_) {
     for (auto & uwb : uwb_map_) {
+      if (!((1 << uwb.second->GetData()->index) & obj_flag_)) {
+        INFO("[%s] not used ,ignored.", uwb.first.c_str());
+        continue;
+      } else {
+        INFO("[%s] is using do open.", uwb.first.c_str());
+      }
+
       if (uwb.second->GetData()->data_received) {
         INFO("[%s] opened successfully", uwb.first.c_str());
         continue;
@@ -182,6 +192,12 @@ bool UWBCarpo::Close()
     for (auto & uwb : uwb_map_) {
       int retry = 0;
       bool single_status_ok = true;
+      if (!((1 << uwb.second->GetData()->index) & obj_flag_)) {
+        INFO("[%s] not used ,ignored.", uwb.first.c_str());
+        continue;
+      } else {
+        INFO("[%s] is using do close.", uwb.first.c_str());
+      }
       while (retry++ < kDefaultRetryTimes) {
         uwb.second->Operate("enable_off", std::vector<uint8_t>{});
         if (uwb.second->GetData()->enable_off_signal.WaitFor(1000)) {
@@ -253,6 +269,12 @@ bool UWBCarpo::Initialize()
       std::vector<uint8_t> Cmd(buf, buf + sizeof(buf) / sizeof(buf[0]));
       if (!simulation_) {
         for (auto & uwb : uwb_map_) {
+          if (!((1 << uwb.second->GetData()->index) & obj_flag_)) {
+            WARN("[%s] not used ,ignored.", uwb.first.c_str());
+            continue;
+          } else {
+            INFO("[%s] is using do init.", uwb.first.c_str());
+          }
           int retry = 0;
           bool single_status_ok = true;
           uint16_t mac = uwb_config_.uwb_list[uwb.second->GetData()->index].mac;
@@ -299,17 +321,17 @@ void UWBCarpo::UWB_MsgCallback(EP::DataLabel & label, std::shared_ptr<UWB_Msg> d
   auto MsgCheck = [&](int index) {
       static Clock::time_point start_time = Clock::now();
       static Clock::time_point start_log = Clock::now();
-      static uint8_t flag = 0;
       auto now = Clock::now();
       auto duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(
         now - start_time);
       if (duration.count() >= kMsgCheckInterval) {
-        flag = 0;
+        obj_check_ = 0;
         start_time = Clock::now();
       }
-      flag |= (1 << index);
-      if (flag == 0xF) {
+      obj_check_.fetch_or(1 << index);
+
+      if (obj_check_.compare_exchange_strong(obj_flag_, 0)) {
         auto duration =
           std::chrono::duration_cast<std::chrono::milliseconds>(
           now - start_log);
@@ -328,7 +350,6 @@ void UWBCarpo::UWB_MsgCallback(EP::DataLabel & label, std::shared_ptr<UWB_Msg> d
           start_log = Clock::now();
         }
         TryPublish();
-        flag = 0;
         start_time = Clock::now();
       }
     };
@@ -448,7 +469,7 @@ bool UWBCarpo::LoadUWBTomlConfig()
   toml::value config_files;
   auto local_share_dir = ament_index_cpp::get_package_share_directory("params");
   auto path = local_share_dir + kConfigFile;
-
+  std::vector<uint8_t> using_ids;
   if (!TomlParse::ParseFile(path.c_str(), params_toml)) {
     ERROR("Params config file is not in toml format");
     return false;
@@ -515,6 +536,17 @@ bool UWBCarpo::LoadUWBTomlConfig()
     ERROR("toml file[%s] get [controller_mac] failed!", path.c_str());
     return false;
   }
+
+  if (!TomlParse::Get(params_toml, "using_ids", using_ids)) {
+    WARN("toml file[%s] get [using_ids] failed,using default!", path.c_str());
+    // front and back
+    using_ids = {0, 3};
+  }
+
+  for (auto & id : using_ids) {
+    obj_flag_ |= (1 << id);
+  }
+  WARN("toml file[%s] set using_ids flag [%x] !", path.c_str(), obj_flag_);
   // uwb cell config
   std::vector<toml::table> uwb_list;
   if (!TomlParse::Get(params_toml, "UWB", uwb_list)) {
@@ -542,7 +574,9 @@ bool UWBCarpo::LoadUWBTomlConfig()
     uwb_config_.uwb_list.push_back(cell_cfg);
   }
   if (uwb_config_.uwb_list.size() != kDefaultUWB_Count) {
-    ERROR("toml file[%s] get [UWB] size:%d not eq 4!", path.c_str(), uwb_config_.uwb_list.size());
+    ERROR(
+      "toml file[%s] get [UWB] size:%d !=  4!",
+      path.c_str(), uwb_config_.uwb_list.size());
     return false;
   }
 
@@ -557,19 +591,16 @@ bool UWBCarpo::LoadUWBTomlConfig()
 }
 
 
-
 bool UWBCarpo::TryPublish()
 {
-  UwbSignleStatusMsg ros_msg_pub;
   double dt;
 
   const auto uwb_front = ros_uwb_status_.data[static_cast<int>(Type::HeadTOF)];
   const auto uwb_back  = ros_uwb_status_.data[static_cast<int>(Type::HeadUWB)];
 
   // get a valid init data to init EFK
-  if(algo_ekf_.initialized == 0) {
-    if(uwb_front.dist > 0.3 && (uwb_front.n_los ==0) && fabs(RadToDeg(uwb_front.angle)) < 30)
-    {
+  if (algo_ekf_.initialized == 0) {
+    if (uwb_front.dist > 0.3 && (uwb_front.n_los == 0) && fabs(RadToDeg(uwb_front.angle)) < 30) {
       INFO("======get valid data threshold=%f", square_deviation_threshold_);
       algo_ekf_.EKF_init(uwb_front.dist, uwb_front.angle, 0.01, 0.5);
       algo_ekf_.initialized = 1;
@@ -578,43 +609,44 @@ bool UWBCarpo::TryPublish()
     return false;
   } else {
     clock_gettime(CLOCK_REALTIME, &time_now_);
-    if(time_now_.tv_nsec < time_pre_.tv_nsec){
-      dt = (time_now_.tv_sec - time_pre_.tv_sec -1) + 
-           (time_now_.tv_nsec - time_pre_.tv_nsec + 1000000000)/1000000000.f;
+    if (time_now_.tv_nsec < time_pre_.tv_nsec) {
+      dt = (time_now_.tv_sec - time_pre_.tv_sec - 1) +
+        (time_now_.tv_nsec - time_pre_.tv_nsec + 1000000000) / 1000000000.f;
     } else {
-      dt = (time_now_.tv_sec - time_pre_.tv_sec) + 
-           (time_now_.tv_nsec - time_pre_.tv_nsec)/1000000000.f;
+      dt = (time_now_.tv_sec - time_pre_.tv_sec) +
+        (time_now_.tv_nsec - time_pre_.tv_nsec) / 1000000000.f;
     }
     time_pre_ = time_now_;
-    algo_ekf_.EKF_pridect(dt);// dt
+    algo_ekf_.EKF_pridect(dt);  // dt
     algo_ekf_.EKF_update(uwb_front.dist, uwb_front.angle, square_deviation_threshold_);
   }
 
-  ros_msg_pub = uwb_front;
+  ros_msg_pub_ = uwb_front;
+  ros_msg_pub_.dist  = algo_ekf_.X[0];
+  ros_msg_pub_.angle = algo_ekf_.X[1];
 
-  if(uwb_front.rssi_1 - uwb_back.rssi_1 > 1.8)
+  if(uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold)
   {
-      ros_msg_pub.header.frame_id = "head_tof";
-      INFO(">>>>>> in front %f %f %f %f %d",uwb_front.rssi_1, uwb_back.rssi_1, uwb_front.dist, uwb_back.dist,uwb_head_rssi_count_);
-      uwb_head_rssi_count_ = 0;
-  } else {
-    if(uwb_head_rssi_count_++ > 6)
+    if(uwb_rear_rssi_count_ ++ > 8)
     {
-      ros_msg_pub.header.frame_id = "none";
-      INFO("<<<<<< out of front %f %f %f %f %d",uwb_front.rssi_1, uwb_back.rssi_1, uwb_front.dist, uwb_back.dist,uwb_head_rssi_count_);
+      ros_msg_pub_.header.frame_id = "head_tof";
+      uwb_head_rssi_count_ = 0;
+    }
+  } else {
+    if(uwb_rear_rssi_count_++ > 8)
+    {
+      uwb_head_rssi_count_ = 0;
+      ros_msg_pub_.header.frame_id = "none";
     }     
   }
 
-  ros_msg_pub.dist  = algo_ekf_.X[0];
-  ros_msg_pub.angle = algo_ekf_.X[1];
-
-  if (ros_msg_pub.header.frame_id != "none") {
-      struct timespec time_stu;
-      clock_gettime(CLOCK_REALTIME, &time_stu);
-      ros_msg_pub.header.stamp.nanosec = time_stu.tv_nsec;
-      ros_msg_pub.header.stamp.sec = time_stu.tv_sec;
-      topic_pub_(ros_msg_pub);
-      return true;
+  if (ros_msg_pub_.header.frame_id != "none") {
+    struct timespec time_stu;
+    clock_gettime(CLOCK_REALTIME, &time_stu);
+    ros_msg_pub_.header.stamp.nanosec = time_stu.tv_nsec;
+    ros_msg_pub_.header.stamp.sec = time_stu.tv_sec;
+    topic_pub_(ros_msg_pub_);
+    return true;
   }
   return false;
 }

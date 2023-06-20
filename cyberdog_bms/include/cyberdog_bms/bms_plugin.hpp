@@ -113,8 +113,12 @@ public:
   {
     // 0x01(正常模式）
     // 0x02(关闭电机)
+    // 0x03(开启无线充电)
+    // 0x04(关闭无线充电)
     kNormalMode,
-    kTurnOffMotor
+    kTurnOffMotor,
+    kTurnOnWirelessCharging,
+    kTurnOffWirelessCharging
   };
   enum class BMS_Code : int32_t
   {
