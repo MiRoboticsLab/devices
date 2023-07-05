@@ -1031,8 +1031,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __autoReconnect(self):
         if self.__bt_central.IsConnected() or\
-                self.__connecting or not self.__enable_self_connection or\
-                self.__self_check_status_code != 0:
+                self.__connecting or not self.__enable_self_connection:
             return
         self.__logger.info('checking reconnection')
         history_info_list = self.__getHistoryConnectionInfo()
