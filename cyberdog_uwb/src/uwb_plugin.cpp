@@ -60,6 +60,8 @@ bool UWBCarpo::Init(
   time_now_.tv_sec = 0;
   time_pre_.tv_sec = 0;
   ros_msg_pub_.header.frame_id = "none";
+  uwb_head_rssi_count_ = 0;
+  uwb_rear_rssi_count_ = 0;
 
   RegisterTopic(function_callback);
 
@@ -330,8 +332,8 @@ void UWBCarpo::UWB_MsgCallback(EP::DataLabel & label, std::shared_ptr<UWB_Msg> d
         start_time = Clock::now();
       }
       obj_check_.fetch_or(1 << index);
-
-      if (obj_check_.compare_exchange_strong(obj_flag_, 0)) {
+      uint16_t obj_flag = obj_flag_;
+      if (obj_check_.compare_exchange_strong(obj_flag, 0)) {
         auto duration =
           std::chrono::duration_cast<std::chrono::milliseconds>(
           now - start_log);
@@ -601,7 +603,11 @@ bool UWBCarpo::TryPublish()
   // get a valid init data to init EFK
   if (algo_ekf_.initialized == 0) {
     if (uwb_front.dist > 0.3 && (uwb_front.n_los == 0) && fabs(RadToDeg(uwb_front.angle)) < 30) {
-      INFO("======get valid data threshold=%f", square_deviation_threshold_);
+      INFO(
+        "======get valid data threshold=%f %f %f",
+        square_deviation_threshold_,
+        algo_ekf_.X[0],
+        algo_ekf_.X[1]);
       algo_ekf_.EKF_init(uwb_front.dist, uwb_front.angle, 0.01, 0.5);
       algo_ekf_.initialized = 1;
       clock_gettime(CLOCK_REALTIME, &time_pre_);
@@ -616,24 +622,41 @@ bool UWBCarpo::TryPublish()
       dt = (time_now_.tv_sec - time_pre_.tv_sec) +
         (time_now_.tv_nsec - time_pre_.tv_nsec) / 1000000000.f;
     }
+    if (dt > 3) {
+      INFO("======Data don't update out of 3s reinit ekf");
+      algo_ekf_.initialized = 0;
+      return true;
+    }
     time_pre_ = time_now_;
-    algo_ekf_.EKF_pridect(dt);  // dt
+    algo_ekf_.EKF_pridect(dt);
     algo_ekf_.EKF_update(uwb_front.dist, uwb_front.angle, square_deviation_threshold_);
   }
 
-  ros_msg_pub_ = uwb_front;
-  ros_msg_pub_.dist = algo_ekf_.X[0];
-  ros_msg_pub_.angle = algo_ekf_.X[1];
+  // realtime bus data
+  ros_msg_pub_.n_los = uwb_front.n_los;
+  ros_msg_pub_.rssi_1 = uwb_front.rssi_1;
+  ros_msg_pub_.rssi_2 = uwb_back.rssi_1;
+  // filter data
+  if ((algo_ekf_.X[0] < 0 || algo_ekf_.X[0] > 50) ||
+    (algo_ekf_.X[1] < -M_PI / 2 || algo_ekf_.X[1] > M_PI / 2))
+  {
+    ros_msg_pub_.dist = uwb_front.dist;
+    ros_msg_pub_.angle = uwb_front.angle;
+    return false;
+  } else {
+    ros_msg_pub_.dist = algo_ekf_.X[0];
+    ros_msg_pub_.angle = algo_ekf_.X[1];
+  }
 
   if (uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold) {
-    if (uwb_rear_rssi_count_++ > 8) {
+    if (uwb_head_rssi_count_++ > 8) {
       ros_msg_pub_.header.frame_id = "head_tof";
-      uwb_head_rssi_count_ = 0;
+      uwb_rear_rssi_count_ = 0;
     }
   } else {
     if (uwb_rear_rssi_count_++ > 8) {
-      uwb_head_rssi_count_ = 0;
       ros_msg_pub_.header.frame_id = "none";
+      uwb_head_rssi_count_ = 0;
     }
   }
 
