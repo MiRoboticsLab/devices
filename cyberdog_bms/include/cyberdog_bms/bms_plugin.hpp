@@ -143,6 +143,7 @@ private:
   bool SendCommand(const Command & command);
   // Generate random number
   int GenerateRandomNumber(int start, int end);
+  bool inited_{false};
 };  //  class BMSCarpo
 }   //  namespace device
 }   //  namespace cyberdog
