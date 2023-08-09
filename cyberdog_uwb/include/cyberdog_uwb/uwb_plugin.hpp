@@ -196,6 +196,7 @@ private:
   }
   uint16_t obj_flag_;
   std::atomic<uint16_t> obj_check_;
+  bool inited_{false};
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device

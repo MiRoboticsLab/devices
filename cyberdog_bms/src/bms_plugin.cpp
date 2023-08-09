@@ -38,6 +38,7 @@ bool BMSCarpo::Config()
 
 bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation)
 {
+  inited_ = false;
   const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kBms;
   code_ = std::make_shared<SYS::CyberdogCode<BMS_Code>>(kModuleCode);
   RegisterTopic(function_callback);
@@ -50,11 +51,18 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
     InitializeBmsProtocol();
   }
   Open();
+  inited_ = true;
   return true;
 }
 
 int32_t BMSCarpo::SelfCheck()
 {
+  if (!inited_) {
+    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kBms;
+    code_ = std::make_shared<SYS::CyberdogCode<BMS_Code>>(kModuleCode);
+    ERROR("[%s] Can not do this,you need do init() at first!", __func__);
+    return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
+  }
   bool check = battery_->GetData()->data_received;
   INFO("Bms SelfCheck %s", (check ? "successed" : "failed"));
   if (check) {

@@ -32,6 +32,10 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   //     pluginlib::ClassLoader<cyberdog::device::CyberDogLed> led_loader(name.first, name.second);
   //     this->
   //   });
+  led_inited_ = false;
+  touch_inited_ = false;
+  bms_inited_ = false;
+  uwb_inited_ = false;
   pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led",
     "cyberdog::device::LedBase");
 
@@ -86,6 +90,10 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Uwb int fail.");
     return false;
   }
+  led_inited_ = true;
+  touch_inited_ = true;
+  bms_inited_ = true;
+  uwb_inited_ = true;
   return true;
 }
 
@@ -120,27 +128,46 @@ void cyberdog::device::DeviceHandler::ExecuteLed(
   const protocol::srv::LedExecute_Request::SharedPtr request,
   protocol::srv::LedExecute_Response::SharedPtr response)
 {
-  led_ptr->Play(request, response);
+  if (!led_inited_) {
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    ERROR("led has not been init.");
+  } else {
+    led_ptr->Play(request, response);
+  }
 }
 
 void cyberdog::device::DeviceHandler::ExecuteBmsControl(
   const protocol::srv::BmsCmd_Request::SharedPtr request,
   protocol::srv::BmsCmd_Response::SharedPtr response)
 {
-  bms_ptr_->ServiceCommand(request, response);
+  if (!bms_inited_) {
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    ERROR("bms has not been init.");
+  } else {
+    bms_ptr_->ServiceCommand(request, response);
+  }
 }
 
 void cyberdog::device::DeviceHandler::ExecuteUwb(
   const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
   protocol::srv::GetUWBMacSessionID_Response::SharedPtr response)
 {
-  uwb_ptr_->Play(request, response);
+  if (!uwb_inited_) {
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    ERROR("uwb has not been init.");
+  } else {
+    uwb_ptr_->Play(request, response);
+  }
 }
 
 void cyberdog::device::DeviceHandler::UwbConnectionSignal(
   const std_msgs::msg::Bool::SharedPtr msg)
 {
-  uwb_ptr_->SetConnectedState(msg->data);
+  if (!uwb_inited_) {
+    ERROR("uwb has not been init.");
+  } else {
+    uwb_ptr_->SetConnectedState(msg->data);
+  }
 }
 
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)

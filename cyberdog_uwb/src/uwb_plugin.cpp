@@ -47,6 +47,7 @@ bool UWBCarpo::Init(
   function_callback, bool simulation)
 {
   simulation_ = simulation;
+  inited_ = false;
   ros_uwb_status_.data.resize(kDefaultUWB_Count);
   obj_flag_ = 0;
   obj_check_ = 0;
@@ -79,16 +80,27 @@ bool UWBCarpo::Init(
     }
   }
   INFO("[UWBCarpo]: %s", "UWBCarpo initialize success.");
+  inited_ = true;
   return true;
 }
 
 int32_t UWBCarpo::SelfCheck()
 {
+  if (!inited_) {
+    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
+    code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
+    ERROR("[%s]Can not do this,you need do init() at first!", __func__);
+    return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
+  }
   return code_->GetKeyCode(SYS::KeyCode::kOK);
 }
 
 bool UWBCarpo::LowPower()
 {
+  if (!inited_) {
+    ERROR("[%s]Can not do this,you need do init() at first!", __func__);
+    return false;
+  }
   return true;
 }
 
@@ -135,6 +147,10 @@ void UWBCarpo::SetConnectedState(bool connected)
 
 bool UWBCarpo::Open()
 {
+  if (!inited_) {
+    ERROR("[%s]Can not do this,you need do init() at first!", __func__);
+    return false;
+  }
   // int32_t return_code = code_->GetKeyCode(SYS::KeyCode::kOK);
   bool status_ok = true;
   if (!simulation_) {
@@ -188,6 +204,10 @@ bool UWBCarpo::Open()
 
 bool UWBCarpo::Close()
 {
+  if (!inited_) {
+    ERROR("[%s]Can not do this,you need do init() at first!", __func__);
+    return false;
+  }
   // int32_t return_code = code_->GetKeyCode(SYS::KeyCode::kOK);
   bool status_ok = true;
   if (!simulation_) {
