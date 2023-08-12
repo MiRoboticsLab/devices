@@ -275,7 +275,9 @@ class BluetoothNode(Node, DefaultDelegate):
                 if current_ble is not None:
                     self.__manually_disconnected_list.append(current_ble[0])
                 self.__uwb_disconnect_accepted = 3
+                self.__poll_mutex.acquire()
                 self.__connectUWB(False)
+                self.__tryToReleaseMutex(self.__poll_mutex)
                 # self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
                 res.result = 0
@@ -298,7 +300,9 @@ class BluetoothNode(Node, DefaultDelegate):
                         return res
                     else:
                         self.__uwb_disconnect_accepted = 3
+                        self.__poll_mutex.acquire()
                         self.__connectUWB(False)
+                        self.__tryToReleaseMutex(self.__poll_mutex)
                         # res.result = self.__waitForUWBResponse(False)
                         self.__disconnectPeripheral()
             self.__bt_central.RemoveUnRecordedDevices(self.__getHistoryConnectionInfo())
@@ -687,6 +691,9 @@ class BluetoothNode(Node, DefaultDelegate):
     def __notificationTimerCB(self):
         notified = 0
         self.__poll_mutex.acquire()
+        if self.__connecting or not self.__bt_central.IsConnected():
+            self.__tryToReleaseMutex(self.__poll_mutex)
+            return
         notified = self.__bt_central.WaitForNotifications(0.5)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if notified == 3:
@@ -700,6 +707,9 @@ class BluetoothNode(Node, DefaultDelegate):
         cmd, payload = self.__uart_ctrl_queue.get()
         self.__queue_mutex.release()
         self.__poll_mutex.acquire()
+        if self.__connecting or not self.__bt_central.IsConnected():
+            self.__tryToReleaseMutex(self.__poll_mutex)
+            return
         result = self.__uartCTL(cmd, payload, True)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if not result:
@@ -1016,7 +1026,9 @@ class BluetoothNode(Node, DefaultDelegate):
             return False
         self.__logger.info('dfu handle: %d' % dfu_handle)
         self.__uwb_disconnect_accepted = 3
+        self.__poll_mutex.acquire()
         result = self.__connectUWB(False)
+        self.__tryToReleaseMutex(self.__poll_mutex)
         self.__logger.info('deactivate uwb')
         # self.__waitForUWBResponse(False)
         self.__logger.info('start to write dfu_characteristic')
