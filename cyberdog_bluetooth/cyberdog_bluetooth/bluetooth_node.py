@@ -1026,9 +1026,7 @@ class BluetoothNode(Node, DefaultDelegate):
             return False
         self.__logger.info('dfu handle: %d' % dfu_handle)
         self.__uwb_disconnect_accepted = 3
-        self.__poll_mutex.acquire()
         result = self.__connectUWB(False)
-        self.__tryToReleaseMutex(self.__poll_mutex)
         self.__logger.info('deactivate uwb')
         # self.__waitForUWBResponse(False)
         self.__logger.info('start to write dfu_characteristic')
