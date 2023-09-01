@@ -61,8 +61,6 @@ bool UWBCarpo::Init(
   time_now_.tv_sec = 0;
   time_pre_.tv_sec = 0;
   ros_msg_pub_.header.frame_id = "none";
-  uwb_head_rssi_count_ = 0;
-  uwb_rear_rssi_count_ = 0;
 
   RegisterTopic(function_callback);
 
@@ -669,15 +667,9 @@ bool UWBCarpo::TryPublish()
   }
 
   if (uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold) {
-    if (uwb_head_rssi_count_++ > 8) {
-      ros_msg_pub_.header.frame_id = "head_tof";
-      uwb_rear_rssi_count_ = 0;
-    }
+    ros_msg_pub_.header.frame_id = "head_tof";
   } else {
-    if (uwb_rear_rssi_count_++ > 8) {
-      ros_msg_pub_.header.frame_id = "none";
-      uwb_head_rssi_count_ = 0;
-    }
+    ros_msg_pub_.header.frame_id = "none";
   }
 
   if (ros_msg_pub_.header.frame_id != "none") {

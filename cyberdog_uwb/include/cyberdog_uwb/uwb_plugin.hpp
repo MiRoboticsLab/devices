@@ -166,8 +166,6 @@ private:
   AlgoEKF algo_ekf_;
   struct timespec time_now_, time_pre_;
   float square_deviation_threshold_;
-  uint32_t uwb_head_rssi_count_;
-  uint32_t uwb_rear_rssi_count_;
   UwbSignleStatusMsg ros_msg_pub_;
 
 private:
