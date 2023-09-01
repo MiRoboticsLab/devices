@@ -69,6 +69,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Led int fail.");
     return false;
   }
+  led_inited_ = true;
   if (!touch_ptr->Init(
       std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1),
       is_simulator("touch")))
@@ -76,6 +77,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Touch int fail.");
     return false;
   }
+  touch_inited_ = true;
   if (!bms_ptr_->Init(
       std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1),
       is_simulator("bms")))
@@ -83,6 +85,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Bms int fail.");
     return false;
   }
+  bms_inited_ = true;
   if (!uwb_ptr_->Init(
       std::bind(&DeviceHandler::PublishUwbMessage, this, std::placeholders::_1),
       is_simulator("uwb")))
@@ -90,9 +93,6 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Uwb int fail.");
     return false;
   }
-  led_inited_ = true;
-  touch_inited_ = true;
-  bms_inited_ = true;
   uwb_inited_ = true;
   return true;
 }
