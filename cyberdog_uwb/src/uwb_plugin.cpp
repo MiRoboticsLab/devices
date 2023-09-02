@@ -51,7 +51,7 @@ bool UWBCarpo::Init(
   ros_uwb_status_.data.resize(kDefaultUWB_Count);
   obj_flag_ = 0;
   obj_check_ = 0;
-  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
+  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kUWB;
   code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
   if (!LoadUWBTomlConfig()) {
     ERROR("Load UWB config failed!");
@@ -85,7 +85,7 @@ bool UWBCarpo::Init(
 int32_t UWBCarpo::SelfCheck()
 {
   if (!inited_) {
-    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
+    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kUWB;
     code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
     ERROR("[%s]Can not do this,you need do init() at first!", __func__);
     return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
