@@ -158,12 +158,12 @@ class CyberdogWifi(Node):
         """connect wifi callback"""
         if request.ssid.find('\'') != -1 or request.ssid.find('\"') != -1:
             self.logger.error('Don\'t use quotation marks in ssid!')
-            response.result == RESULT_NO_SSID
+            response.result = RESULT_NO_SSID
             response.code = response.result + 1320
             return response
         elif request.pwd.find('\'') != -1 or request.pwd.find('\"') != -1:
             self.logger.error('Don\'t use quotation marks in password!')
-            response.result == RESULT_ERR_PWD
+            response.result = RESULT_ERR_PWD
             response.code = response.result + 1320
             return response
         pwd_log = ''
