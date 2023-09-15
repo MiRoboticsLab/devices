@@ -156,6 +156,16 @@ class CyberdogWifi(Node):
 
     def wifi_connect(self, request, response):
         """connect wifi callback"""
+        if request.ssid.find('\'') != -1 or request.ssid.find('\"') != -1:
+            self.logger.error('Don\'t use quotation marks in ssid!')
+            response.result = RESULT_NO_SSID
+            response.code = response.result + 1320
+            return response
+        elif request.pwd.find('\'') != -1 or request.pwd.find('\"') != -1:
+            self.logger.error('Don\'t use quotation marks in password!')
+            response.result = RESULT_ERR_PWD
+            response.code = response.result + 1320
+            return response
         pwd_log = ''
         for i in range(0, len(request.pwd)):
             pwd_log += '*'
@@ -208,7 +218,7 @@ class CyberdogWifi(Node):
                 self.logger.info('successfully connected')
                 self.connected_ssid = request.ssid
             self.logger.info('The response result is %d' % response.result)
-            if response.result == 7:
+            if response.result == RESULT_SUCCESS:
                 response.code = 1300
             else:
                 response.code = response.result + 1320

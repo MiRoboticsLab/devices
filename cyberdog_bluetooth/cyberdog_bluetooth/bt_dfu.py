@@ -148,9 +148,9 @@ class BtDeviceFirmwareUpdate(DefaultDelegate):
         msg = (7, 0.1, info)
         self.__progress_publisher(msg)
         if not self.__transferFirmwareImage():
-            info = 'failed to transfer init package'
+            info = 'failed to transfer firmware image'
             self.__logger.error(info)
-            msg = (8, 0.05, info)
+            msg = (8, 0.1, info)
             self.__progress_publisher(msg)
             return False
         return True

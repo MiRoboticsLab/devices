@@ -51,7 +51,7 @@ bool UWBCarpo::Init(
   ros_uwb_status_.data.resize(kDefaultUWB_Count);
   obj_flag_ = 0;
   obj_check_ = 0;
-  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
+  const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kUWB;
   code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
   if (!LoadUWBTomlConfig()) {
     ERROR("Load UWB config failed!");
@@ -61,8 +61,6 @@ bool UWBCarpo::Init(
   time_now_.tv_sec = 0;
   time_pre_.tv_sec = 0;
   ros_msg_pub_.header.frame_id = "none";
-  uwb_head_rssi_count_ = 0;
-  uwb_rear_rssi_count_ = 0;
 
   RegisterTopic(function_callback);
 
@@ -87,7 +85,7 @@ bool UWBCarpo::Init(
 int32_t UWBCarpo::SelfCheck()
 {
   if (!inited_) {
-    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kMiniLED;
+    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kUWB;
     code_ = std::make_shared<SYS::CyberdogCode<UWB_Code>>(kModuleCode);
     ERROR("[%s]Can not do this,you need do init() at first!", __func__);
     return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
@@ -669,15 +667,9 @@ bool UWBCarpo::TryPublish()
   }
 
   if (uwb_front.rssi_1 - uwb_back.rssi_1 > uwb_config_.front_back_threshold) {
-    if (uwb_head_rssi_count_++ > 8) {
-      ros_msg_pub_.header.frame_id = "head_tof";
-      uwb_rear_rssi_count_ = 0;
-    }
+    ros_msg_pub_.header.frame_id = "head_tof";
   } else {
-    if (uwb_rear_rssi_count_++ > 8) {
-      ros_msg_pub_.header.frame_id = "none";
-      uwb_head_rssi_count_ = 0;
-    }
+    ros_msg_pub_.header.frame_id = "none";
   }
 
   if (ros_msg_pub_.header.frame_id != "none") {
