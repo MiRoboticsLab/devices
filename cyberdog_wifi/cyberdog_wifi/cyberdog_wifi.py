@@ -119,7 +119,7 @@ class CyberdogWifi(Node):
 
     def get_wifi_rssi(self):
         """get signal strength"""
-        res = subprocess.Popen('nmcli device wifi | grep "*"',
+        res = subprocess.Popen('nmcli device wifi | grep ^[*]',
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
