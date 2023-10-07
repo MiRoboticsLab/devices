@@ -66,6 +66,7 @@ private:
   std::shared_ptr<TouchSensorHandler> touch_handler_;
   std::thread touch_thread_;
   bool simulation_ {false};
+  bool inited_{false};
 };  //  class TouchCarpo
 
 }  //  namespace device

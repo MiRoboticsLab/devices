@@ -27,6 +27,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "device_manager/device_config.hpp"
 #include "cyberdog_common/cyberdog_log.hpp"
+#include "device_manager/self_check.hpp"
 
 namespace cyberdog
 {
@@ -73,10 +74,15 @@ private:
   std::shared_ptr<TouchBase> touch_ptr {nullptr};
   std::shared_ptr<BMSBase> bms_ptr_ {nullptr};
   std::shared_ptr<UWBBase> uwb_ptr_ {nullptr};
+  std::unique_ptr<DeviceSelfCheck> device_self_check_ptr_ {nullptr};
 
   rclcpp::Publisher<protocol::msg::TouchStatus>::SharedPtr touch_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::BmsStatus>::SharedPtr bms_pub_ {nullptr};
   rclcpp::Publisher<protocol::msg::UwbRaw>::SharedPtr uwb_pub_ {nullptr};
+  bool led_inited_ {false};
+  bool touch_inited_ {false};
+  bool bms_inited_ {false};
+  bool uwb_inited_ {false};
 };  // class DeviceHandler
 
 }  // namespace device

@@ -31,6 +31,7 @@
 #include <utility>
 #include <tuple>
 #include <map>
+#include <atomic>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "protocol/msg/uwb_raw.hpp"
@@ -42,6 +43,9 @@
 #include "cyberdog_system/robot_code.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "embed_protocol/embed_protocol.hpp"
+
+#include "cyberdog_uwb/AlgoEKF.h"
+
 namespace cyberdog
 {
 namespace device
@@ -159,13 +163,10 @@ private:
   std::atomic<uint8_t> data_flag_;
   std::thread simulator_thread_;
 
-  UwbSignleStatusMsg ros_msg_now_;
-  UwbSignleStatusMsg ros_msg_pre_;
-  uint8_t uwb_rssi_flag_[4];
-  float uwb_angle_;
-  float uwb_angle_pre_;
-  float uwb_angle_now_;
-  uint32_t uwb_data_valid_count_;
+  AlgoEKF algo_ekf_;
+  struct timespec time_now_, time_pre_;
+  float square_deviation_threshold_;
+  UwbSignleStatusMsg ros_msg_pub_;
 
 private:
   bool LoadUWBTomlConfig();
@@ -176,8 +177,6 @@ private:
   bool IsSingleStarted(const std::string & name);
   bool IsSingleClosed(const std::string & name);
   bool CheckClosed(int times, const std::string & name);
-  bool CoordinateConvert(const UwbSignleStatusMsg & msg_data);
-  bool CoordinateReConvert(UwbSignleStatusMsg & msg_data);
   // Dimulation Data for debug
   void SimulationThread();
   // Generate random number
@@ -193,6 +192,9 @@ private:
   {
     return data * 1.0 / 256;
   }
+  uint16_t obj_flag_;
+  std::atomic<uint16_t> obj_check_;
+  bool inited_{false};
   LOGGER_MINOR_INSTANCE("UWBCarpo");
 };  //  class UWBCarpo
 }   //  namespace device

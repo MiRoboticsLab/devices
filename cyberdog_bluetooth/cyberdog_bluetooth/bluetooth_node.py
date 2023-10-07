@@ -275,7 +275,9 @@ class BluetoothNode(Node, DefaultDelegate):
                 if current_ble is not None:
                     self.__manually_disconnected_list.append(current_ble[0])
                 self.__uwb_disconnect_accepted = 3
+                self.__poll_mutex.acquire()
                 self.__connectUWB(False)
+                self.__tryToReleaseMutex(self.__poll_mutex)
                 # self.__waitForUWBResponse(False)
                 self.__disconnectPeripheral()
                 res.result = 0
@@ -298,7 +300,9 @@ class BluetoothNode(Node, DefaultDelegate):
                         return res
                     else:
                         self.__uwb_disconnect_accepted = 3
+                        self.__poll_mutex.acquire()
                         self.__connectUWB(False)
+                        self.__tryToReleaseMutex(self.__poll_mutex)
                         # res.result = self.__waitForUWBResponse(False)
                         self.__disconnectPeripheral()
             self.__bt_central.RemoveUnRecordedDevices(self.__getHistoryConnectionInfo())
@@ -626,11 +630,16 @@ class BluetoothNode(Node, DefaultDelegate):
                 self.__uwb_tracking.StartTracking()
                 self.__is_tracking = True
         elif data[7] == 0x05:  # tread switching
-            self.__tread_index = (self.__tread_index + 1) % 3
-            tread_msg = Int8()
-            tread_msg.data = self.__tread_index
-            self.__tread_pub.publish(tread_msg)
-            self.__logger.info('updated tread from bluetooth: %d' % self.__tread_index)
+            task_status = self.__uwb_tracking.IsTrackingTaskActivated()
+            if task_status == 11:
+                self.__logger.info('change keep distance')
+                self.__uwb_tracking.PubKeepDistance()
+            else:
+                self.__tread_index = (self.__tread_index + 1) % 3
+                tread_msg = Int8()
+                tread_msg.data = self.__tread_index
+                self.__tread_pub.publish(tread_msg)
+                self.__logger.info('updated tread from bluetooth: %d' % self.__tread_index)
         elif data[7] == 0x06:
             self.__logger.info('uwb connection status: %d' % data[9])
         self.__tryToReleaseMutex(self.__uart_data_mutex)
@@ -682,6 +691,9 @@ class BluetoothNode(Node, DefaultDelegate):
     def __notificationTimerCB(self):
         notified = 0
         self.__poll_mutex.acquire()
+        if self.__connecting or not self.__bt_central.IsConnected():
+            self.__tryToReleaseMutex(self.__poll_mutex)
+            return
         notified = self.__bt_central.WaitForNotifications(0.5)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if notified == 3:
@@ -695,6 +707,9 @@ class BluetoothNode(Node, DefaultDelegate):
         cmd, payload = self.__uart_ctrl_queue.get()
         self.__queue_mutex.release()
         self.__poll_mutex.acquire()
+        if self.__connecting or not self.__bt_central.IsConnected():
+            self.__tryToReleaseMutex(self.__poll_mutex)
+            return
         result = self.__uartCTL(cmd, payload, True)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if not result:
@@ -1026,8 +1041,7 @@ class BluetoothNode(Node, DefaultDelegate):
 
     def __autoReconnect(self):
         if self.__bt_central.IsConnected() or\
-                self.__connecting or not self.__enable_self_connection or\
-                self.__self_check_status_code != 0:
+                self.__connecting or not self.__enable_self_connection:
             return
         self.__logger.info('checking reconnection')
         history_info_list = self.__getHistoryConnectionInfo()

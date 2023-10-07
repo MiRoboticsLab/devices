@@ -119,7 +119,7 @@ class CyberdogWifi(Node):
 
     def get_wifi_rssi(self):
         """get signal strength"""
-        res = subprocess.Popen('nmcli device wifi | grep "*"',
+        res = subprocess.Popen('nmcli device wifi | grep ^[*]',
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
@@ -156,6 +156,16 @@ class CyberdogWifi(Node):
 
     def wifi_connect(self, request, response):
         """connect wifi callback"""
+        if request.ssid.find('\'') != -1 or request.ssid.find('\"') != -1:
+            self.logger.error('Don\'t use quotation marks in ssid!')
+            response.result = RESULT_NO_SSID
+            response.code = response.result + 1320
+            return response
+        elif request.pwd.find('\'') != -1 or request.pwd.find('\"') != -1:
+            self.logger.error('Don\'t use quotation marks in password!')
+            response.result = RESULT_ERR_PWD
+            response.code = response.result + 1320
+            return response
         pwd_log = ''
         for i in range(0, len(request.pwd)):
             pwd_log += '*'
@@ -175,7 +185,7 @@ class CyberdogWifi(Node):
                 sleep(1.0)
                 self.logger.info(
                     'Try to connect %s trial times: %d' % (request.ssid, trial_times))
-                timeout = 28 - trial_times
+                timeout = 15 - trial_times
                 connect_res = self.nmcliConnectWifi(request.ssid, request.pwd, timeout, hidden)
                 self.logger.info(connect_res)
                 response.result = return_connect_status(connect_res)
@@ -208,7 +218,7 @@ class CyberdogWifi(Node):
                 self.logger.info('successfully connected')
                 self.connected_ssid = request.ssid
             self.logger.info('The response result is %d' % response.result)
-            if response.result == 7:
+            if response.result == RESULT_SUCCESS:
                 response.code = 1300
             else:
                 response.code = response.result + 1320
@@ -229,7 +239,10 @@ class CyberdogWifi(Node):
             if msg.strength > 100: #exception
                 return
             msg.ssid = self.connected_ssid
-            msg.is_connected = True
+            if self.connected_ssid != '':
+                msg.is_connected = True
+            else:
+                msg.is_connected = False
         else:
             msg.is_connected = False
             msg.ssid = self.connected_ssid = ''

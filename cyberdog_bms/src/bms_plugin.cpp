@@ -38,6 +38,7 @@ bool BMSCarpo::Config()
 
 bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool simulation)
 {
+  inited_ = false;
   const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kBms;
   code_ = std::make_shared<SYS::CyberdogCode<BMS_Code>>(kModuleCode);
   RegisterTopic(function_callback);
@@ -50,11 +51,18 @@ bool BMSCarpo::Init(std::function<void(BmsStatusMsg)> function_callback, bool si
     InitializeBmsProtocol();
   }
   Open();
+  inited_ = true;
   return true;
 }
 
 int32_t BMSCarpo::SelfCheck()
 {
+  if (!inited_) {
+    const SYS::ModuleCode kModuleCode = SYS::ModuleCode::kBms;
+    code_ = std::make_shared<SYS::CyberdogCode<BMS_Code>>(kModuleCode);
+    ERROR("[%s] Can not do this,you need do init() at first!", __func__);
+    return code_->GetKeyCode(SYS::KeyCode::kSelfCheckFailed);
+  }
   bool check = battery_->GetData()->data_received;
   INFO("Bms SelfCheck %s", (check ? "successed" : "failed"));
   if (check) {
@@ -170,6 +178,14 @@ void BMSCarpo::ServiceCommand(
     request->BATTERY_COMMAND_ELECTRIC_MACHINE_POWER_DOWN)  // NOLINT
   { // NOLINT
     SendCommand(Command::kTurnOffMotor);
+  } else if (request->wireless_charging_command ==  // NOLINT
+    request->BATTERY_COMMAND_WIRELESS_CHARGING_TRUN_ON)  // NOLINT
+  { // NOLINT
+    SendCommand(Command::kTurnOnWirelessCharging);
+  } else if (request->wireless_charging_command ==  // NOLINT
+    request->BATTERY_COMMAND_WIRELESS_CHARGING_TRUN_OFF)  // NOLINT
+  { // NOLINT
+    SendCommand(Command::kTurnOffWirelessCharging);
   }
   response->success = true;
 }
@@ -290,6 +306,18 @@ bool BMSCarpo::SendCommand(const Command & command)
     case Command::kTurnOffMotor:
       INFO("[BmsProcessor]: %s", "command type = Command::kTurnOffMotor");
       success = battery_->Operate("cmd_turn_off_motor", std::vector<uint8_t>{0x00});
+      break;
+
+    // 0x03(打开无线充电）
+    case Command::kTurnOnWirelessCharging:
+      INFO("[BmsProcessor]: %s", "command type = Command::kTurnOnWirelessCharging");
+      success = battery_->Operate("cmd_turn_on_wireless_charging", std::vector<uint8_t>{0x00});
+      break;
+
+    // 0x04(关闭无线充电）
+    case Command::kTurnOffWirelessCharging:
+      INFO("[BmsProcessor]: %s", "command type = Command::kTurnOffWirelessCharging");
+      success = battery_->Operate("cmd_turn_off_wireless_charging", std::vector<uint8_t>{0x00});
       break;
     default:
       break;

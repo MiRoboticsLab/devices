@@ -13,6 +13,7 @@
 // limitations under the License.
 #include <string>
 #include <vector>
+#include <memory>
 #include "pluginlib/class_loader.hpp"
 #include "device_manager/device_handler.hpp"
 #include "cyberdog_touch/touch_plugin.hpp"
@@ -32,6 +33,10 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
   //     pluginlib::ClassLoader<cyberdog::device::CyberDogLed> led_loader(name.first, name.second);
   //     this->
   //   });
+  led_inited_ = false;
+  touch_inited_ = false;
+  bms_inited_ = false;
+  uwb_inited_ = false;
   pluginlib::ClassLoader<cyberdog::device::LedBase> led_loader("cyberdog_led",
     "cyberdog::device::LedBase");
 
@@ -55,6 +60,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
 
   node_ptr->declare_parameter("simulator", std::vector<std::string>{});
   node_ptr->get_parameter("simulator", this->simulator_);
+  device_self_check_ptr_ = std::make_unique<DeviceSelfCheck>();
   auto is_simulator = [this](std::string sensor_name) -> bool {
       return static_cast<bool>(std::find(
                this->simulator_.begin(), this->simulator_.end(),
@@ -65,6 +71,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Led int fail.");
     return false;
   }
+  led_inited_ = true;
   if (!touch_ptr->Init(
       std::bind(&DeviceHandler::PublishTouch, this, std::placeholders::_1),
       is_simulator("touch")))
@@ -72,6 +79,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Touch int fail.");
     return false;
   }
+  touch_inited_ = true;
   if (!bms_ptr_->Init(
       std::bind(&DeviceHandler::PublishBmsMessage, this, std::placeholders::_1),
       is_simulator("bms")))
@@ -79,6 +87,7 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Bms int fail.");
     return false;
   }
+  bms_inited_ = true;
   if (!uwb_ptr_->Init(
       std::bind(&DeviceHandler::PublishUwbMessage, this, std::placeholders::_1),
       is_simulator("uwb")))
@@ -86,61 +95,114 @@ bool cyberdog::device::DeviceHandler::Init(rclcpp::Node::SharedPtr node_ptr)
     ERROR("Uwb int fail.");
     return false;
   }
+  uwb_inited_ = true;
   return true;
 }
 
 int32_t cyberdog::device::DeviceHandler::SelfCheck()
 {
-  int32_t err_code;
+  int32_t error_code = 0;
+  int32_t return_code = 0;
+
   INFO("DeviceManager SelfCheck begin");
-  err_code = led_ptr->SelfCheck();
-  if (!IS_OK(err_code)) {
-    ERROR("Led selfcheck fail.");
-    return err_code;
+  if (!device_self_check_ptr_->IsJump("bms")) {
+    return_code = this->bms_ptr_->SelfCheck();  // 1 1409
+    if (!IS_OK(return_code)) {
+      ERROR("Bms selfcheck fail.");
+      if (device_self_check_ptr_->IsCritical("bms")) {
+        return return_code;
+      }
+      error_code += return_code;
+    } else {
+      INFO("Bms selfcheck success.");
+    }
   }
-  err_code = touch_ptr->SelfCheck();
-  if (!IS_OK(err_code)) {
-    ERROR("Touch selfcheck fail.");
-    return err_code;
+
+  if (!device_self_check_ptr_->IsJump("touch")) {
+    return_code = this->touch_ptr->SelfCheck();  // 1 1509
+    if (!IS_OK(return_code)) {
+      ERROR("Touch selfcheck fail.");
+      if (device_self_check_ptr_->IsCritical("touch")) {
+        return return_code;
+      }
+      error_code += return_code;
+    } else {
+      INFO("Touch selfcheck success.");
+    }
   }
-  err_code = bms_ptr_->SelfCheck();
-  if (!IS_OK(err_code)) {
-    ERROR("Bms selfcheck fail.");
-    return err_code;
+
+  if (!device_self_check_ptr_->IsJump("led")) {
+    return_code = this->led_ptr->SelfCheck();  // 1 1109
+    if (!IS_OK(return_code)) {
+      ERROR("Led selfcheck fail.");
+      if (device_self_check_ptr_->IsCritical("led")) {
+        return return_code;
+      }
+      error_code += return_code;
+    } else {
+      INFO("Led selfcheck success.");
+    }
   }
-  err_code = uwb_ptr_->SelfCheck();
-  if (!IS_OK(err_code)) {
-    ERROR("Uwb selfcheck fail.");
-    return err_code;
+
+  if (!device_self_check_ptr_->IsJump("uwb")) {
+    return_code = this->uwb_ptr_->SelfCheck();  // 1 1609
+    if (!IS_OK(return_code)) {
+      ERROR("UWB selfcheck fail.");
+      if (device_self_check_ptr_->IsCritical("uwb")) {
+        return return_code;
+      }
+      error_code += return_code;
+    } else {
+      INFO("UWB selfcheck success.");
+    }
   }
-  return 0;
+  return error_code;
 }
 
 void cyberdog::device::DeviceHandler::ExecuteLed(
   const protocol::srv::LedExecute_Request::SharedPtr request,
   protocol::srv::LedExecute_Response::SharedPtr response)
 {
-  led_ptr->Play(request, response);
+  if (!led_inited_) {
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    ERROR("led has not been init.");
+  } else {
+    led_ptr->Play(request, response);
+  }
 }
 
 void cyberdog::device::DeviceHandler::ExecuteBmsControl(
   const protocol::srv::BmsCmd_Request::SharedPtr request,
   protocol::srv::BmsCmd_Response::SharedPtr response)
 {
-  bms_ptr_->ServiceCommand(request, response);
+  if (!bms_inited_) {
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    ERROR("bms has not been init.");
+  } else {
+    bms_ptr_->ServiceCommand(request, response);
+  }
 }
 
 void cyberdog::device::DeviceHandler::ExecuteUwb(
   const protocol::srv::GetUWBMacSessionID_Request::SharedPtr request,
   protocol::srv::GetUWBMacSessionID_Response::SharedPtr response)
 {
-  uwb_ptr_->Play(request, response);
+  if (!uwb_inited_) {
+    response->code = (int32_t)system::KeyCode::kStateInvalid;
+    ERROR("uwb has not been init.");
+  } else {
+    uwb_ptr_->Play(request, response);
+  }
 }
 
 void cyberdog::device::DeviceHandler::UwbConnectionSignal(
   const std_msgs::msg::Bool::SharedPtr msg)
 {
-  uwb_ptr_->SetConnectedState(msg->data);
+  if (!uwb_inited_) {
+    ERROR("uwb has not been init.");
+  } else {
+    uwb_ptr_->SetConnectedState(msg->data);
+  }
 }
 
 void cyberdog::device::DeviceHandler::PublishTouch(protocol::msg::TouchStatus msg)
