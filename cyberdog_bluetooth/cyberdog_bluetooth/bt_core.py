@@ -469,7 +469,8 @@ class BluetoothCore:
         i = 0
         while i < device_num:
             found_i = str_list[i].find('Device ')
-            if found_i == -1:
+            cyberdog_i = str_list[i].find('CyberdogRemote')
+            if found_i == -1 or cyberdog_i == -1:
                 i += 1
                 continue
             mac = str_list[i][found_i + 7: found_i + 24]
