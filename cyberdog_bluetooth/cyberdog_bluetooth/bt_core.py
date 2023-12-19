@@ -129,6 +129,9 @@ class BluetoothCore:
         except AttributeError as e:
             self.__logger.error(
                 'AttributeError: %s Exeption while disconnecting!' % e)
+        except BrokenPipeError as e:
+            self.__logger.error(
+                'BrokenPipeError: %s Exeption while disconnecting!' % e)
         finally:
             self.__connected = False
             self.__peripheral_name = ''
@@ -372,7 +375,8 @@ class BluetoothCore:
         return characteristic_handle
 
     def Unpair(self, addr: str):
-        if self.__connected and addr == self.__peripheral.addr:
+        if self.__connected and\
+                (addr == self.__peripheral.addr or addr.lower() == self.__peripheral.addr):
             try:
                 self.__peripheral.unpair()
             except BTLEManagementError as e:
@@ -449,26 +453,28 @@ class BluetoothCore:
         tmp = str(output.stdout.read(), encoding='utf-8')
         return tmp
 
-    def RemoveUnRecordedDevices(self, devices):
-        if devices is None or len(devices) == 0:
-            return
+    def RemoveUnrecordedDevices(self, devices):
         mac_list = []
-        for info in devices:
-            mac_list.append(info['mac'].upper())
+        if devices is not None and len(devices) != 0:
+            for info in devices:
+                mac_list.append(info['mac'].upper())
+                self.__logger.info('%s is in history list' % mac_list[-1])
         raw_result = self.__runCommand('echo list | bluetoothctl | grep Device')
         str_list = raw_result.split('\n')
         device_num = len(str_list)
         if device_num < 2:
-            self.__logger.error('No bluetooth devices founded in system')
+            self.__logger.warning('No bluetooth devices found in system')
             return
         device_num -= 1
         i = 0
         while i < device_num:
             found_i = str_list[i].find('Device ')
-            if found_i == -1:
+            cyberdog_i = str_list[i].find('CyberdogRemote')
+            if found_i == -1 or cyberdog_i == -1:
                 i += 1
                 continue
             mac = str_list[i][found_i + 7: found_i + 24]
+            self.__logger.info('%s is a paired device' % mac)
             if mac not in mac_list:
                 self.__logger.warning(
                     '%s is not recorded in known file, remove it from system' % mac)

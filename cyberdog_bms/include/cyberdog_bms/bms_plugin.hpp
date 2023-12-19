@@ -73,7 +73,29 @@ public:
         uint8_t wireless_charging_temp;
         uint16_t batt_loop_number;
         uint8_t batt_health;
-        uint16_t batt_st;
+        // uint16_t batt_st;
+        union {
+          uint16_t batt_st;
+          struct
+          {
+            uint16_t charge_over_current : 1;
+            uint16_t discharge_over_current : 1;
+            uint16_t cell_over_voltage : 1;
+            uint16_t cell_under_voltage : 1;
+            uint16_t cell_volt_abnormal : 1;
+            uint16_t mos_over_temp : 1;
+            uint16_t discharge_short : 1;
+            uint16_t fuse : 1;
+            uint16_t discharge_over_tmp : 1;
+            uint16_t discharge_under_tmp : 1;
+            uint16_t charge_over_temp : 1;
+            uint16_t charge_under_temp : 1;
+            uint16_t charge_mos_state : 1;
+            uint16_t discharge_mos_state : 1;
+            uint16_t chg_mos_fault : 1;
+            uint16_t dsg_mos_fault : 1;
+          };
+        };
         union {
           uint8_t bms_state1;
           struct

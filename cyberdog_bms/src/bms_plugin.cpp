@@ -216,6 +216,24 @@ void BMSCarpo::BatteryMsgCall(EP::DataLabel & label, std::shared_ptr<BatteryMsg>
       message.batt_loop_number = data->batt_loop_number;
       message.batt_health = data->batt_health;
       message.batt_st = data->batt_st;
+
+      message.charge_over_current = data->charge_over_current;
+      message.discharge_over_current = data->discharge_over_current;
+      message.cell_over_voltage = data->cell_over_voltage;
+      message.cell_under_voltage = data->cell_under_voltage;
+      message.cell_volt_abnormal = data->cell_volt_abnormal;
+      message.mos_over_temp = data->mos_over_temp;
+      message.discharge_short = data->discharge_short;
+      message.fuse = data->fuse;
+      message.discharge_over_tmp = data->discharge_over_tmp;
+      message.discharge_under_tmp = data->discharge_under_tmp;
+      message.charge_over_temp = data->charge_over_temp;
+      message.charge_under_temp = data->charge_under_temp;
+      message.charge_mos_state = data->charge_mos_state;
+      message.discharge_mos_state = data->discharge_mos_state;
+      message.chg_mos_fault = data->chg_mos_fault;
+      message.dsg_mos_fault = data->dsg_mos_fault;
+
       message.bms_state_one = data->bms_state1;
       message.power_normal = data->power_normal;
       message.power_wired_charging = data->power_wired_charging;
