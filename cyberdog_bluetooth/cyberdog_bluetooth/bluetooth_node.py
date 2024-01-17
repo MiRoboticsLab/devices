@@ -179,6 +179,7 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__self_check_status_code = -1
         self.__notification_thread.start()
         self.__joy_polling_thread.start()
+        self.__bt_central.RemoveUnrecordedDevices(self.__getHistoryConnectionInfo())
 
     def __del__(self):
         self.__notification_thread.join()
@@ -305,7 +306,7 @@ class BluetoothNode(Node, DefaultDelegate):
                         self.__tryToReleaseMutex(self.__poll_mutex)
                         # res.result = self.__waitForUWBResponse(False)
                         self.__disconnectPeripheral()
-            self.__bt_central.RemoveUnRecordedDevices(self.__getHistoryConnectionInfo())
+            self.__bt_central.RemoveUnrecordedDevices(self.__getHistoryConnectionInfo())
             self.__connect_timeout_timer.reset()
             if self.__bt_central.ConnectToBLE(
                     req.selected_device.mac,
@@ -694,7 +695,7 @@ class BluetoothNode(Node, DefaultDelegate):
         if self.__connecting or not self.__bt_central.IsConnected():
             self.__tryToReleaseMutex(self.__poll_mutex)
             return
-        notified = self.__bt_central.WaitForNotifications(0.5)
+        notified = self.__bt_central.WaitForNotifications(0.25)
         self.__tryToReleaseMutex(self.__poll_mutex)
         if notified == 3:
             self.__disconnectUnexpectedly()
@@ -917,7 +918,7 @@ class BluetoothNode(Node, DefaultDelegate):
         i = 0
         found = False
         for dev_info in history_info_list:
-            if dev_info['mac'] == mac:
+            if dev_info['mac'] == mac or dev_info['mac'] == mac.lower():
                 found = True
                 break
             i += 1
@@ -932,8 +933,10 @@ class BluetoothNode(Node, DefaultDelegate):
         return False
 
     def __deleteHistoryCB(self, req, res):
-        res.result = self.__deleteHistory(req.map_url)
-        self.__unpair(req.map_url)
+        res.result = False
+        if not self.__connecting and not self.__dfu_processing:
+            res.result = self.__deleteHistory(req.map_url)
+            self.__unpair(req.map_url)
         return res
 
     def __tryToReleaseMutex(self, mutex):
@@ -1015,7 +1018,7 @@ class BluetoothNode(Node, DefaultDelegate):
             sleep(0.05)
 
     def __activateDFU(self):
-        if not self.__poll_mutex.acquire(blocking=True, timeout=0.75):
+        if not self.__poll_mutex.acquire(blocking=True, timeout=1.0):
             self.__logger.warning('Unable to acquire __poll_mutex')
             return False
         dfu_handle = self.__bt_central.SetNotificationByUUID(  # indicate
@@ -1242,11 +1245,10 @@ class BluetoothNode(Node, DefaultDelegate):
         self.__task_status = msg.task_status
 
     def __unpair(self, mac: str):
-        if not self.__connecting and not self.__dfu_processing:
-            if not self.__bt_central.Unpair(mac):
-                self.__disconnectPeripheral()
-                self.__logger.info('Unpaired current device')
-            self.__logger.info('Unpaired device %s' % mac)
+        if not self.__bt_central.Unpair(mac):
+            self.__disconnectPeripheral()
+            self.__logger.info('Unpaired current device')
+        self.__logger.info('Unpaired device %s' % mac)
 
     def __intervalTimerCB(self):
         self.__logger.info('Intermission is off')
